@@ -1,0 +1,60 @@
+{
+    "name": "file-synchronizer",
+    "version": "1.0.0",
+    "description": "An Electron application with React",
+    "homepage": "https://electron-vite.org",
+    "license": "ISC",
+    "author": "example.com",
+    "type": "module",
+    "main": "./out/main/index.js",
+    "scripts": {
+        "format": "prettier --write .",
+        "lint": "eslint --cache .",
+        "start": "electron-vite preview",
+        "dev": "electron-vite dev",
+        "build": "electron-vite build",
+        "postinstall": "electron-builder install-app-deps",
+        "build:unpack": "npm run build && electron-builder --dir",
+        "build:win": "npm run build && electron-builder --win",
+        "build:mac": "npm run build && electron-builder --mac",
+        "build:linux": "npm run build && electron-builder --linux",
+        "prepare": "husky"
+    },
+    "dependencies": {
+        "@electron-toolkit/preload": "^3.0.1",
+        "@electron-toolkit/utils": "^4.0.0",
+        "@fontsource-variable/roboto": "^5.2.6",
+        "@tailwindcss/vite": "^4.1.8",
+        "electron-updater": "^6.3.9",
+        "framer-motion": "^12.16.0",
+        "lodash": "^4.17.21",
+        "react-hook-form": "^7.57.0",
+        "react-router-dom": "^7.6.2",
+        "tailwindcss": "^4.1.8"
+    },
+    "devDependencies": {
+        "@electron-toolkit/eslint-config": "^2.0.0",
+        "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+        "@vitejs/plugin-react": "^4.3.4",
+        "electron": "^35.1.5",
+        "electron-builder": "^25.1.8",
+        "electron-vite": "^3.1.0",
+        "eslint": "^9.24.0",
+        "eslint-config-prettier": "^10.1.5",
+        "eslint-plugin-prettier": "^5.4.1",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "eslint-plugin-react-refresh": "^0.4.19",
+        "husky": "^9.1.7",
+        "lint-staged": "^16.1.0",
+        "prettier": "^3.5.3",
+        "prettier-plugin-tailwindcss": "^0.6.12",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "vite": "^6.2.6"
+    },
+    "lint-staged": {
+        "**/*.{js,ts,jsx,tsx}": "eslint --fix",
+        "**/*.{json,js,ts,jsx,tsx,md,css,scss,html,mjs}": "prettier --write"
+    }
+}
