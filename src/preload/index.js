@@ -1,20 +1,17 @@
-import { contextBridge } from "electron";
-import { electronAPI } from "@electron-toolkit/preload";
+import { contextBridge, ipcRenderer } from "electron";
 
-// Custom APIs for renderer
-const api = {};
+contextBridge.exposeInMainWorld("api", {
+    signIn: () => ipcRenderer.invoke("google-drive:sign-in"),
+    getTokens: () => ipcRenderer.invoke("google-drive:get-tokens"),
+    getGDUserName: () => ipcRenderer.invoke("google-drive:get-username"),
+    selectCentralFolder: () => ipcRenderer.invoke("app:select-central-folder"),
+    getCentralFolderConfig: () => ipcRenderer.invoke("app:get-central-folder"),
+    saveCentralFolderConfig: (path) =>
+        ipcRenderer.invoke("app:save-central-folder", path),
+});
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
-    try {
-        contextBridge.exposeInMainWorld("electron", electronAPI);
-        contextBridge.exposeInMainWorld("api", api);
-    } catch (error) {
-        console.error(error);
-    }
-} else {
-    window.electron = electronAPI;
-    window.api = api;
-}
+contextBridge.exposeInMainWorld("versions", {
+    node: () => process.versions.node,
+    chrome: () => process.versions.chrome,
+    electron: () => process.versions.electron,
+});

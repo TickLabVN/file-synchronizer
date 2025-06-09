@@ -1,75 +1,198 @@
-import { app, shell, BrowserWindow, ipcMain } from "electron";
-import { join } from "path";
-import { electronApp, optimizer, is } from "@electron-toolkit/utils";
+import { app, BrowserWindow, ipcMain, session, dialog } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
 import icon from "../../resources/icon.png?asset";
+import { google } from "googleapis";
+import "dotenv/config";
+import Store from "electron-store";
+import { is } from "@electron-toolkit/utils";
+import fs from "fs";
 
-function createWindow() {
-    // Create the browser window.
-    const mainWindow = new BrowserWindow({
-        width: 900,
-        height: 670,
-        show: false,
-        autoHideMenuBar: true,
-        icon,
-        // ...(process.platform === "linux" ? { icon } : {}),
-        webPreferences: {
-            preload: join(__dirname, "../preload/index.js"),
-            sandbox: false,
-        },
+const fileURL = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(fileURL);
+
+// Ensure the environment variables are set
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const REDIRECT_URI = "http://localhost";
+const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
+
+// Initialize the OAuth2 client with the credentials
+const oauth2Client = new google.auth.OAuth2(
+    CLIENT_ID,
+    CLIENT_SECRET,
+    REDIRECT_URI
+);
+
+// Create an instance of electron-store to manage settings
+const store = new Store();
+
+// Handle the request to sign in to Google Drive
+ipcMain.handle("google-drive:sign-in", async () => {
+    const authUrl = oauth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: SCOPES,
+        prompt: "consent",
     });
 
-    mainWindow.on("ready-to-show", () => {
-        mainWindow.show();
-    });
+    return new Promise((resolve, reject) => {
+        const authWin = new BrowserWindow({
+            width: 500,
+            height: 600,
+            icon: icon,
+            autoHideMenuBar: true,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: false,
+            },
+        });
+        authWin.loadURL(authUrl);
 
-    mainWindow.webContents.setWindowOpenHandler((details) => {
-        shell.openExternal(details.url);
-        return { action: "deny" };
-    });
-
-    // HMR for renderer base on electron-vite cli.
-    // Load the remote URL for development or the local html file for production.
-    if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-        mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
-    } else {
-        mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
-    }
-}
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-    // Set app user model id for windows
-    electronApp.setAppUserModelId("com.electron");
-
-    // Default open or close DevTools by F12 in development
-    // and ignore CommandOrControl + R in production.
-    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-    app.on("browser-window-created", (_, window) => {
-        optimizer.watchWindowShortcuts(window);
-    });
-
-    // IPC test
-    ipcMain.on("ping", () => console.log("pong"));
-
-    createWindow();
-
-    app.on("activate", function () {
-        // On macOS it's common to re-create a window in the app when the
-        // dock icon is clicked and there are no other windows open.
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        const filter = { urls: [`${REDIRECT_URI}/*`] };
+        session.defaultSession.webRequest.onBeforeRequest(
+            filter,
+            async ({ url }, callback) => {
+                const urlObj = new URL(url);
+                const code = urlObj.searchParams.get("code");
+                if (code) {
+                    try {
+                        const params = new URLSearchParams({
+                            client_id: CLIENT_ID,
+                            client_secret: CLIENT_SECRET,
+                            code,
+                            redirect_uri: REDIRECT_URI,
+                            grant_type: "authorization_code",
+                        });
+                        const res = await fetch(
+                            "https://oauth2.googleapis.com/token",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type":
+                                        "application/x-www-form-urlencoded",
+                                },
+                                body: params.toString(),
+                            }
+                        );
+                        if (!res.ok) {
+                            const e = await res.json();
+                            throw new Error(
+                                `${e.error}: ${e.error_description}`
+                            );
+                        }
+                        const tokens = await res.json();
+                        store.set("google-drive-tokens", tokens);
+                        oauth2Client.setCredentials(tokens);
+                        resolve(tokens);
+                    } catch (err) {
+                        reject(err);
+                    } finally {
+                        authWin.close();
+                    }
+                }
+                callback({});
+            }
+        );
     });
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// Handle the request to get saved tokens
+ipcMain.handle("google-drive:get-tokens", () => {
+    return store.get("google-drive-tokens") || null;
+});
+
+const createWindow = () => {
+    const win = new BrowserWindow({
+        width: 800,
+        height: 600,
+        autoHideMenuBar: true,
+        icon: icon,
+        webPreferences: {
+            preload: path.join(__dirname, "../preload/index.mjs"),
+            contextIsolation: true,
+            sandbox: false,
+        },
+    });
+    if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+        win.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    } else {
+        win.loadFile(path.join(__dirname, "../renderer/index.html"));
+    }
+};
+
+// Listen for token changes and save them
+oauth2Client.on("tokens", (tokens) => {
+    const current = store.get("google-drive-tokens", {});
+    store.set("google-drive-tokens", { ...current, ...tokens });
+});
+
+// Fetch the user's display name from Google Drive
+async function fetchUserName() {
+    const drv = google.drive({ version: "v3", auth: oauth2Client });
+    const res = await drv.about.get({ fields: "user(displayName)" });
+    return res.data.user.displayName;
+}
+
+// Handle the request to get the user's display name
+ipcMain.handle("google-drive:get-username", async () => {
+    if (!oauth2Client.credentials.access_token) return null;
+    const name = await fetchUserName();
+    store.set("google-drive-username", name);
+    return name;
+});
+
+// Handle choosing a central folder
+ipcMain.handle("app:select-central-folder", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        properties: ["openDirectory"],
+    });
+    if (canceled) return null;
+    return filePaths[0];
+});
+
+// Handle saving the central folder path
+ipcMain.handle("app:save-central-folder", async (_, folderPath) => {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const data = { centralFolderPath: folderPath };
+    await fs.promises.writeFile(
+        cfgPath,
+        JSON.stringify(data, null, 2),
+        "utf-8"
+    );
+    return true;
+});
+
+// Handle retrieving the central folder path from the config
+ipcMain.handle("app:get-central-folder", async () => {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    try {
+        const raw = await fs.promises.readFile(cfgPath, "utf-8");
+        const { centralFolderPath } = JSON.parse(raw);
+        return centralFolderPath || null;
+    } catch {
+        return null;
+    }
+});
+
+app.whenReady().then(() => {
+    // Check if the Google Drive tokens are saved
+    const saved = store.get("google-drive-tokens");
+    if (saved) {
+        oauth2Client.setCredentials(saved);
+    }
+
+    createWindow();
+
+    app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
 app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
         app.quit();
     }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
