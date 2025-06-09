@@ -56,6 +56,15 @@ const App = () => {
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await window.api.signOut();
+            window.location.reload();
+        } catch (err) {
+            console.error("Logout error:", err);
+        }
+    };
+
     if (loading) {
         return <Loading />;
     }
@@ -90,6 +99,7 @@ const App = () => {
             <Dashboard
                 username={username}
                 savedCentralFolderPath={savedCentralFolderPath}
+                handleLogout={handleLogout}
             />
         </div>
     );

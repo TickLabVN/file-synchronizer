@@ -175,6 +175,13 @@ ipcMain.handle("app:get-central-folder", async () => {
     }
 });
 
+// Handle signing out of Google Drive
+ipcMain.handle("app:sign-out", () => {
+    store.delete("google-drive-tokens");
+    store.delete("google-drive-username");
+    return true;
+});
+
 app.whenReady().then(() => {
     // Check if the Google Drive tokens are saved
     const saved = store.get("google-drive-tokens");

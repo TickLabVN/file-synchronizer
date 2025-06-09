@@ -1,24 +1,47 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faStar, faFile, faFolder } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
+import { useState } from "react";
+import ModalConfirmLogout from "./ModalConfirmLogout";
 
-const Dashboard = ({ username, savedCentralFolderPath }) => {
+const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+    const onLogoutClick = () => setShowLogoutModal(true);
+
+    const confirmLogout = () => {
+        setShowLogoutModal(false);
+        handleLogout();
+    };
+
+    const cancelLogout = () => setShowLogoutModal(false);
+
     return (
         <div className="flex h-screen">
             <aside className="flex w-64 flex-col justify-between border-r bg-gray-100">
                 <div>
                     <div className="border-b px-4 py-2 font-semibold">USER</div>
                     <ul>
-                        <li className="cursor-pointer px-4 py-2 hover:bg-gray-200">
+                        <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2">
                             <FontAwesomeIcon icon={faGoogleDrive} />{" "}
                             {username}{" "}
                         </li>
                     </ul>
                 </div>
-                <button className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600">
-                    Log out
+                <button
+                    className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                    onClick={onLogoutClick}
+                >
+                    Logout
                 </button>
             </aside>
+
+            {showLogoutModal && (
+                <ModalConfirmLogout
+                    confirmLogout={confirmLogout}
+                    cancelLogout={cancelLogout}
+                />
+            )}
 
             <div className="flex flex-1 flex-col">
                 <header className="flex items-center justify-between border-b bg-white px-4 py-2">
