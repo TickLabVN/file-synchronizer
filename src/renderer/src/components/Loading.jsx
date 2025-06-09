@@ -1,6 +1,8 @@
-const Loading = () => {
-    return (
-        <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+import { createPortal } from "react-dom";
+
+const Loading = ({ syncing = false }) => {
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex h-screen flex-col items-center justify-center bg-gray-100 dark:bg-gray-900">
             <div role="status">
                 <svg
                     aria-hidden="true"
@@ -20,7 +22,13 @@ const Loading = () => {
                 </svg>
                 <span className="sr-only">Loading...</span>
             </div>
-        </div>
+            {syncing && (
+                <p className="mt-4 text-gray-500 dark:text-gray-400">
+                    Syncing files...
+                </p>
+            )}
+        </div>,
+        document.body
     );
 };
 

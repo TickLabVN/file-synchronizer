@@ -1,10 +1,8 @@
 const ModalConfirmLogout = ({ cancelLogout, confirmLogout }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black opacity-50" />
 
-            {/* Modal box */}
             <div className="relative z-10 w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
                 <h2 className="mb-4 text-lg font-semibold">Confirm Logout</h2>
                 <p className="mb-6">Do you want to Logout?</p>

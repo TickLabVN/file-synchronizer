@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("api", {
     saveCentralFolderConfig: (path) =>
         ipcRenderer.invoke("app:save-central-folder", path),
     signOut: () => ipcRenderer.invoke("app:sign-out"),
+    selectFiles: () => ipcRenderer.invoke("app:select-files"),
+    selectFolders: () => ipcRenderer.invoke("app:select-folders"),
+    syncFiles: (paths) => ipcRenderer.invoke("app:sync-files", paths),
 });
 
 contextBridge.exposeInMainWorld("versions", {

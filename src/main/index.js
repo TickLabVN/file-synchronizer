@@ -182,6 +182,114 @@ ipcMain.handle("app:sign-out", () => {
     return true;
 });
 
+// Handle selecting multiple files
+ipcMain.handle("app:select-files", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        properties: ["openFile", "multiSelections"],
+    });
+    return canceled ? null : filePaths;
+});
+
+// Handle selecting multiple folders
+ipcMain.handle("app:select-folders", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        properties: ["openDirectory", "multiSelections"],
+    });
+    return canceled ? null : filePaths;
+});
+
+// Handle syncing files/folders to Google Drive and creating symlinks
+ipcMain.handle("app:sync-files", async (_, paths) => {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const raw = await fs.promises.readFile(cfgPath, "utf-8");
+    const { centralFolderPath } = JSON.parse(raw);
+    if (!centralFolderPath) throw new Error("Central folder not set");
+
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
+    const folderName = "FS-Backup-Data";
+    // find or create central Drive folder
+    const listRes = await drive.files.list({
+        q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: "files(id)",
+        spaces: "drive",
+    });
+    let driveFolderId;
+    if (listRes.data.files.length) {
+        driveFolderId = listRes.data.files[0].id;
+    } else {
+        const createRes = await drive.files.create({
+            requestBody: {
+                name: folderName,
+                mimeType: "application/vnd.google-apps.folder",
+            },
+            fields: "id",
+        });
+        driveFolderId = createRes.data.id;
+    }
+
+    // recursive upload helper
+    async function traverseAndUpload(srcPath, parentId) {
+        const stats = await fs.promises.stat(srcPath);
+        if (stats.isDirectory()) {
+            const dirName = path.basename(srcPath);
+            const folderMeta = {
+                name: dirName,
+                mimeType: "application/vnd.google-apps.folder",
+                parents: [parentId],
+            };
+            const folderRes = await drive.files.create({
+                requestBody: folderMeta,
+                fields: "id",
+            });
+            const newParentId = folderRes.data.id;
+            const entries = await fs.promises.readdir(srcPath);
+            for (const entry of entries) {
+                await traverseAndUpload(path.join(srcPath, entry), newParentId);
+            }
+        } else {
+            const fileName = path.basename(srcPath);
+            await drive.files.create({
+                requestBody: { name: fileName, parents: [parentId] },
+                media: { body: fs.createReadStream(srcPath) },
+            });
+        }
+    }
+
+    for (const p of paths) {
+        await traverseAndUpload(p, driveFolderId);
+        // create or replace symlink in central folder
+        const linkPath = path.join(centralFolderPath, path.basename(p));
+        try {
+            await fs.promises.unlink(linkPath);
+        } catch {
+            console.warn(`Could not remove existing symlink: ${linkPath}`);
+        }
+
+        // Determine symlink type and handle Windows EPERM by falling back to copy
+        const stats = await fs.promises.stat(p);
+        const linkType = stats.isDirectory() ? "junction" : "file";
+        try {
+            await fs.promises.symlink(p, linkPath, linkType);
+        } catch (err) {
+            if (process.platform === "win32" && err.code === "EPERM") {
+                // Windows symlink not permitted: fallback to copy
+                if (stats.isDirectory()) {
+                    await fs.promises.cp(p, linkPath, { recursive: true });
+                } else {
+                    try {
+                        await fs.promises.link(p, linkPath);
+                    } catch {
+                        await fs.promises.copyFile(p, linkPath);
+                    }
+                }
+            } else {
+                throw err;
+            }
+        }
+    }
+    return true;
+});
+
 app.whenReady().then(() => {
     // Check if the Google Drive tokens are saved
     const saved = store.get("google-drive-tokens");
