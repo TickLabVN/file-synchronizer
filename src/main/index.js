@@ -27,6 +27,9 @@ const oauth2Client = new google.auth.OAuth2(
 // Create an instance of electron-store to manage settings
 const store = new Store();
 
+// Create an instance of electron-store to manage settings
+const mapping = store.get("driveMapping", {});
+
 // Handle the request to sign in to Google Drive
 ipcMain.handle("google-drive:sign-in", async () => {
     const authUrl = oauth2Client.generateAuthUrl({
@@ -230,28 +233,45 @@ ipcMain.handle("app:sync-files", async (_, paths) => {
     // recursive upload helper
     async function traverseAndUpload(srcPath, parentId) {
         const stats = await fs.promises.stat(srcPath);
+        const key = srcPath;
+        const record = mapping[key];
+
         if (stats.isDirectory()) {
-            const dirName = path.basename(srcPath);
-            const folderMeta = {
-                name: dirName,
-                mimeType: "application/vnd.google-apps.folder",
-                parents: [parentId],
-            };
-            const folderRes = await drive.files.create({
-                requestBody: folderMeta,
-                fields: "id",
-            });
-            const newParentId = folderRes.data.id;
+            const existingFolder = record && record.parentId === parentId;
+            let folderId = existingFolder ? record.id : null;
+            if (!folderId) {
+                const folderRes = await drive.files.create({
+                    requestBody: {
+                        name: path.basename(srcPath),
+                        mimeType: "application/vnd.google-apps.folder",
+                        parents: [parentId],
+                    },
+                    fields: "id",
+                });
+                folderId = folderRes.data.id;
+                mapping[key] = { id: folderId, parentId };
+            }
             const entries = await fs.promises.readdir(srcPath);
             for (const entry of entries) {
-                await traverseAndUpload(path.join(srcPath, entry), newParentId);
+                await traverseAndUpload(path.join(srcPath, entry), folderId);
             }
         } else {
-            const fileName = path.basename(srcPath);
-            await drive.files.create({
-                requestBody: { name: fileName, parents: [parentId] },
-                media: { body: fs.createReadStream(srcPath) },
-            });
+            const isSameParent = record && record.parentId === parentId;
+            if (isSameParent) {
+                await drive.files.update({
+                    fileId: record.id,
+                    media: { body: fs.createReadStream(srcPath) },
+                });
+            } else {
+                const fileRes = await drive.files.create({
+                    requestBody: {
+                        name: path.basename(srcPath),
+                        parents: [parentId],
+                    },
+                    media: { body: fs.createReadStream(srcPath) },
+                });
+                mapping[key] = { id: fileRes.data.id, parentId };
+            }
         }
     }
 
@@ -261,9 +281,8 @@ ipcMain.handle("app:sync-files", async (_, paths) => {
         const linkPath = path.join(centralFolderPath, path.basename(p));
         try {
             await fs.promises.unlink(linkPath);
-        } catch {
-            console.warn(`Could not remove existing symlink: ${linkPath}`);
-        }
+            // eslint-disable-next-line no-empty
+        } catch {}
 
         // Determine symlink type and handle Windows EPERM by falling back to copy
         const stats = await fs.promises.stat(p);
@@ -287,6 +306,7 @@ ipcMain.handle("app:sync-files", async (_, paths) => {
             }
         }
     }
+    await store.set("driveMapping", mapping);
     return true;
 });
 
