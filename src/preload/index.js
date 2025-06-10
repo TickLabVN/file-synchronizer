@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("api", {
     selectFiles: () => ipcRenderer.invoke("app:select-files"),
     selectFolders: () => ipcRenderer.invoke("app:select-folders"),
     syncFiles: (paths) => ipcRenderer.invoke("app:sync-files", paths),
+    syncOnLaunch: () => ipcRenderer.invoke("app:sync-on-launch"),
 });
 
 contextBridge.exposeInMainWorld("versions", {

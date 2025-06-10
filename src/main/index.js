@@ -310,6 +310,149 @@ ipcMain.handle("app:sync-files", async (_, paths) => {
     return true;
 });
 
+async function traverseCompare(srcPath, fileId, drive) {
+    try {
+        const stats = await fs.promises.stat(srcPath);
+        if (stats.isDirectory()) {
+            const entries = await fs.promises.readdir(srcPath);
+            for (const entry of entries) {
+                const childPath = path.join(srcPath, entry);
+                const rec = mapping[childPath];
+                if (rec) {
+                    await traverseCompare(childPath, rec.id, drive);
+                }
+            }
+        } else {
+            const meta = await drive.files.get({
+                fileId,
+                fields: "modifiedTime",
+            });
+            const remoteTime = new Date(meta.data.modifiedTime);
+            const localTime = stats.mtime;
+            if (localTime > remoteTime) {
+                await drive.files.update({
+                    fileId,
+                    media: { body: fs.createReadStream(srcPath) },
+                });
+            }
+        }
+    } catch (err) {
+        if (err.code === "ENOENT") {
+            try {
+                await drive.files.delete({ fileId });
+            } catch (driveErr) {
+                console.error("Failed to delete on Drive:", driveErr);
+            }
+            delete mapping[srcPath];
+            console.log(
+                `Deleted ${srcPath} locally : removed on Drive (ID=${fileId})`
+            );
+            return;
+        } else {
+            throw err;
+        }
+    }
+}
+
+// Handle syncing on app launch
+ipcMain.handle("app:sync-on-launch", async () => {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    let centralFolderPath;
+    try {
+        const raw = await fs.promises.readFile(cfgPath, "utf-8");
+        centralFolderPath = JSON.parse(raw).centralFolderPath;
+    } catch {
+        console.log("No central folder config found, skipping sync-on-launch");
+        return true;
+    }
+
+    if (Object.keys(mapping).length === 0) {
+        console.log("Skip sync-on-launch: no files mapped yet");
+        return true;
+    }
+
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
+
+    const listRes = await drive.files.list({
+        q: "name='FS-Backup-Data' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: "files(id)",
+        spaces: "drive",
+    });
+    if (!listRes.data.files.length) {
+        console.warn("Drive backup folder not found, skipping deletion check");
+    } else {
+        const driveFolderId = listRes.data.files[0].id;
+
+        // eslint-disable-next-line no-unused-vars
+        for (const [src, _] of Object.entries(mapping)) {
+            try {
+                await fs.promises.stat(src);
+            } catch (err) {
+                if (err.code === "ENOENT") {
+                    const linkPath = path.join(
+                        centralFolderPath,
+                        path.basename(src)
+                    );
+                    try {
+                        await fs.promises.unlink(linkPath);
+                        console.log(`Deleted local link: ${linkPath}`);
+                    } catch (unlinkErr) {
+                        console.error(
+                            `Failed to delete link at ${linkPath}`,
+                            unlinkErr
+                        );
+                    }
+                } else {
+                    throw err;
+                }
+            }
+        }
+
+        for (const [src, rec] of Object.entries(mapping)) {
+            if (rec.parentId === driveFolderId) {
+                const linkPath = path.join(
+                    centralFolderPath,
+                    path.basename(src)
+                );
+                try {
+                    await fs.promises.lstat(linkPath);
+                } catch (err) {
+                    if (err.code === "ENOENT") {
+                        try {
+                            await drive.files.delete({ fileId: rec.id });
+                            console.log(
+                                `Deleted on Drive: ${rec.id} (src=${src})`
+                            );
+                        } catch (driveErr) {
+                            console.error(
+                                "Failed to delete on Drive:",
+                                driveErr
+                            );
+                        }
+                        for (const key of Object.keys(mapping)) {
+                            if (key === src || key.startsWith(src + path.sep)) {
+                                delete mapping[key];
+                            }
+                        }
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+        }
+    }
+
+    for (const [src, rec] of Object.entries(mapping)) {
+        try {
+            await traverseCompare(src, rec.id, drive);
+        } catch (e) {
+            console.error("Error syncing on launch for", src, e);
+        }
+    }
+    await store.set("driveMapping", mapping);
+    return true;
+});
+
 app.whenReady().then(() => {
     // Check if the Google Drive tokens are saved
     const saved = store.get("google-drive-tokens");

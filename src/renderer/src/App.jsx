@@ -10,6 +10,7 @@ const App = () => {
     const [loading, setLoading] = useState(true);
     const [centralFolderPath, setCentralFolderPath] = useState("");
     const [savedCentralFolderPath, setSavedCentralFolderPath] = useState("");
+    const [initialSyncing, setInitialSyncing] = useState(false);
 
     useEffect(() => {
         async function init() {
@@ -33,6 +34,16 @@ const App = () => {
         }
         init();
     }, []);
+
+    useEffect(() => {
+        if (auth && savedCentralFolderPath) {
+            setInitialSyncing(true);
+            window.api
+                .syncOnLaunch()
+                .catch((e) => console.error("Sync-on-launch failed:", e))
+                .finally(() => setInitialSyncing(false));
+        }
+    }, [auth, savedCentralFolderPath]);
 
     const handleSelectFolder = async () => {
         try {
@@ -65,8 +76,8 @@ const App = () => {
         }
     };
 
-    if (loading) {
-        return <Loading />;
+    if (loading || initialSyncing) {
+        return <Loading initialSyncing={initialSyncing} />;
     }
 
     if (!auth) {

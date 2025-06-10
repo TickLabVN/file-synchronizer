@@ -12,32 +12,43 @@ import Loading from "./Loading";
 
 const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const [selectedPaths, setSelectedPaths] = useState([]);
     const [syncing, setSyncing] = useState(false);
+    const [selectedItems, setSelectedItems] = useState([]);
 
     const handleChooseFiles = async () => {
         const paths = await window.api.selectFiles();
-        if (paths) setSelectedPaths((prev) => [...prev, ...paths]);
+        if (paths) {
+            setSelectedItems((prev) => [
+                ...prev,
+                ...paths.map((p) => ({ path: p, isDirectory: false })),
+            ]);
+        }
     };
 
     const handleChooseFolders = async () => {
         const paths = await window.api.selectFolders();
-        if (paths) setSelectedPaths((prev) => [...prev, ...paths]);
+        if (paths) {
+            setSelectedItems((prev) => [
+                ...prev,
+                ...paths.map((p) => ({ path: p, isDirectory: true })),
+            ]);
+        }
     };
 
     const handleRemove = (p) =>
-        setSelectedPaths((prev) => prev.filter((x) => x !== p));
+        setSelectedItems((prev) => prev.filter((item) => item.path !== p));
 
     const handleSync = async () => {
-        if (!selectedPaths.length) {
+        if (!selectedItems.length) {
             alert("Please select files or folders to sync.");
             return;
         }
         setSyncing(true);
         try {
-            await window.api.syncFiles(selectedPaths);
+            const paths = selectedItems.map((item) => item.path);
+            await window.api.syncFiles(paths);
             alert("Sync to Drive completed successfully!");
-            setSelectedPaths([]);
+            setSelectedItems([]);
         } catch (err) {
             console.error(err);
             alert("Sync failed: " + err.message);
@@ -101,16 +112,24 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                         Choose file or folder that you need to backup
                     </h2>
 
-                    {selectedPaths.length > 0 && (
+                    {selectedItems.length > 0 && (
                         <ul className="mb-4 max-h-48 space-y-2 overflow-auto">
-                            {selectedPaths.map((p) => (
+                            {selectedItems.map(({ path, isDirectory }) => (
                                 <li
-                                    key={p}
+                                    key={path}
                                     className="flex items-center justify-between rounded bg-gray-50 px-4 py-2"
                                 >
-                                    <span className="truncate">{p}</span>
+                                    <span className="truncate">
+                                        <FontAwesomeIcon
+                                            icon={
+                                                isDirectory ? faFolder : faFile
+                                            }
+                                            className="mr-2 text-yellow-500"
+                                        />{" "}
+                                        {path}
+                                    </span>
                                     <button
-                                        onClick={() => handleRemove(p)}
+                                        onClick={() => handleRemove(path)}
                                         className="cursor-pointer text-red-500 hover:text-red-600"
                                     >
                                         <FontAwesomeIcon icon={faTrash} />
@@ -120,7 +139,7 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                         </ul>
                     )}
 
-                    {selectedPaths.length == 0 && (
+                    {selectedItems.length == 0 && (
                         <div className="mb-6 flex items-center justify-center">
                             <input
                                 type="text"
