@@ -43,6 +43,9 @@ ipcMain.handle("google-drive:sign-in", async () => {
             width: 500,
             height: 600,
             icon: icon,
+            title: "Sign in to Google Drive",
+            parent: BrowserWindow.getFocusedWindow(),
+            modal: true,
             autoHideMenuBar: true,
             webPreferences: {
                 nodeIntegration: false,
@@ -50,53 +53,69 @@ ipcMain.handle("google-drive:sign-in", async () => {
                 sandbox: false,
             },
         });
-        authWin.loadURL(authUrl);
-
         const filter = { urls: [`${REDIRECT_URI}/*`] };
+        let handled = false;
+
+        function onBeforeRequestHandler(details, callback) {
+            try {
+                const code = new URL(details.url).searchParams.get("code");
+                if (code) {
+                    handled = true;
+                    session.defaultSession.webRequest.onBeforeRequest(
+                        filter,
+                        null
+                    );
+                    authWin.removeAllListeners("closed");
+
+                    const params = new URLSearchParams({
+                        client_id: CLIENT_ID,
+                        client_secret: CLIENT_SECRET,
+                        code,
+                        redirect_uri: REDIRECT_URI,
+                        grant_type: "authorization_code",
+                    });
+
+                    fetch("https://oauth2.googleapis.com/token", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        body: params.toString(),
+                    })
+                        .then((res) => {
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                            return res.json();
+                        })
+                        .then((tokens) => {
+                            store.set("google-drive-tokens", tokens);
+                            oauth2Client.setCredentials(tokens);
+                            resolve(tokens);
+                        })
+                        .catch((err) => reject(err))
+                        .finally(() => authWin.close());
+                    return;
+                }
+                callback({ cancel: false });
+            } catch (err) {
+                session.defaultSession.webRequest.onBeforeRequest(filter, null);
+                reject(err);
+                authWin.close();
+            }
+        }
+
         session.defaultSession.webRequest.onBeforeRequest(
             filter,
-            async ({ url }, callback) => {
-                const urlObj = new URL(url);
-                const code = urlObj.searchParams.get("code");
-                if (code) {
-                    try {
-                        const params = new URLSearchParams({
-                            client_id: CLIENT_ID,
-                            client_secret: CLIENT_SECRET,
-                            code,
-                            redirect_uri: REDIRECT_URI,
-                            grant_type: "authorization_code",
-                        });
-                        const res = await fetch(
-                            "https://oauth2.googleapis.com/token",
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type":
-                                        "application/x-www-form-urlencoded",
-                                },
-                                body: params.toString(),
-                            }
-                        );
-                        if (!res.ok) {
-                            const e = await res.json();
-                            throw new Error(
-                                `${e.error}: ${e.error_description}`
-                            );
-                        }
-                        const tokens = await res.json();
-                        store.set("google-drive-tokens", tokens);
-                        oauth2Client.setCredentials(tokens);
-                        resolve(tokens);
-                    } catch (err) {
-                        reject(err);
-                    } finally {
-                        authWin.close();
-                    }
-                }
-                callback({});
-            }
+            onBeforeRequestHandler
         );
+
+        authWin.on("closed", () => {
+            session.defaultSession.webRequest.onBeforeRequest(filter, null);
+            if (!handled) {
+                reject(new Error("Authentication window was closed by user"));
+            }
+        });
+
+        authWin.loadURL(authUrl);
     });
 });
 
