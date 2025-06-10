@@ -13,7 +13,7 @@ const ModalConfirmLogout = ({ cancelLogout, confirmLogout }) => {
                 <div className="flex justify-end space-x-3">
                     <button
                         onClick={cancelLogout}
-                        className="cursor-pointer rounded bg-gray-200 px-4 py-2 text-white hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        className="cursor-pointer rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                     >
                         No
                     </button>
