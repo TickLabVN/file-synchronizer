@@ -514,6 +514,71 @@ ipcMain.handle("app:update-settings", async (_, newSettings) => {
     return updated;
 });
 
+// Handle pulling data from Google Drive to the central folder
+ipcMain.handle("app:pull-from-drive", async () => {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const { centralFolderPath } = JSON.parse(
+        await fs.promises.readFile(cfgPath, "utf-8")
+    );
+    if (!centralFolderPath) throw new Error("Central folder not set");
+
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
+    const {
+        data: { files: root },
+    } = await drive.files.list({
+        q: "name='FS-Backup-Data' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: "files(id)",
+        spaces: "drive",
+    });
+    if (!root.length) throw new Error("Drive backup folder not found");
+    const rootId = root[0].id;
+
+    async function downloadTree(parentId, localDir) {
+        await fs.promises.mkdir(localDir, { recursive: true });
+
+        let pageToken = null;
+        do {
+            const { data } = await drive.files.list({
+                q: `'${parentId}' in parents and trashed=false`,
+                fields: "nextPageToken, files(id, name, mimeType)",
+                pageToken,
+            });
+
+            for (const file of data.files) {
+                const targetPath = path.join(localDir, file.name);
+                const isFolder =
+                    file.mimeType === "application/vnd.google-apps.folder";
+
+                if (isFolder) {
+                    await downloadTree(file.id, targetPath);
+                } else {
+                    try {
+                        await fs.promises.access(targetPath, fs.constants.F_OK);
+                        continue;
+                        // eslint-disable-next-line no-empty
+                    } catch {}
+
+                    const dest = fs.createWriteStream(targetPath);
+                    const res = await drive.files.get(
+                        { fileId: file.id, alt: "media" },
+                        { responseType: "stream" }
+                    );
+                    await new Promise((resolve, reject) => {
+                        res.data
+                            .on("end", resolve)
+                            .on("error", reject)
+                            .pipe(dest);
+                    });
+                }
+            }
+            pageToken = data.nextPageToken;
+        } while (pageToken);
+    }
+
+    await downloadTree(rootId, centralFolderPath);
+    return true;
+});
+
 app.whenReady().then(() => {
     // Check if the Google Drive tokens are saved
     const saved = store.get("google-drive-tokens");

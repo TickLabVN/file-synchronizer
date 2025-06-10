@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("api", {
     getSettings: () => ipcRenderer.invoke("app:get-settings"),
     updateSettings: (settings) =>
         ipcRenderer.invoke("app:update-settings", settings),
+    pullFromDrive: () => ipcRenderer.invoke("app:pull-from-drive"),
 });
 
 contextBridge.exposeInMainWorld("versions", {

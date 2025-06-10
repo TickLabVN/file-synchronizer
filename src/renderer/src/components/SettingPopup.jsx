@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
+import Loading from "./Loading";
 
 export default function SettingPopup({ onClose }) {
     const [darkMode, setDarkMode] = useState(false);
     const [autoDeleteOnLaunch, setAutoDeleteOnLaunch] = useState(false);
     const [autoUpdateOnLaunch, setAutoUpdateOnLaunch] = useState(false);
+    const [pulling, setPulling] = useState(false);
 
     useEffect(() => {
         window.api
@@ -37,6 +39,19 @@ export default function SettingPopup({ onClose }) {
             document.documentElement.classList.add("dark");
         } else {
             document.documentElement.classList.remove("dark");
+        }
+    };
+
+    const handlePullDown = async () => {
+        setPulling(true);
+        try {
+            await window.api.pullFromDrive();
+            alert("Pull down completed successfully!");
+        } catch (err) {
+            console.error(err);
+            alert("Pull down failed: " + err.message);
+        } finally {
+            setPulling(false);
         }
     };
 
@@ -107,9 +122,13 @@ export default function SettingPopup({ onClose }) {
                         Choose file to stop sync
                     </button>
 
-                    <button className="w-full cursor-pointer rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800">
+                    <button
+                        className="w-full cursor-pointer rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800"
+                        onClick={handlePullDown}
+                    >
                         Pull down from Drive
                     </button>
+                    {pulling && <Loading syncing={true} />}
                 </div>
             </div>
         </div>
