@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
 
@@ -7,16 +7,41 @@ export default function SettingPopup({ onClose }) {
     const [autoDeleteOnLaunch, setAutoDeleteOnLaunch] = useState(false);
     const [autoUpdateOnLaunch, setAutoUpdateOnLaunch] = useState(false);
 
-    const handleChooseFile = () => {
-        window.api.selectFilesToStopSync();
+    useEffect(() => {
+        window.api
+            .getSettings()
+            .then(({ darkMode, autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
+                setDarkMode(darkMode);
+                setAutoDeleteOnLaunch(autoDeleteOnLaunch);
+                setAutoUpdateOnLaunch(autoUpdateOnLaunch);
+            });
+    }, []);
+
+    const toggleDelete = () => {
+        const next = !autoDeleteOnLaunch;
+        setAutoDeleteOnLaunch(next);
+        window.api.updateSettings({ autoDeleteOnLaunch: next });
     };
 
-    const handlePullDown = () => {
-        window.api.pullFromDrive();
+    const toggleUpdate = () => {
+        const next = !autoUpdateOnLaunch;
+        setAutoUpdateOnLaunch(next);
+        window.api.updateSettings({ autoUpdateOnLaunch: next });
+    };
+
+    const toggleDark = () => {
+        const next = !darkMode;
+        setDarkMode(next);
+        window.api.updateSettings({ darkMode: next });
+        if (next) {
+            document.documentElement.classList.add("dark");
+        } else {
+            document.documentElement.classList.remove("dark");
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/50">
             <div className="relative w-80 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
                 <button
                     onClick={onClose}
@@ -38,7 +63,7 @@ export default function SettingPopup({ onClose }) {
                             <input
                                 type="checkbox"
                                 checked={darkMode}
-                                onChange={() => setDarkMode(!darkMode)}
+                                onChange={toggleDark}
                                 className="peer sr-only"
                             />
                             <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
@@ -54,9 +79,7 @@ export default function SettingPopup({ onClose }) {
                             <input
                                 type="checkbox"
                                 checked={autoDeleteOnLaunch}
-                                onChange={() =>
-                                    setAutoDeleteOnLaunch(!autoDeleteOnLaunch)
-                                }
+                                onChange={toggleDelete}
                                 className="peer sr-only"
                             />
                             <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
@@ -72,9 +95,7 @@ export default function SettingPopup({ onClose }) {
                             <input
                                 type="checkbox"
                                 checked={autoUpdateOnLaunch}
-                                onChange={() =>
-                                    setAutoUpdateOnLaunch(!autoUpdateOnLaunch)
-                                }
+                                onChange={toggleUpdate}
                                 className="peer sr-only"
                             />
                             <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
@@ -82,17 +103,11 @@ export default function SettingPopup({ onClose }) {
                         </label>
                     </div>
 
-                    <button
-                        onClick={handleChooseFile}
-                        className="w-full cursor-pointer rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-                    >
+                    <button className="w-full cursor-pointer rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800">
                         Choose file to stop sync
                     </button>
 
-                    <button
-                        onClick={handlePullDown}
-                        className="w-full cursor-pointer rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
-                    >
+                    <button className="w-full cursor-pointer rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800">
                         Pull down from Drive
                     </button>
                 </div>

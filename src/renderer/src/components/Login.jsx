@@ -30,14 +30,14 @@ const Login = ({ setAuth, setUsername }) => {
 
     return (
         <div>
-            <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+            <div className="flex h-screen flex-col justify-center px-6 py-12 lg:px-8 dark:bg-gray-900">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                     <img
                         className="mx-auto h-16 w-auto"
                         src={GGDriveicon}
                         alt="GG Drive Logo"
                     />
-                    <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
+                    <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white">
                         Sign in to your Google Drive Account
                     </h2>
                 </div>
@@ -52,12 +52,12 @@ const Login = ({ setAuth, setUsername }) => {
                     </button>
                 </div>
                 {status === "success" && (
-                    <p className="mt-10 text-center text-green-600">
+                    <p className="mt-10 text-center text-green-600 dark:text-green-400">
                         Sign in successfully!
                     </p>
                 )}
                 {status === "error" && (
-                    <p className="mt-10 text-center text-red-600">
+                    <p className="mt-10 text-center text-red-600 dark:text-red-400">
                         Failed to sign in: {error}
                     </p>
                 )}

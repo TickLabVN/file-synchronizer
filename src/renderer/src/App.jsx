@@ -37,11 +37,19 @@ const App = () => {
 
     useEffect(() => {
         if (auth && savedCentralFolderPath) {
-            setInitialSyncing(true);
             window.api
-                .syncOnLaunch()
-                .catch((e) => console.error("Sync-on-launch failed:", e))
-                .finally(() => setInitialSyncing(false));
+                .getSettings()
+                .then(({ autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
+                    if (autoDeleteOnLaunch || autoUpdateOnLaunch) {
+                        setInitialSyncing(true);
+                        window.api
+                            .syncOnLaunch()
+                            .catch((e) =>
+                                console.error("Sync-on-launch failed:", e)
+                            )
+                            .finally(() => setInitialSyncing(false));
+                    }
+                });
         }
     }, [auth, savedCentralFolderPath]);
 

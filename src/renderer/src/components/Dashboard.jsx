@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-    faStar,
+    faRepeat,
     faFile,
     faFolder,
     faTrash,
@@ -71,18 +71,20 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
 
     return (
         <div className="flex h-screen">
-            <aside className="flex w-64 flex-col justify-between border-r bg-gray-100">
+            <aside className="flex w-64 flex-col justify-between border-r bg-gray-100 dark:border-r-gray-700 dark:bg-gray-800">
                 <div>
-                    <div className="border-b px-4 py-2 font-semibold">USER</div>
+                    <div className="font-semibol border-b px-4 py-2 dark:border-gray-700 dark:text-gray-400">
+                        USER
+                    </div>
                     <ul>
-                        <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2">
+                        <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2 dark:bg-gray-700 dark:text-gray-200">
                             <FontAwesomeIcon icon={faGoogleDrive} />{" "}
                             {username}{" "}
                         </li>
                     </ul>
                 </div>
                 <button
-                    className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                    className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 dark:bg-violet-800 dark:text-gray-200 dark:hover:bg-violet-700"
                     onClick={onLogoutClick}
                 >
                     Logout
@@ -97,21 +99,21 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
             )}
 
             <div className="flex flex-1 flex-col">
-                <header className="flex items-center justify-between border-b bg-white px-4 py-2">
-                    <h1 className="font-bold">DASHBOARD</h1>
+                <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
+                    <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
                 </header>
 
-                <main className="flex-1 bg-white p-6">
-                    <div className="mb-6 flex items-center justify-between rounded border px-4 py-2">
-                        <span className="overflow-hidden font-medium text-ellipsis">
+                <main className="flex-1 bg-white p-6 dark:bg-gray-900">
+                    <div className="mb-6 flex items-center justify-between rounded border px-4 py-2 dark:border-gray-700">
+                        <span className="overflow-hidden font-medium text-ellipsis dark:text-gray-400">
                             Central path: {savedCentralFolderPath}
                         </span>
-                        <button className="text-xl text-yellow-500">
-                            <FontAwesomeIcon icon={faStar} />
+                        <button className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600">
+                            <FontAwesomeIcon icon={faRepeat} />
                         </button>
                     </div>
 
-                    <h2 className="mb-4 text-center text-lg">
+                    <h2 className="mb-4 text-center text-lg dark:text-gray-400">
                         Choose file or folder that you need to backup
                     </h2>
 
@@ -120,7 +122,7 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                             {selectedItems.map(({ path, isDirectory }) => (
                                 <li
                                     key={path}
-                                    className="flex items-center justify-between rounded bg-gray-50 px-4 py-2"
+                                    className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
                                 >
                                     <span className="truncate">
                                         <FontAwesomeIcon
@@ -148,7 +150,7 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                                 type="text"
                                 readOnly
                                 placeholder="No file or folder selected"
-                                className="w-2/3 rounded border border-gray-300 bg-gray-50 px-3 py-2"
+                                className="w-2/3 rounded border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
                             />
                         </div>
                     )}
@@ -156,13 +158,13 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                     <div className="flex flex-col items-center space-y-4">
                         <div className="flex space-x-4">
                             <button
-                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600"
+                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
                                 onClick={handleChooseFiles}
                             >
                                 Choose file <FontAwesomeIcon icon={faFile} />
                             </button>
                             <button
-                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600"
+                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
                                 onClick={handleChooseFolders}
                             >
                                 Choose folder{" "}
@@ -170,7 +172,7 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                             </button>
                         </div>
                         <button
-                            className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700"
+                            className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:text-gray-200 dark:hover:bg-green-900"
                             onClick={handleSync}
                         >
                             Sync to Drive

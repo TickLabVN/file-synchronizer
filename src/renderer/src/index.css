@@ -3,3 +3,5 @@
 body {
     font-family: "Roboto Variable", sans-serif;
 }
+
+@custom-variant dark (&:where(.dark, .dark *));
