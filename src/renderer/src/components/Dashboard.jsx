@@ -4,16 +4,19 @@ import {
     faFile,
     faFolder,
     faTrash,
+    faGear,
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useState } from "react";
 import ModalConfirmLogout from "./ModalConfirmLogout";
 import Loading from "./Loading";
+import SettingPopup from "./SettingPopup";
 
 const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
+    const [showSettings, setShowSettings] = useState(false);
 
     const handleChooseFiles = async () => {
         const paths = await window.api.selectFiles();
@@ -173,9 +176,18 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                             Sync to Drive
                         </button>
                     </div>
+                    <button
+                        className="fixed right-4 bottom-4 cursor-pointer rounded-full bg-gray-200 p-3 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                        onClick={() => setShowSettings(true)}
+                    >
+                        <FontAwesomeIcon icon={faGear} size="lg" />
+                    </button>
                 </main>
             </div>
             {syncing && <Loading syncing={syncing} />}
+            {showSettings && (
+                <SettingPopup onClose={() => setShowSettings(false)} />
+            )}
         </div>
     );
 };
