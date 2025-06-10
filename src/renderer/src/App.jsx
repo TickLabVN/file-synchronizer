@@ -84,6 +84,25 @@ const App = () => {
         }
     };
 
+    const handleChangeCentralFolder = async () => {
+        const confirmed = window.confirm(
+            "Are you sure you want to change the central folder?"
+        );
+        if (confirmed) {
+            try {
+                const newPath = await window.api.selectCentralFolder();
+                if (newPath) {
+                    await window.api.saveCentralFolderConfig(newPath);
+                    setSavedCentralFolderPath(newPath);
+                    alert("Central folder changed successfully!");
+                }
+            } catch (err) {
+                console.error("Change central folder error:", err);
+                alert("Failed to change central folder: " + err.message);
+            }
+        }
+    };
+
     if (loading || initialSyncing) {
         return <Loading initialSyncing={initialSyncing} />;
     }
@@ -119,6 +138,7 @@ const App = () => {
                 username={username}
                 savedCentralFolderPath={savedCentralFolderPath}
                 handleLogout={handleLogout}
+                handleChangeCentralFolder={handleChangeCentralFolder}
             />
         </div>
     );

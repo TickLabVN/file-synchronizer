@@ -12,7 +12,12 @@ import ModalConfirmLogout from "./ModalConfirmLogout";
 import Loading from "./Loading";
 import SettingPopup from "./SettingPopup";
 
-const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
+const Dashboard = ({
+    username,
+    savedCentralFolderPath,
+    handleLogout,
+    handleChangeCentralFolder,
+}) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
@@ -108,7 +113,10 @@ const Dashboard = ({ username, savedCentralFolderPath, handleLogout }) => {
                         <span className="overflow-hidden font-medium text-ellipsis dark:text-gray-400">
                             Central path: {savedCentralFolderPath}
                         </span>
-                        <button className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600">
+                        <button
+                            className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600"
+                            onClick={handleChangeCentralFolder}
+                        >
                             <FontAwesomeIcon icon={faRepeat} />
                         </button>
                     </div>

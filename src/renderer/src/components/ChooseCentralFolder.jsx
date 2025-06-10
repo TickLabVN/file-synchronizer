@@ -15,8 +15,7 @@ const ChooseCentralFolder = ({
                     Please choose a central folder to sync your files with
                     Google Drive. This folder will be used to store all your
                     synced files and folders. Make sure to select a folder that
-                    is easily accessible. Remember it is very difficult to
-                    change this folder later.
+                    is easily accessible.
                 </p>
 
                 <div className="flex items-center justify-center space-x-4">
