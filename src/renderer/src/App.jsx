@@ -136,7 +136,7 @@ const App = () => {
     return (
         <div className="flex h-screen flex-col overflow-hidden">
             <TitleBar />
-            <div className="flex-1 overflow-auto">
+            <div className="scrollbar flex-1 overflow-auto">
                 <Dashboard
                     username={username}
                     savedCentralFolderPath={savedCentralFolderPath}

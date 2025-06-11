@@ -125,7 +125,7 @@ const Dashboard = ({
                 />
             )}
 
-            <div className="flex h-full flex-[4] flex-col overflow-auto">
+            <div className="scrollbar flex h-full flex-[4] flex-col overflow-auto">
                 <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
                     <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
                 </header>
@@ -148,7 +148,7 @@ const Dashboard = ({
                     </h2>
 
                     {selectedItems.length > 0 && (
-                        <ul className="mb-4 max-h-48 space-y-2 overflow-auto">
+                        <ul className="scrollbar mb-4 max-h-48 space-y-2 overflow-auto">
                             {selectedItems.map(({ path, isDirectory }) => (
                                 <li
                                     key={path}
@@ -220,7 +220,7 @@ const Dashboard = ({
                             <h2 className="mb-2 text-center text-lg dark:text-gray-400">
                                 Stopped Sync Files
                             </h2>
-                            <ul className="max-h-48 space-y-2 overflow-auto">
+                            <ul className="scrollbar max-h-48 space-y-2 overflow-auto">
                                 {stopSyncPaths.map((p) => (
                                     <li
                                         key={p}

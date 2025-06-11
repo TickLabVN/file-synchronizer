@@ -140,7 +140,7 @@ export default function SettingPopup({ onClose }) {
                     </button>
 
                     {stopSyncPaths.length > 0 && (
-                        <ul className="mt-2 max-h-40 space-y-2 overflow-auto">
+                        <ul className="scrollbar mt-2 max-h-40 space-y-2 overflow-auto">
                             {stopSyncPaths.map((p) => (
                                 <li
                                     key={p}
