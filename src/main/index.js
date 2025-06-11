@@ -378,8 +378,13 @@ ipcMain.handle("app:sync-on-launch", async () => {
     const settings = store.get("settings", {
         autoDeleteOnLaunch: false,
         autoUpdateOnLaunch: false,
+        stopSyncPaths: [],
     });
-    const { autoDeleteOnLaunch, autoUpdateOnLaunch } = settings;
+    const {
+        autoDeleteOnLaunch,
+        autoUpdateOnLaunch,
+        stopSyncPaths = [],
+    } = settings;
 
     if (!autoDeleteOnLaunch && !autoUpdateOnLaunch) {
         console.log(
@@ -485,6 +490,12 @@ ipcMain.handle("app:sync-on-launch", async () => {
     if (autoUpdateOnLaunch) {
         console.log("Starting auto-update on launch...");
         for (const [src, rec] of Object.entries(mapping)) {
+            if (stopSyncPaths.includes(src)) {
+                console.log(
+                    `Skipping sync for ${src} as it is in stopSyncPaths`
+                );
+                continue;
+            }
             try {
                 await traverseCompare(src, rec.id, drive);
             } catch (e) {
@@ -577,6 +588,69 @@ ipcMain.handle("app:pull-from-drive", async () => {
 
     await downloadTree(rootId, centralFolderPath);
     return true;
+});
+
+// Handle selecting files to stop syncing
+ipcMain.handle("app:select-stop-sync-files", async () => {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    let centralFolderPath;
+    try {
+        const raw = await fs.promises.readFile(cfgPath, "utf-8");
+        centralFolderPath = JSON.parse(raw).centralFolderPath;
+    } catch {
+        throw new Error("Central folder not set");
+    }
+
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: "Select files under Central Folder",
+        defaultPath: centralFolderPath,
+        properties: ["openFile", "multiSelections"],
+    });
+
+    if (canceled) return null;
+
+    const invalid = filePaths.filter((p) => !p.startsWith(centralFolderPath));
+    if (invalid.length) {
+        dialog.showErrorBox(
+            "Invalid selection",
+            "Please select files that are under the Central Folder path."
+        );
+        return null;
+    }
+
+    const selectedStats = await Promise.all(
+        filePaths.map(async (p) => {
+            try {
+                const st = await fs.promises.stat(p);
+                return { path: p, ino: st.ino, dev: st.dev };
+            } catch {
+                return null;
+            }
+        })
+    );
+
+    const matchedSrcs = [];
+    // eslint-disable-next-line no-unused-vars
+    for (const [src, _] of Object.entries(mapping)) {
+        let st;
+        try {
+            st = await fs.promises.stat(src);
+        } catch {
+            continue;
+        }
+        for (const sel of selectedStats) {
+            if (sel && sel.ino === st.ino && sel.dev === st.dev) {
+                matchedSrcs.push(src);
+                break;
+            }
+        }
+    }
+
+    const settings = store.get("settings", {});
+    const prev = settings.stopSyncPaths || [];
+    const next = Array.from(new Set([...prev, ...matchedSrcs]));
+    store.set("settings", { ...settings, stopSyncPaths: next });
+    return next;
 });
 
 app.whenReady().then(() => {

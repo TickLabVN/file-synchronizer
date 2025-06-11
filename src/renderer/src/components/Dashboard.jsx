@@ -7,7 +7,7 @@ import {
     faGear,
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ModalConfirmLogout from "./ModalConfirmLogout";
 import Loading from "./Loading";
 import SettingPopup from "./SettingPopup";
@@ -22,6 +22,21 @@ const Dashboard = ({
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
     const [showSettings, setShowSettings] = useState(false);
+    const [stopSyncPaths, setStopSyncPaths] = useState([]);
+
+    useEffect(() => {
+        // Load danh sách stopSync từ settings
+        window.api.getSettings().then(({ stopSyncPaths = [] }) => {
+            setStopSyncPaths(stopSyncPaths);
+        });
+    }, []);
+
+    // Xóa 1 path khỏi stopSync
+    const handleRemoveStopSync = (p) => {
+        const next = stopSyncPaths.filter((x) => x !== p);
+        setStopSyncPaths(next);
+        window.api.updateSettings({ stopSyncPaths: next });
+    };
 
     const handleChooseFiles = async () => {
         const paths = await window.api.selectFiles();
@@ -74,11 +89,18 @@ const Dashboard = ({
 
     const cancelLogout = () => setShowLogoutModal(false);
 
+    const handleSettingsClose = () => {
+        setShowSettings(false);
+        window.api.getSettings().then(({ stopSyncPaths = [] }) => {
+            setStopSyncPaths(stopSyncPaths);
+        });
+    };
+
     return (
-        <div className="flex h-screen">
-            <aside className="flex w-64 flex-col justify-between border-r bg-gray-100 dark:border-r-gray-700 dark:bg-gray-800">
+        <div className="flex min-h-screen">
+            <aside className="flex w-64 flex-1 flex-col justify-between border-r bg-gray-100 dark:border-r-gray-700 dark:bg-gray-800">
                 <div>
-                    <div className="font-semibol border-b px-4 py-2 dark:border-gray-700 dark:text-gray-400">
+                    <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
                         USER
                     </div>
                     <ul>
@@ -103,7 +125,7 @@ const Dashboard = ({
                 />
             )}
 
-            <div className="flex flex-1 flex-col">
+            <div className="flex flex-[4] flex-col">
                 <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
                     <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
                 </header>
@@ -192,12 +214,42 @@ const Dashboard = ({
                     >
                         <FontAwesomeIcon icon={faGear} size="lg" />
                     </button>
+
+                    {stopSyncPaths.length > 0 && (
+                        <div className="mt-6">
+                            <h2 className="mb-2 text-center text-lg dark:text-gray-400">
+                                Stopped Sync Files
+                            </h2>
+                            <ul className="max-h-48 space-y-2 overflow-auto">
+                                {stopSyncPaths.map((p) => (
+                                    <li
+                                        key={p}
+                                        className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
+                                    >
+                                        <span className="flex-1 truncate">
+                                            <FontAwesomeIcon
+                                                icon={faFile}
+                                                className="mr-2 text-yellow-500"
+                                            />
+                                            {p}
+                                        </span>
+                                        <button
+                                            onClick={() =>
+                                                handleRemoveStopSync(p)
+                                            }
+                                            className="cursor-pointer text-red-500 hover:text-red-600"
+                                        >
+                                            <FontAwesomeIcon icon={faTrash} />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </main>
             </div>
             {syncing && <Loading syncing={syncing} />}
-            {showSettings && (
-                <SettingPopup onClose={() => setShowSettings(false)} />
-            )}
+            {showSettings && <SettingPopup onClose={handleSettingsClose} />}
         </div>
     );
 };

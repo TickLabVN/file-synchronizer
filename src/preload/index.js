@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("api", {
     updateSettings: (settings) =>
         ipcRenderer.invoke("app:update-settings", settings),
     pullFromDrive: () => ipcRenderer.invoke("app:pull-from-drive"),
+    selectStopSyncFiles: () => ipcRenderer.invoke("app:select-stop-sync-files"),
 });
 
 contextBridge.exposeInMainWorld("versions", {
