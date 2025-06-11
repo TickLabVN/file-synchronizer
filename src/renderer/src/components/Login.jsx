@@ -1,5 +1,4 @@
 import { useState } from "react";
-import GGDriveicon from "@assets/ggdrive.svg";
 
 const Login = ({ setAuth, setUsername }) => {
     const [status, setStatus] = useState("idle");
@@ -34,7 +33,7 @@ const Login = ({ setAuth, setUsername }) => {
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                     <img
                         className="mx-auto h-16 w-auto"
-                        src={GGDriveicon}
+                        src="/ggdrive.svg"
                         alt="GG Drive Logo"
                     />
                     <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white">

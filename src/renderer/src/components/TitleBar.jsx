@@ -1,6 +1,5 @@
 // TitleBar.jsx
 import { useState, useEffect } from "react";
-import icon from "../assets/icon.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
     faMaximize,
@@ -26,7 +25,7 @@ export default function TitleBar() {
         <div className="flex h-8 items-center justify-between bg-gray-100 text-gray-800 select-none [-webkit-app-region:drag] dark:bg-gray-900 dark:text-gray-100">
             <div className="flex items-center space-x-2 px-2 font-medium">
                 <img
-                    src={icon}
+                    src="/icon.png"
                     alt="app logo"
                     className="h-5 w-5 object-contain"
                 />
