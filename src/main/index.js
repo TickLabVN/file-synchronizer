@@ -124,11 +124,14 @@ ipcMain.handle("google-drive:get-tokens", () => {
     return store.get("google-drive-tokens") || null;
 });
 
+let win;
 const createWindow = () => {
-    const win = new BrowserWindow({
+    win = new BrowserWindow({
         width: 800,
         height: 600,
         autoHideMenuBar: true,
+        frame: false,
+        titleBarStyle: "hidden",
         icon: icon,
         webPreferences: {
             preload: path.join(__dirname, "../preload/index.mjs"),
@@ -142,6 +145,15 @@ const createWindow = () => {
         win.loadFile(path.join(__dirname, "../renderer/index.html"));
     }
 };
+
+// Handle window controls
+ipcMain.on("window-minimize", () => win.minimize());
+ipcMain.on("window-maximize", () => {
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+});
+ipcMain.on("window-close", () => win.close());
+ipcMain.handle("window-isMaximized", () => win.isMaximized());
 
 // Listen for token changes and save them
 oauth2Client.on("tokens", (tokens) => {

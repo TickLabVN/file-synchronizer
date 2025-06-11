@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Loading from "@components/Loading";
 import ChooseCentralFolder from "@components/ChooseCentralFolder";
 import Dashboard from "@components/Dashboard";
+import TitleBar from "./components/TitleBar";
 
 const App = () => {
     const [auth, setAuth] = useState(false);
@@ -133,13 +134,16 @@ const App = () => {
     }
 
     return (
-        <div>
-            <Dashboard
-                username={username}
-                savedCentralFolderPath={savedCentralFolderPath}
-                handleLogout={handleLogout}
-                handleChangeCentralFolder={handleChangeCentralFolder}
-            />
+        <div className="flex h-screen flex-col overflow-hidden">
+            <TitleBar />
+            <div className="flex-1 overflow-auto">
+                <Dashboard
+                    username={username}
+                    savedCentralFolderPath={savedCentralFolderPath}
+                    handleLogout={handleLogout}
+                    handleChangeCentralFolder={handleChangeCentralFolder}
+                />
+            </div>
         </div>
     );
 };

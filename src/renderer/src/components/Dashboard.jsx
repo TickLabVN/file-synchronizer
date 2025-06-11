@@ -97,8 +97,8 @@ const Dashboard = ({
     };
 
     return (
-        <div className="flex min-h-screen">
-            <aside className="flex w-64 flex-1 flex-col justify-between border-r bg-gray-100 dark:border-r-gray-700 dark:bg-gray-800">
+        <div className="flex h-full">
+            <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 dark:border-r-gray-700 dark:bg-gray-800">
                 <div>
                     <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
                         USER
@@ -125,7 +125,7 @@ const Dashboard = ({
                 />
             )}
 
-            <div className="flex flex-[4] flex-col">
+            <div className="flex h-full flex-[4] flex-col overflow-auto">
                 <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
                     <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
                 </header>
