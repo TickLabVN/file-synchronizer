@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Loading from "@components/Loading";
 import ChooseCentralFolder from "@components/ChooseCentralFolder";
 import Dashboard from "@components/Dashboard";
-import TitleBar from "./components/TitleBar";
+import TitleBar from "@components/TitleBar";
 import { toast, ToastContainer } from "react-toastify";
 import * as api from "./api";
 

@@ -1,46 +1,66 @@
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
-import Loading from "./Loading";
 import { toast, ToastContainer } from "react-toastify";
 import * as api from "../api";
+import Toggle from "@components/Toggle";
+import Loading from "@components/Loading";
+
+const buttonLabels = {
+    darkMode: "Dark mode",
+    autoDeleteOnLaunch: "Auto delete on launch",
+    autoUpdateOnLaunch: "Auto update on launch",
+};
 
 export default function SettingPopup({ onClose }) {
-    const [darkMode, setDarkMode] = useState(false);
-    const [autoDeleteOnLaunch, setAutoDeleteOnLaunch] = useState(false);
-    const [autoUpdateOnLaunch, setAutoUpdateOnLaunch] = useState(false);
+    const [setting, setSetting] = useState({
+        darkMode: false,
+        autoDeleteOnLaunch: false,
+        autoUpdateOnLaunch: false,
+        stopSyncPaths: [],
+    });
     const [pulling, setPulling] = useState(false);
 
     useEffect(() => {
-        api.getSettings().then(
-            ({ darkMode, autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
-                setDarkMode(darkMode);
-                setAutoDeleteOnLaunch(autoDeleteOnLaunch);
-                setAutoUpdateOnLaunch(autoUpdateOnLaunch);
+        async function fetchSettings() {
+            try {
+                const settings = await api.getSettings();
+                setSetting(settings);
+                if (settings.darkMode) {
+                    document.documentElement.classList.add("dark");
+                } else {
+                    document.documentElement.classList.remove("dark");
+                }
+            } catch (err) {
+                console.error("Failed to fetch settings:", err);
+                toast.error(
+                    "Failed to load settings: " +
+                        (err.message || "Unknown error")
+                );
             }
-        );
+        }
+        fetchSettings();
     }, []);
 
-    const toggleDelete = () => {
-        const next = !autoDeleteOnLaunch;
-        setAutoDeleteOnLaunch(next);
-        api.updateSettings({ autoDeleteOnLaunch: next });
-    };
-
-    const toggleUpdate = () => {
-        const next = !autoUpdateOnLaunch;
-        setAutoUpdateOnLaunch(next);
-        api.updateSettings({ autoUpdateOnLaunch: next });
-    };
-
-    const toggleDark = () => {
-        const next = !darkMode;
-        setDarkMode(next);
-        api.updateSettings({ darkMode: next });
-        if (next) {
-            document.documentElement.classList.add("dark");
-        } else {
-            document.documentElement.classList.remove("dark");
+    const toggle = (key) => async () => {
+        const newValue = !setting[key];
+        setSetting((prev) => ({ ...prev, [key]: newValue }));
+        try {
+            await api.updateSettings({ [key]: newValue });
+            if (key === "darkMode") {
+                if (newValue) {
+                    document.documentElement.classList.add("dark");
+                } else {
+                    document.documentElement.classList.remove("dark");
+                }
+            }
+            toast.success(`${buttonLabels[key]} updated successfully!`);
+        } catch (err) {
+            console.error(`Failed to update ${key}:`, err);
+            toast.error(
+                `Failed to update ${buttonLabels[key]}: ` +
+                    (err.message || "Unknown error")
+            );
         }
     };
 
@@ -78,53 +98,14 @@ export default function SettingPopup({ onClose }) {
                 </h2>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-gray-800 dark:text-gray-200">
-                            Dark mode
-                        </span>
-                        <label className="relative inline-flex cursor-pointer items-center">
-                            <input
-                                type="checkbox"
-                                checked={darkMode}
-                                onChange={toggleDark}
-                                className="peer sr-only"
-                            />
-                            <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
-                            <div className="absolute top-1 left-1 h-4 w-4 rounded-full border border-gray-300 bg-white transition-transform peer-checked:translate-x-5 dark:bg-gray-200"></div>
-                        </label>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <span className="text-gray-800 dark:text-gray-200">
-                            Auto delete on launch
-                        </span>
-                        <label className="relative inline-flex cursor-pointer items-center">
-                            <input
-                                type="checkbox"
-                                checked={autoDeleteOnLaunch}
-                                onChange={toggleDelete}
-                                className="peer sr-only"
-                            />
-                            <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
-                            <div className="absolute top-1 left-1 h-4 w-4 rounded-full border border-gray-300 bg-white transition-transform peer-checked:translate-x-5 dark:bg-gray-200"></div>
-                        </label>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <span className="text-gray-800 dark:text-gray-200">
-                            Auto update on launch
-                        </span>
-                        <label className="relative inline-flex cursor-pointer items-center">
-                            <input
-                                type="checkbox"
-                                checked={autoUpdateOnLaunch}
-                                onChange={toggleUpdate}
-                                className="peer sr-only"
-                            />
-                            <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
-                            <div className="absolute top-1 left-1 h-4 w-4 rounded-full border border-gray-300 bg-white transition-transform peer-checked:translate-x-5 dark:bg-gray-200"></div>
-                        </label>
-                    </div>
+                    {Object.keys(buttonLabels).map((key) => (
+                        <Toggle
+                            key={key}
+                            label={buttonLabels[key]}
+                            checked={setting[key]}
+                            onChange={toggle(key)}
+                        />
+                    ))}
 
                     <button
                         className="w-full cursor-pointer rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800"

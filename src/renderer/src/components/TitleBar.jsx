@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import useWindowControls from "../hooks/useWindowControls";
+import useWindowControls from "@hooks/useWindowControls";
 import {
     faMaximize,
     faMinimize,

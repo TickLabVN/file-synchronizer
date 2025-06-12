@@ -19,6 +19,8 @@ export default defineConfig({
                     "src/renderer/src/components"
                 ),
                 "@assets": path.resolve(__dirname, "src/renderer/src/assets"),
+                "@hooks": path.resolve(__dirname, "src/renderer/src/hooks"),
+                "@api": path.resolve(__dirname, "src/renderer/src/api"),
             },
         },
         plugins: [react(), tailwindcss()],

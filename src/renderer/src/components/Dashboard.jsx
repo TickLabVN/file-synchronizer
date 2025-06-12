@@ -8,11 +8,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useEffect, useState } from "react";
-import ModalConfirmLogout from "./ModalConfirmLogout";
-import Loading from "./Loading";
-import SettingPopup from "./SettingPopup";
 import { toast, ToastContainer } from "react-toastify";
 import * as api from "../api";
+import ModalConfirmLogout from "@components/ModalConfirmLogout";
+import SettingPopup from "@components/SettingPopup";
+import Loading from "@components/Loading";
 
 const Dashboard = ({
     username,
