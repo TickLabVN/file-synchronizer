@@ -5,6 +5,7 @@ import {
     faMinimize,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
+import icon from "@assets/icon.png";
 
 export default function TitleBar() {
     const { isMax, onMin, onMax, onClose } = useWindowControls();
@@ -13,7 +14,7 @@ export default function TitleBar() {
         <div className="flex h-12 items-center justify-between bg-gray-100 text-gray-800 select-none [-webkit-app-region:drag] dark:bg-gray-900 dark:text-gray-100">
             <div className="flex items-center space-x-2 px-2 font-medium">
                 <img
-                    src="/icon.png"
+                    src={icon}
                     alt="app logo"
                     className="h-5 w-5 object-contain"
                 />
