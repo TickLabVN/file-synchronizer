@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
 import Loading from "./Loading";
-import { faFile, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 export default function SettingPopup({ onClose }) {
     const [darkMode, setDarkMode] = useState(false);
     const [autoDeleteOnLaunch, setAutoDeleteOnLaunch] = useState(false);
     const [autoUpdateOnLaunch, setAutoUpdateOnLaunch] = useState(false);
     const [pulling, setPulling] = useState(false);
-    const [stopSyncPaths, setStopSyncPaths] = useState([]);
 
     useEffect(() => {
         window.api
@@ -18,9 +16,8 @@ export default function SettingPopup({ onClose }) {
                 setDarkMode(darkMode);
                 setAutoDeleteOnLaunch(autoDeleteOnLaunch);
                 setAutoUpdateOnLaunch(autoUpdateOnLaunch);
-                setStopSyncPaths(stopSyncPaths);
             });
-    }, [stopSyncPaths]);
+    }, []);
 
     const toggleDelete = () => {
         const next = !autoDeleteOnLaunch;
@@ -56,17 +53,6 @@ export default function SettingPopup({ onClose }) {
         } finally {
             setPulling(false);
         }
-    };
-
-    const handleStopSync = async () => {
-        const paths = await window.api.selectStopSyncFiles();
-        if (paths) setStopSyncPaths(paths);
-    };
-
-    const removeStopSync = (p) => {
-        const next = stopSyncPaths.filter((x) => x !== p);
-        setStopSyncPaths(next);
-        window.api.updateSettings({ stopSyncPaths: next });
     };
 
     return (
@@ -131,38 +117,6 @@ export default function SettingPopup({ onClose }) {
                             <div className="absolute top-1 left-1 h-4 w-4 rounded-full border border-gray-300 bg-white transition-transform peer-checked:translate-x-5 dark:bg-gray-200"></div>
                         </label>
                     </div>
-
-                    <button
-                        className="w-full cursor-pointer rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800"
-                        onClick={handleStopSync}
-                    >
-                        Choose file to stop sync
-                    </button>
-
-                    {stopSyncPaths.length > 0 && (
-                        <ul className="scrollbar mt-2 max-h-40 space-y-2 overflow-auto">
-                            {stopSyncPaths.map((p) => (
-                                <li
-                                    key={p}
-                                    className="flex items-center justify-between rounded bg-gray-50 px-4 py-1 dark:bg-gray-700 dark:text-gray-400"
-                                >
-                                    <span className="flex-1 truncate">
-                                        <FontAwesomeIcon
-                                            icon={faFile}
-                                            className="mr-2 text-yellow-500"
-                                        />
-                                        {p}
-                                    </span>
-                                    <button
-                                        onClick={() => removeStopSync(p)}
-                                        className="cursor-pointer text-red-500 hover:text-red-600"
-                                    >
-                                        <FontAwesomeIcon icon={faTrash} />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
 
                     <button
                         className="w-full cursor-pointer rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800"

@@ -104,45 +104,37 @@ const App = () => {
         }
     };
 
-    if (loading || initialSyncing) {
-        return <Loading initialSyncing={initialSyncing} />;
-    }
-
-    if (!auth) {
-        return <Login setAuth={setAuth} setUsername={setUsername} />;
-    }
-
-    if (!username) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-lg text-red-600">
-                    Can not retrieve username. Please log in again.
-                </div>
-            </div>
-        );
-    }
-
-    if (!savedCentralFolderPath) {
-        return (
-            <ChooseCentralFolder
-                username={username}
-                centralFolderPath={centralFolderPath}
-                handleSelectFolder={handleSelectFolder}
-                handleContinue={handleContinue}
-            />
-        );
-    }
-
     return (
         <div className="flex h-screen flex-col overflow-hidden">
-            <TitleBar />
-            <div className="scrollbar flex-1 overflow-auto">
-                <Dashboard
-                    username={username}
-                    savedCentralFolderPath={savedCentralFolderPath}
-                    handleLogout={handleLogout}
-                    handleChangeCentralFolder={handleChangeCentralFolder}
-                />
+            <div className="fixed top-0 right-0 left-0 z-10">
+                <TitleBar />
+            </div>
+            <div className="flex-1 overflow-auto">
+                {loading || initialSyncing ? (
+                    <Loading initialSyncing={initialSyncing} />
+                ) : !auth ? (
+                    <Login setAuth={setAuth} setUsername={setUsername} />
+                ) : !username ? (
+                    <div className="flex h-screen items-center justify-center">
+                        <div className="text-lg text-red-600">
+                            Can not retrieve username. Please log in again.
+                        </div>
+                    </div>
+                ) : !savedCentralFolderPath ? (
+                    <ChooseCentralFolder
+                        username={username}
+                        centralFolderPath={centralFolderPath}
+                        handleSelectFolder={handleSelectFolder}
+                        handleContinue={handleContinue}
+                    />
+                ) : (
+                    <Dashboard
+                        username={username}
+                        savedCentralFolderPath={savedCentralFolderPath}
+                        handleLogout={handleLogout}
+                        handleChangeCentralFolder={handleChangeCentralFolder}
+                    />
+                )}
             </div>
         </div>
     );

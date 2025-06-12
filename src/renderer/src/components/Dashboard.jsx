@@ -96,9 +96,14 @@ const Dashboard = ({
         });
     };
 
+    const handleStopSync = async () => {
+        const paths = await window.api.selectStopSyncFiles();
+        if (paths) setStopSyncPaths(paths);
+    };
+
     return (
         <div className="flex h-full">
-            <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 dark:border-r-gray-700 dark:bg-gray-800">
+            <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
                 <div>
                     <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
                         USER
@@ -125,7 +130,7 @@ const Dashboard = ({
                 />
             )}
 
-            <div className="scrollbar flex h-full flex-[4] flex-col overflow-auto">
+            <div className="scrollbar flex h-full flex-[4] flex-col overflow-auto pt-12">
                 <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
                     <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
                 </header>
@@ -206,6 +211,13 @@ const Dashboard = ({
                             onClick={handleSync}
                         >
                             Sync to Drive
+                        </button>
+
+                        <button
+                            className="w-48 cursor-pointer rounded bg-yellow-500 py-2 text-white hover:bg-yellow-600 dark:bg-yellow-700 dark:text-gray-200 dark:hover:bg-yellow-800"
+                            onClick={handleStopSync}
+                        >
+                            Choose file to stop sync
                         </button>
                     </div>
                     <button

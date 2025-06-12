@@ -22,7 +22,7 @@ export default function TitleBar() {
     const onClose = () => window.windowControls.close();
 
     return (
-        <div className="flex h-8 items-center justify-between bg-gray-100 text-gray-800 select-none [-webkit-app-region:drag] dark:bg-gray-900 dark:text-gray-100">
+        <div className="flex h-12 items-center justify-between bg-gray-100 text-gray-800 select-none [-webkit-app-region:drag] dark:bg-gray-900 dark:text-gray-100">
             <div className="flex items-center space-x-2 px-2 font-medium">
                 <img
                     src="/icon.png"
