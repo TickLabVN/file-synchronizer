@@ -1,6 +1,5 @@
-// TitleBar.jsx
-import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import useWindowControls from "../hooks/useWindowControls";
 import {
     faMaximize,
     faMinimize,
@@ -8,18 +7,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function TitleBar() {
-    const [isMax, setIsMax] = useState(false);
-
-    useEffect(() => {
-        window.windowControls.isMaximized().then(setIsMax);
-    }, []);
-
-    const onMin = () => window.windowControls.minimize();
-    const onMax = () => {
-        window.windowControls.maximize();
-        setIsMax((prev) => !prev);
-    };
-    const onClose = () => window.windowControls.close();
+    const { isMax, onMin, onMax, onClose } = useWindowControls();
 
     return (
         <div className="flex h-12 items-center justify-between bg-gray-100 text-gray-800 select-none [-webkit-app-region:drag] dark:bg-gray-900 dark:text-gray-100">

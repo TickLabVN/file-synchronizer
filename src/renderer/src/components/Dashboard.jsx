@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import ModalConfirmLogout from "./ModalConfirmLogout";
 import Loading from "./Loading";
 import SettingPopup from "./SettingPopup";
+import { toast, ToastContainer } from "react-toastify";
 
 const Dashboard = ({
     username,
@@ -61,18 +62,18 @@ const Dashboard = ({
 
     const handleSync = async () => {
         if (!selectedItems.length) {
-            alert("Please select files or folders to sync.");
+            toast.error("Please select files or folders to sync.");
             return;
         }
         setSyncing(true);
         try {
             const paths = selectedItems.map((item) => item.path);
             await window.api.syncFiles(paths);
-            alert("Sync to Drive completed successfully!");
+            toast.success("Sync completed successfully!");
             setSelectedItems([]);
         } catch (err) {
             console.error(err);
-            alert("Sync failed: " + err.message);
+            toast.error("Sync failed: " + (err.message || "Unknown error"));
         } finally {
             setSyncing(false);
         }
@@ -98,6 +99,7 @@ const Dashboard = ({
 
     return (
         <div className="flex h-full">
+            <ToastContainer position="bottom-left" autoClose={5000} />
             <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
                 <div>
                     <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">

@@ -4,6 +4,7 @@ import Loading from "@components/Loading";
 import ChooseCentralFolder from "@components/ChooseCentralFolder";
 import Dashboard from "@components/Dashboard";
 import TitleBar from "./components/TitleBar";
+import { toast, ToastContainer } from "react-toastify";
 
 const App = () => {
     const [auth, setAuth] = useState(false);
@@ -29,6 +30,10 @@ const App = () => {
                 });
             } catch (err) {
                 console.error("Init error:", err);
+                toast.error(
+                    "Failed to initialize application: " +
+                        (err.message || "Unknown error")
+                );
             } finally {
                 setLoading(false);
             }
@@ -45,9 +50,13 @@ const App = () => {
                         setInitialSyncing(true);
                         window.api
                             .syncOnLaunch()
-                            .catch((e) =>
-                                console.error("Sync-on-launch failed:", e)
-                            )
+                            .catch((e) => {
+                                console.error("Sync-on-launch failed:", e);
+                                toast.error(
+                                    "Failed to sync on launch: " +
+                                        (e.message || "Unknown error")
+                                );
+                            })
                             .finally(() => setInitialSyncing(false));
                     }
                 });
@@ -62,6 +71,10 @@ const App = () => {
             }
         } catch (err) {
             console.error("Select folder error:", err);
+            toast.error(
+                "Failed to select central folder: " +
+                    (err.message || "Unknown error")
+            );
         }
     };
 
@@ -73,6 +86,10 @@ const App = () => {
             }
         } catch (err) {
             console.error("Save central folder error:", err);
+            toast.error(
+                "Failed to save central folder: " +
+                    (err.message || "Unknown error")
+            );
         }
     };
 
@@ -82,6 +99,9 @@ const App = () => {
             window.location.reload();
         } catch (err) {
             console.error("Logout error:", err);
+            toast.error(
+                "Failed to log out: " + (err.message || "Unknown error")
+            );
         }
     };
 
@@ -95,18 +115,22 @@ const App = () => {
                 if (newPath) {
                     await window.api.saveCentralFolderConfig(newPath);
                     setSavedCentralFolderPath(newPath);
-                    alert("Central folder changed successfully!");
+                    toast.success("Central folder changed successfully!");
                 }
             } catch (err) {
                 console.error("Change central folder error:", err);
-                alert("Failed to change central folder: " + err.message);
+                toast.error(
+                    "Failed to change central folder: " +
+                        (err.message || "Unknown error")
+                );
             }
         }
     };
 
     return (
         <div className="flex h-screen flex-col overflow-hidden">
-            <div className="fixed top-0 right-0 left-0 z-100">
+            <ToastContainer position="bottom-left" autoClose={5000} />
+            <div className="fixed top-0 right-0 left-0 z-10">
                 <TitleBar />
             </div>
             <div className="flex-1 overflow-auto">

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
 import Loading from "./Loading";
+import { toast, ToastContainer } from "react-toastify";
 
 export default function SettingPopup({ onClose }) {
     const [darkMode, setDarkMode] = useState(false);
@@ -46,17 +47,21 @@ export default function SettingPopup({ onClose }) {
         setPulling(true);
         try {
             await window.api.pullFromDrive();
-            alert("Pull down completed successfully!");
+            toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);
-            alert("Pull down failed: " + err.message);
+            toast.error(
+                "Failed to pull down from Drive:" +
+                    (err.message || "Unknown error")
+            );
         } finally {
             setPulling(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 z-150 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/50">
+        <div className="fixed inset-0 z-15 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/50">
+            <ToastContainer position="bottom-left" />
             <div className="absolute inset-0 bg-black opacity-50" />
 
             <div className="relative w-80 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
