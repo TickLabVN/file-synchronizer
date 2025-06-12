@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
 import Loading from "./Loading";
 import { toast, ToastContainer } from "react-toastify";
+import * as api from "../api";
 
 export default function SettingPopup({ onClose }) {
     const [darkMode, setDarkMode] = useState(false);
@@ -11,31 +12,31 @@ export default function SettingPopup({ onClose }) {
     const [pulling, setPulling] = useState(false);
 
     useEffect(() => {
-        window.api
-            .getSettings()
-            .then(({ darkMode, autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
+        api.getSettings().then(
+            ({ darkMode, autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
                 setDarkMode(darkMode);
                 setAutoDeleteOnLaunch(autoDeleteOnLaunch);
                 setAutoUpdateOnLaunch(autoUpdateOnLaunch);
-            });
+            }
+        );
     }, []);
 
     const toggleDelete = () => {
         const next = !autoDeleteOnLaunch;
         setAutoDeleteOnLaunch(next);
-        window.api.updateSettings({ autoDeleteOnLaunch: next });
+        api.updateSettings({ autoDeleteOnLaunch: next });
     };
 
     const toggleUpdate = () => {
         const next = !autoUpdateOnLaunch;
         setAutoUpdateOnLaunch(next);
-        window.api.updateSettings({ autoUpdateOnLaunch: next });
+        api.updateSettings({ autoUpdateOnLaunch: next });
     };
 
     const toggleDark = () => {
         const next = !darkMode;
         setDarkMode(next);
-        window.api.updateSettings({ darkMode: next });
+        api.updateSettings({ darkMode: next });
         if (next) {
             document.documentElement.classList.add("dark");
         } else {
@@ -46,7 +47,7 @@ export default function SettingPopup({ onClose }) {
     const handlePullDown = async () => {
         setPulling(true);
         try {
-            await window.api.pullFromDrive();
+            await api.pullFromDrive();
             toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);

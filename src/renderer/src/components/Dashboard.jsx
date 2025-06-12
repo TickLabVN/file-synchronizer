@@ -12,6 +12,7 @@ import ModalConfirmLogout from "./ModalConfirmLogout";
 import Loading from "./Loading";
 import SettingPopup from "./SettingPopup";
 import { toast, ToastContainer } from "react-toastify";
+import * as api from "../api";
 
 const Dashboard = ({
     username,
@@ -26,7 +27,7 @@ const Dashboard = ({
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
 
     useEffect(() => {
-        window.api.getSettings().then(({ stopSyncPaths = [] }) => {
+        api.getSettings().then(({ stopSyncPaths = [] }) => {
             setStopSyncPaths(stopSyncPaths);
         });
     }, []);
@@ -34,11 +35,11 @@ const Dashboard = ({
     const handleRemoveStopSync = (p) => {
         const next = stopSyncPaths.filter((x) => x !== p);
         setStopSyncPaths(next);
-        window.api.updateSettings({ stopSyncPaths: next });
+        api.updateSettings({ stopSyncPaths: next });
     };
 
     const handleChooseFiles = async () => {
-        const paths = await window.api.selectFiles();
+        const paths = await api.selectFiles();
         if (paths) {
             setSelectedItems((prev) => [
                 ...prev,
@@ -48,7 +49,7 @@ const Dashboard = ({
     };
 
     const handleChooseFolders = async () => {
-        const paths = await window.api.selectFolders();
+        const paths = await api.selectFolders();
         if (paths) {
             setSelectedItems((prev) => [
                 ...prev,
@@ -68,7 +69,7 @@ const Dashboard = ({
         setSyncing(true);
         try {
             const paths = selectedItems.map((item) => item.path);
-            await window.api.syncFiles(paths);
+            await api.syncFiles(paths);
             toast.success("Sync completed successfully!");
             setSelectedItems([]);
         } catch (err) {
@@ -93,7 +94,7 @@ const Dashboard = ({
     };
 
     const handleStopSync = async () => {
-        const paths = await window.api.selectStopSyncFiles();
+        const paths = await api.selectStopSyncFiles();
         if (paths) setStopSyncPaths(paths);
     };
 

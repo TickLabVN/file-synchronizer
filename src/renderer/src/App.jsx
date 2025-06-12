@@ -5,6 +5,7 @@ import ChooseCentralFolder from "@components/ChooseCentralFolder";
 import Dashboard from "@components/Dashboard";
 import TitleBar from "./components/TitleBar";
 import { toast, ToastContainer } from "react-toastify";
+import * as api from "./api";
 
 const App = () => {
     const [auth, setAuth] = useState(false);
@@ -17,13 +18,13 @@ const App = () => {
     useEffect(() => {
         async function init() {
             try {
-                const tokens = await window.api.getTokens();
+                const tokens = await api.getTokens();
                 if (tokens?.access_token) {
                     setAuth(true);
-                    const name = await window.api.getGDUserName();
+                    const name = await api.getGDUserName();
                     if (name) setUsername(name);
                 }
-                window.api.getCentralFolderConfig().then((stored) => {
+                api.getCentralFolderConfig().then((stored) => {
                     if (stored) {
                         setSavedCentralFolderPath(stored);
                     }
@@ -43,13 +44,11 @@ const App = () => {
 
     useEffect(() => {
         if (auth && savedCentralFolderPath) {
-            window.api
-                .getSettings()
-                .then(({ autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
+            api.getSettings().then(
+                ({ autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
                     if (autoDeleteOnLaunch || autoUpdateOnLaunch) {
                         setInitialSyncing(true);
-                        window.api
-                            .syncOnLaunch()
+                        api.syncOnLaunch()
                             .catch((e) => {
                                 console.error("Sync-on-launch failed:", e);
                                 toast.error(
@@ -59,13 +58,14 @@ const App = () => {
                             })
                             .finally(() => setInitialSyncing(false));
                     }
-                });
+                }
+            );
         }
     }, [auth, savedCentralFolderPath]);
 
     const handleSelectFolder = async () => {
         try {
-            const path = await window.api.selectCentralFolder();
+            const path = await api.selectCentralFolder();
             if (path) {
                 setCentralFolderPath(path);
             }
@@ -81,7 +81,7 @@ const App = () => {
     const handleContinue = async () => {
         try {
             if (centralFolderPath) {
-                await window.api.saveCentralFolderConfig(centralFolderPath);
+                await api.saveCentralFolderConfig(centralFolderPath);
                 setSavedCentralFolderPath(centralFolderPath);
             }
         } catch (err) {
@@ -95,7 +95,7 @@ const App = () => {
 
     const handleLogout = async () => {
         try {
-            await window.api.signOut();
+            await api.signOut();
             window.location.reload();
         } catch (err) {
             console.error("Logout error:", err);
@@ -111,9 +111,9 @@ const App = () => {
         );
         if (confirmed) {
             try {
-                const newPath = await window.api.selectCentralFolder();
+                const newPath = await api.selectCentralFolder();
                 if (newPath) {
-                    await window.api.saveCentralFolderConfig(newPath);
+                    await api.saveCentralFolderConfig(newPath);
                     setSavedCentralFolderPath(newPath);
                     toast.success("Central folder changed successfully!");
                 }

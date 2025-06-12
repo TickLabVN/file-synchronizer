@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as api from "../api";
 
 const Login = ({ setAuth, setUsername }) => {
     const [status, setStatus] = useState("idle");
@@ -8,9 +9,9 @@ const Login = ({ setAuth, setUsername }) => {
         setStatus("loading");
         setError(null);
         try {
-            const result = await window.api.signIn();
+            const result = await api.signIn();
             console.log("Rclone token:", result.token);
-            const name = await window.api.getGDUserName();
+            const name = await api.getGDUserName();
             if (name) {
                 console.log("Google Drive user:", name);
                 setUsername(name);

@@ -5,8 +5,9 @@ import "@fontsource-variable/roboto";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import * as api from "./api";
 
-window.api.getSettings().then(({ darkMode }) => {
+api.getSettings().then(({ darkMode }) => {
     if (darkMode) {
         document.documentElement.classList.add("dark");
     } else {

@@ -1,7 +1,5 @@
-import { createPortal } from "react-dom";
-
 const Loading = ({ syncing = false, initialSyncing = false }) => {
-    return createPortal(
+    return (
         <div className="fixed inset-0 z-50 flex h-screen flex-col items-center justify-center bg-gray-100 dark:bg-gray-900">
             <div role="status">
                 <svg
@@ -32,8 +30,7 @@ const Loading = ({ syncing = false, initialSyncing = false }) => {
                     Please wait while we check your files and folders...
                 </p>
             )}
-        </div>,
-        document.body
+        </div>
     );
 };
 
