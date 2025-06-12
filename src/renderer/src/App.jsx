@@ -106,7 +106,7 @@ const App = () => {
 
     return (
         <div className="flex h-screen flex-col overflow-hidden">
-            <div className="fixed top-0 right-0 left-0 z-10">
+            <div className="fixed top-0 right-0 left-0 z-100">
                 <TitleBar />
             </div>
             <div className="flex-1 overflow-auto">

@@ -25,13 +25,11 @@ const Dashboard = ({
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
 
     useEffect(() => {
-        // Load danh sách stopSync từ settings
         window.api.getSettings().then(({ stopSyncPaths = [] }) => {
             setStopSyncPaths(stopSyncPaths);
         });
     }, []);
 
-    // Xóa 1 path khỏi stopSync
     const handleRemoveStopSync = (p) => {
         const next = stopSyncPaths.filter((x) => x !== p);
         setStopSyncPaths(next);
@@ -91,9 +89,6 @@ const Dashboard = ({
 
     const handleSettingsClose = () => {
         setShowSettings(false);
-        window.api.getSettings().then(({ stopSyncPaths = [] }) => {
-            setStopSyncPaths(stopSyncPaths);
-        });
     };
 
     const handleStopSync = async () => {
