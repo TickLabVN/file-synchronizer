@@ -1,4 +1,4 @@
-import { app, dialog } from "electron";
+import { app, dialog, BrowserWindow } from "electron";
 import fs from "fs";
 import path from "path";
 import "dotenv/config";
@@ -7,7 +7,9 @@ const { store, mapping } = constants;
 
 // Handle selecting multiple files
 export async function selectFiles() {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
+    const win = BrowserWindow.getFocusedWindow();
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openFile", "multiSelections"],
     });
     return canceled ? null : filePaths;
@@ -15,7 +17,9 @@ export async function selectFiles() {
 
 // Handle selecting multiple folders
 export async function selectFolders() {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
+    const win = BrowserWindow.getFocusedWindow();
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openDirectory", "multiSelections"],
     });
     return canceled ? null : filePaths;
@@ -23,6 +27,8 @@ export async function selectFolders() {
 
 // Handle selecting files to stop syncing
 export async function selectStopSyncFiles() {
+    const win = BrowserWindow.getFocusedWindow();
+
     const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
     let centralFolderPath;
     try {
@@ -32,7 +38,7 @@ export async function selectStopSyncFiles() {
         throw new Error("Central folder not set");
     }
 
-    const { canceled, filePaths } = await dialog.showOpenDialog({
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         title: "Select files under Central Folder",
         defaultPath: centralFolderPath,
         properties: ["openFile", "multiSelections"],

@@ -56,7 +56,9 @@ export default function SettingPopup({ onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/50">
+        <div className="fixed inset-0 z-150 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/50">
+            <div className="absolute inset-0 bg-black opacity-50" />
+
             <div className="relative w-80 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
                 <button
                     onClick={onClose}

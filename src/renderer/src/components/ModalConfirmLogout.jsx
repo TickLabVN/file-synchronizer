@@ -1,6 +1,6 @@
 const ModalConfirmLogout = ({ cancelLogout, confirmLogout }) => {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center dark:bg-gray-900/50">
+        <div className="fixed inset-0 z-150 flex items-center justify-center dark:bg-gray-900/50">
             <div className="absolute inset-0 bg-black opacity-50" />
 
             <div className="relative z-10 w-full max-w-sm rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">

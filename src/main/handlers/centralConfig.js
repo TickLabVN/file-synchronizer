@@ -1,10 +1,12 @@
-import { app, dialog } from "electron";
+import { app, dialog, BrowserWindow } from "electron";
 import path from "path";
 import fs from "fs";
 
 // Handle choosing a central folder
 export async function selectCentralFolder() {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
+    const win = BrowserWindow.getFocusedWindow();
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openDirectory"],
     });
     if (canceled) return null;
