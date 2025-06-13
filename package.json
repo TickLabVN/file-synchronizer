@@ -1,10 +1,24 @@
 {
     "name": "file-synchronizer",
     "version": "1.0.0",
-    "description": "An Electron application with React",
-    "homepage": "https://electron-vite.org",
+    "description": "A cross-platform desktop application built with ElectronJS, ReactJS, and TailwindCSS for synchronizing files with Google Drive.",
+    "keywords": [
+        "ElectronJS",
+        "ReactJS",
+        "TailwindCSS",
+        "ExpressJS",
+        "Google Drive API"
+    ],
+    "homepage": "https://github.com/BaoDuong254/file-synchronizer#readme",
+    "bugs": {
+        "url": "https://github.com/BaoDuong254/file-synchronizer/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/BaoDuong254/file-synchronizer.git"
+    },
     "license": "ISC",
-    "author": "example.com",
+    "author": "BaoDuong254 <duonggiabao254@gmail.com>",
     "type": "module",
     "main": "./out/main/index.js",
     "scripts": {
