@@ -18,6 +18,12 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: 18
+            
+            - name: install dependencies (ubuntu only)
+              if: matrix.os == 'ubuntu-22.04'
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y snapcraft squashfs-tools
 
             - name: Build/release Electron app
               uses: samuelmeuli/action-electron-builder@v1
@@ -28,4 +34,4 @@ jobs:
 
                   # If the commit is tagged with a version (e.g. "v1.0.0"),
                   # release the app after building
-                  release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+                  release: ${{ startsWith(github.ref, 'refs/tags/v') }}\
