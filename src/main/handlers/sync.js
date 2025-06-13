@@ -1,14 +1,14 @@
 import { app } from "electron";
 import path from "path";
-import { google } from "googleapis";
 import fs from "fs";
 import { constants } from "../lib/constants";
 import traverseAndUpload from "../utils/traverseAndUpload";
 import traverseCompare from "../utils/traverseCompare";
 import downloadTree from "../utils/downloadTree";
+import getDriveClient from "../utils/getDriveClient";
 import "dotenv/config";
 
-const { oauth2Client, store, mapping } = constants;
+const { store, mapping } = constants;
 
 // Handle syncing files/folders to Google Drive and creating symlinks
 export async function syncFiles(_, paths) {
@@ -17,7 +17,7 @@ export async function syncFiles(_, paths) {
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
 
-    const drive = google.drive({ version: "v3", auth: oauth2Client });
+    const drive = await getDriveClient();
     const folderName = "FS-Backup-Data";
 
     // find or create central Drive folder
@@ -110,7 +110,7 @@ export async function syncOnLaunch() {
         return true;
     }
 
-    const drive = google.drive({ version: "v3", auth: oauth2Client });
+    const drive = await getDriveClient();
 
     if (autoDeleteOnLaunch) {
         console.log("Starting auto-delete on launch...");
@@ -218,7 +218,7 @@ export async function pullFromDrive() {
     );
     if (!centralFolderPath) throw new Error("Central folder not set");
 
-    const drive = google.drive({ version: "v3", auth: oauth2Client });
+    const drive = await getDriveClient();
     const {
         data: { files: root },
     } = await drive.files.list({

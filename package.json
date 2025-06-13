@@ -18,7 +18,8 @@
         "build:win": "npm run build && electron-builder --win",
         "build:mac": "npm run build && electron-builder --mac",
         "build:linux": "npm run build && electron-builder --linux",
-        "prepare": "husky"
+        "prepare": "husky",
+        "server": "nodemon backend/src/index.js"
     },
     "dependencies": {
         "@electron-toolkit/preload": "^3.0.1",
@@ -31,12 +32,14 @@
         "@fortawesome/react-fontawesome": "^0.2.2",
         "@getstation/electron-google-oauth2": "^14.0.0",
         "@tailwindcss/vite": "^4.1.8",
+        "axios": "^1.9.0",
         "custom-electron-titlebar": "^4.2.8",
         "dotenv": "^16.5.0",
         "electron-store": "^10.0.1",
         "electron-updater": "^6.3.9",
         "framer-motion": "^12.16.0",
         "googleapis": "^150.0.1",
+        "keytar": "^7.9.0",
         "lodash": "^4.17.21",
         "react-hook-form": "^7.57.0",
         "react-router-dom": "^7.6.2",
@@ -58,6 +61,7 @@
         "eslint-plugin-react-refresh": "^0.4.19",
         "husky": "^9.1.7",
         "lint-staged": "^16.1.0",
+        "nodemon": "^3.1.10",
         "prettier": "^3.5.3",
         "prettier-plugin-tailwindcss": "^0.6.12",
         "react": "^19.1.0",
