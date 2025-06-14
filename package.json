@@ -1,6 +1,6 @@
 {
     "name": "file-synchronizer",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "A cross-platform desktop application built with ElectronJS, ReactJS, and TailwindCSS for synchronizing files with Google Drive.",
     "keywords": [
         "ElectronJS",
