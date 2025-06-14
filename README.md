@@ -20,7 +20,7 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/yourusername/file-synchronizer.git
+    git clone https://github.com/BaoDuong254/file-synchronizer.git
     cd file-synchronizer
     ```
 
