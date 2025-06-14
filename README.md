@@ -83,26 +83,26 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
 
 We welcome contributions! To contribute:
 
-1. Fork the repository
-2. Create a branch for your feature or fix:
+1. **Fork the repository**
+2. **Create a branch for your feature or fix:**
 
     ```bash
     git checkout -b feature/your-feature-name
     ```
 
-3. Make your changes and commit:
+3. **Make your changes and commit:**
 
     ```bash
     git commit -m "Add feature X"
     ```
 
-4. Push to your branch:
+4. **Push to your branch:**
 
     ```bash
     git push origin feature/your-feature-name
     ```
 
-5. Open a Pull Request on GitHub and describe your changes.
+5. **Open a Pull Request on GitHub and describe your changes.**
 
 ## Reporting Issues
 
