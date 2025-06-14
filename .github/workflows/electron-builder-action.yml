@@ -2,6 +2,11 @@ name: Build/release
 
 on: push
 
+permissions:
+  contents: write    # cho phép push code, tạo tag, release
+  packages: write    # (nếu bạn publish package)
+  actions: read      # giữ nguyên hoặc tuỳ ý
+
 jobs:
     release:
         runs-on: ${{ matrix.os }}
@@ -24,7 +29,7 @@ jobs:
               with:
                   # GitHub token, automatically provided to the action
                   # (No need to define this secret in the repo settings)
-                  github_token: ${{ secrets.github_token }}
+                  github_token: ${{ secrets.MY_GITHUB_TOKEN }}
 
                   # If the commit is tagged with a version (e.g. "v1.0.0"),
                   # release the app after building
