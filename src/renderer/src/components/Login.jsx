@@ -11,7 +11,7 @@ const Login = ({ setAuth, setUsername }) => {
         setError(null);
         try {
             const result = await api.signIn();
-            console.log("Rclone token:", result.token);
+            console.log("GGDrive token:", result.token);
             const name = await api.getGDUserName();
             if (name) {
                 console.log("Google Drive user:", name);
