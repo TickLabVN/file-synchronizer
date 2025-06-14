@@ -5,7 +5,8 @@ import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
 const { BACKEND_URL } = constants;
 import { getTokenKeytar } from "./lib/credentials";
-import { autoUpdater } from "electron-updater";
+import pkg from "electron-updater";
+const { autoUpdater } = pkg;
 
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
