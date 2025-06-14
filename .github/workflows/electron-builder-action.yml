@@ -24,6 +24,9 @@ jobs:
             - name: Install dependencies
               run: npm ci # hoặc yarn install
 
+            - name: Install Snapcraft
+              uses: samuelmeuli/action-snapcraft@v3
+
             - name: Build source
               run: npm run build
 
