@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
-const PORT = process.env.PORT || 3000;
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     console.error("Missing OAuth credentials");
@@ -17,7 +17,7 @@ export const SCOPES = [
     "profile",
 ];
 
-const REDIRECT_URI = `http://localhost:${PORT}/auth/google/callback`;
+const REDIRECT_URI = `${BACKEND_URL}/auth/google/callback`;
 
 export const oauth2Client = new google.auth.OAuth2(
     GOOGLE_CLIENT_ID,
