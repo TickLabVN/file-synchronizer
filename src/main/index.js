@@ -1,10 +1,11 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog } from "electron";
 import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
 const { BACKEND_URL } = constants;
 import { getTokenKeytar } from "./lib/credentials";
+import { autoUpdater } from "electron-updater";
 
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
@@ -22,11 +23,44 @@ app.whenReady().then(async () => {
 
     createWindow();
 
+    autoUpdater.checkForUpdatesAndNotify();
+
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
     });
+});
+
+// Handle the case when have new version available
+autoUpdater.on("update-available", (info) => {
+    dialog.showMessageBox({
+        type: "info",
+        title: "Have a new version",
+        message: `A new version ${info.version} is available. Downloading now...`,
+        buttons: ["OK"],
+    });
+});
+
+// Handle downloaded updates
+autoUpdater.on("update-downloaded", () => {
+    dialog
+        .showMessageBox({
+            type: "info",
+            title: "Update Downloaded",
+            message:
+                "The update has been downloaded. Restart the application to apply the update.",
+            buttons: ["Restart", "Later"],
+        })
+        .then(({ response }) => {
+            if (response === 0) {
+                autoUpdater.quitAndInstall();
+            }
+        });
+});
+
+autoUpdater.on("error", (err) => {
+    console.error("Error when update:", err);
 });
 
 app.on("window-all-closed", () => {
