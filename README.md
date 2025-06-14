@@ -2,6 +2,8 @@
 
 A cross-platform desktop application built with ElectronJS, ReactJS, and TailwindCSS for synchronizing files with Google Drive.
 
+> **Note:** Because the backend server is deployed on Render, the first login may take a few seconds while the server starts up. Please wait for the loading indicator before proceeding.
+
 ## Features
 
 - Cross-platform support (Windows, macOS, Linux)
