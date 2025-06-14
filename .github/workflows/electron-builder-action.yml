@@ -3,12 +3,15 @@ name: Build/release
 on: push
 
 permissions:
-  contents: write    # cho phép push code, tạo tag, release
-  packages: write    # (nếu bạn publish package)
-  actions: read      # giữ nguyên hoặc tuỳ ý
+    contents: write # cho phép push code, tạo tag, release
+    packages: write # (nếu bạn publish package)
+    actions: read # giữ nguyên hoặc tuỳ ý
 
 jobs:
     release:
+        permissions:
+            contents: write
+
         runs-on: ${{ matrix.os }}
 
         strategy:
@@ -17,10 +20,10 @@ jobs:
 
         steps:
             - name: Check out Git repository
-              uses: actions/checkout@v4 
+              uses: actions/checkout@v4
 
             - name: Install Node.js, NPM and Yarn
-              uses: actions/setup-node@v4 
+              uses: actions/setup-node@v4
               with:
                   node-version: lts/*
 
@@ -29,7 +32,7 @@ jobs:
               with:
                   # GitHub token, automatically provided to the action
                   # (No need to define this secret in the repo settings)
-                  github_token: ${{ secrets.MY_GITHUB_TOKEN }}
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
 
                   # If the commit is tagged with a version (e.g. "v1.0.0"),
                   # release the app after building
