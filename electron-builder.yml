@@ -12,6 +12,10 @@ asarUnpack:
     - resources/**
 win:
     executableName: file-synchronizer
+    target:
+        - nsis
+        - zip
+        - msi
 nsis:
     artifactName: ${name}-${version}-setup.${ext}
     shortcutName: ${productName}
@@ -31,6 +35,7 @@ linux:
     target:
         - AppImage
         - deb
+        - tar.gz
     maintainer: electronjs.org
     category: Utility
 appImage:

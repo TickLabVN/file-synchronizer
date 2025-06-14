@@ -1,11 +1,14 @@
 name: Build/release
 
-on: push
+on: 
+    push:
+        tags:
+            - 'v*'
 
 permissions:
-    contents: write # cho phép push code, tạo tag, release
-    packages: write # (nếu bạn publish package)
-    actions: read # giữ nguyên hoặc tuỳ ý
+    contents: write 
+    packages: write 
+    actions: read 
 
 jobs:
     release:
