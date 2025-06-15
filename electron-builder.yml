@@ -38,6 +38,17 @@ linux:
         - tar.gz
     maintainer: electronjs.org
     category: Utility
+afterPack: |
+  const fs = require('fs');
+  const path = require('path');
+  const sandbox = path.join(context.appOutDir, 'chrome-sandbox');
+  try {
+    fs.chownSync(sandbox, 0, 0);
+    fs.chmodSync(sandbox, 0o4755);
+    console.log('chrome-sandbox permissions fixed');
+  } catch (e) {
+    console.warn('Failed to fix chrome-sandbox permissions:', e);
+  }
 appImage:
     artifactName: ${name}-${version}.${ext}
 npmRebuild: false
