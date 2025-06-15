@@ -1,14 +1,14 @@
 name: Build/release
 
-on: 
+on:
     push:
         tags:
-            - 'v*'
+            - "v*"
 
 permissions:
-    contents: write 
-    packages: write 
-    actions: read 
+    contents: write
+    packages: write
+    actions: read
 
 jobs:
     release:
@@ -30,6 +30,12 @@ jobs:
               with:
                   node-version: lts/*
 
+            - name: Fix chrome-sandbox permissions
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                  sudo chown root:root dist/linux-unpacked/chrome-sandbox
+                  sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
+                  
             - name: Build/release Electron app
               uses: samuelmeuli/action-electron-builder@v1
               with:
