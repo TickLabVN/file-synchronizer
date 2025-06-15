@@ -26,7 +26,8 @@ app.whenReady().then(async () => {
     createWindow();
 
     if (!is.dev) {
-        autoUpdater.checkForUpdatesAndNotify();
+        autoUpdater.autoDownload = false;
+        autoUpdater.checkForUpdates();
     } else {
         console.log("Running in development mode, skipping auto-updater.");
     }
@@ -62,7 +63,8 @@ autoUpdater.on("update-available", (info) => {
             buttons: ["OK", "Cancel"],
         })
         .then(({ response }) => {
-            if (response === 0) {
+            if (response === 0 && win) {
+                autoUpdater.downloadUpdate();
                 win.setProgressBar(0);
             }
         });
@@ -71,7 +73,11 @@ autoUpdater.on("update-available", (info) => {
 // Handle download progress
 autoUpdater.on("download-progress", (progress) => {
     const win = BrowserWindow.getFocusedWindow();
-    win.setProgressBar(progress.percent / 100);
+    if (win) {
+        win.setProgressBar(progress.percent / 100);
+    } else {
+        console.warn("No focused window to update progress bar.");
+    }
 });
 
 // Handle downloaded updates

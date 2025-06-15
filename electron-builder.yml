@@ -38,7 +38,6 @@ linux:
         - tar.gz
     maintainer: electronjs.org
     category: Utility
-afterPack: build/fix-chrome-sandbox.js
 appImage:
     artifactName: ${name}-${version}.${ext}
 npmRebuild: false
