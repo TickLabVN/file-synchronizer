@@ -12,6 +12,8 @@ import { is } from "@electron-toolkit/utils";
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
 
+let isUpdating = false;
+
 app.whenReady().then(async () => {
     // Check if the Google Drive tokens are saved
     const saved = await getTokenKeytar();
@@ -39,7 +41,6 @@ app.whenReady().then(async () => {
             type: "info",
             title: `Update successful`,
             message: `You have successfully updated to version ${pending.version}.`,
-            detail: pending.notes,
             buttons: ["OK"],
         });
         store.delete("pendingUpdate");
@@ -48,6 +49,34 @@ app.whenReady().then(async () => {
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
+        }
+    });
+
+    app.on("browser-window-created", (_, win) => {
+        win.on("close", (e) => {
+            if (isUpdating) {
+                e.preventDefault();
+                dialog.showMessageBox(win, {
+                    type: "warning",
+                    title: "Update in progress",
+                    message:
+                        "An update is currently being downloaded. Please wait until it completes.",
+                    buttons: ["OK"],
+                });
+            }
+        });
+    });
+
+    app.on("before-quit", (e) => {
+        if (isUpdating) {
+            e.preventDefault();
+            dialog.showMessageBox({
+                type: "warning",
+                title: "Update in progress",
+                message:
+                    "An update is currently being downloaded. Please wait until it completes.",
+                buttons: ["OK"],
+            });
         }
     });
 });
@@ -64,6 +93,7 @@ autoUpdater.on("update-available", (info) => {
         })
         .then(({ response }) => {
             if (response === 0 && win) {
+                isUpdating = true;
                 autoUpdater.downloadUpdate();
                 win.setProgressBar(0);
             }
@@ -74,7 +104,9 @@ autoUpdater.on("update-available", (info) => {
 autoUpdater.on("download-progress", (progress) => {
     const win = BrowserWindow.getFocusedWindow();
     if (win) {
+        isUpdating = true;
         win.setProgressBar(progress.percent / 100);
+        console.log(`Download progress: ${progress.percent}%`);
     } else {
         console.warn("No focused window to update progress bar.");
     }
@@ -85,10 +117,9 @@ autoUpdater.on("update-downloaded", (info) => {
     const win = BrowserWindow.getFocusedWindow();
     store.set("pendingUpdate", {
         version: info.version,
-        notes: info.releaseNotes || info.releaseNotesPlainText,
     });
     win.setProgressBar(-1);
-
+    isUpdating = false;
     dialog
         .showMessageBox(win, {
             type: "info",
@@ -110,6 +141,7 @@ autoUpdater.on("update-downloaded", (info) => {
 autoUpdater.on("error", (err) => {
     console.error("Error when update:", err);
     const win = BrowserWindow.getFocusedWindow();
+    isUpdating = false;
     dialog.showMessageBox(win, {
         type: "error",
         title: "Update Error",
