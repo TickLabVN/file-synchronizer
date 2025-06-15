@@ -38,7 +38,7 @@ linux:
         - tar.gz
     maintainer: electronjs.org
     category: Utility
-afterPack: electron-builder-sandbox-fix
+afterPack: build/appimage-fix.js
 appImage:
     artifactName: ${name}-${version}.${ext}
 npmRebuild: false
