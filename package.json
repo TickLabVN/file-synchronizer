@@ -1,6 +1,6 @@
 {
     "name": "file-synchronizer",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "description": "A cross-platform desktop application built with ElectronJS, ReactJS, and TailwindCSS for synchronizing files with Google Drive.",
     "keywords": [
         "ElectronJS",
@@ -66,6 +66,7 @@
         "@vitejs/plugin-react": "^4.3.4",
         "electron": "^35.1.5",
         "electron-builder": "^25.1.8",
+        "electron-builder-sandbox-fix": "^1.1.0",
         "electron-vite": "^3.1.0",
         "eslint": "^9.24.0",
         "eslint-config-prettier": "^10.1.5",
