@@ -30,12 +30,6 @@ jobs:
               with:
                   node-version: lts/*
 
-            - name: Fix chrome-sandbox permissions
-              if: matrix.os == 'ubuntu-latest'
-              run: |
-                  sudo chown root:root dist/linux-unpacked/chrome-sandbox
-                  sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
-                  
             - name: Build/release Electron app
               uses: samuelmeuli/action-electron-builder@v1
               with:
@@ -46,3 +40,9 @@ jobs:
                   # If the commit is tagged with a version (e.g. "v1.0.0"),
                   # release the app after building
                   release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+
+            - name: Fix chrome-sandbox permissions
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                  sudo chown root:root dist/linux-unpacked/chrome-sandbox
+                  sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
