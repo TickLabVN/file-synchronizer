@@ -7,6 +7,7 @@ const { BACKEND_URL, store } = constants;
 import { getTokenKeytar } from "./lib/credentials";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
+import { is } from "@electron-toolkit/utils";
 
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
@@ -22,8 +23,13 @@ app.whenReady().then(async () => {
         }).catch(console.error);
     }
 
-    // Set the application name for autoUpdater
-    autoUpdater.checkForUpdatesAndNotify();
+    createWindow();
+
+    if (!is.dev) {
+        autoUpdater.checkForUpdatesAndNotify();
+    } else {
+        console.log("Running in development mode, skipping auto-updater.");
+    }
 
     // Notify successful update
     const pending = store.get("pendingUpdate");
