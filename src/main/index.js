@@ -3,7 +3,7 @@ import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
-const { BACKEND_URL } = constants;
+const { BACKEND_URL, store } = constants;
 import { getTokenKeytar } from "./lib/credentials";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
@@ -24,7 +24,21 @@ app.whenReady().then(async () => {
 
     createWindow();
 
+    // Set the application name for autoUpdater
     autoUpdater.checkForUpdatesAndNotify();
+
+    // Notify successful update
+    const pending = store.get("pendingUpdate");
+    if (pending && pending.version) {
+        dialog.showMessageBox({
+            type: "info",
+            title: `Update successful`,
+            message: `You have successfully updated to version ${pending.version}.`,
+            detail: pending.notes,
+            buttons: ["OK"],
+        });
+        store.delete("pendingUpdate");
+    }
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -44,7 +58,12 @@ autoUpdater.on("update-available", (info) => {
 });
 
 // Handle downloaded updates
-autoUpdater.on("update-downloaded", () => {
+autoUpdater.on("update-downloaded", (info) => {
+    store.set("pendingUpdate", {
+        version: info.version,
+        notes: info.releaseNotes || info.releaseNotesPlainText,
+    });
+
     dialog
         .showMessageBox({
             type: "info",
@@ -56,6 +75,9 @@ autoUpdater.on("update-downloaded", () => {
         .then(({ response }) => {
             if (response === 0) {
                 autoUpdater.quitAndInstall();
+            } else {
+                store.delete("pendingUpdate");
+                console.log("Update will be applied later.");
             }
         });
 });
