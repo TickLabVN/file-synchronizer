@@ -22,8 +22,6 @@ app.whenReady().then(async () => {
         }).catch(console.error);
     }
 
-    createWindow();
-
     // Set the application name for autoUpdater
     autoUpdater.checkForUpdatesAndNotify();
 
@@ -49,23 +47,38 @@ app.whenReady().then(async () => {
 
 // Handle the case when have new version available
 autoUpdater.on("update-available", (info) => {
-    dialog.showMessageBox({
-        type: "info",
-        title: "Have a new version",
-        message: `A new version ${info.version} is available. Downloading now...`,
-        buttons: ["OK"],
-    });
+    const win = BrowserWindow.getFocusedWindow();
+    dialog
+        .showMessageBox(win, {
+            type: "info",
+            title: "Have a new version",
+            message: `A new version ${info.version} is available. Downloading now...`,
+            buttons: ["OK", "Cancel"],
+        })
+        .then(({ response }) => {
+            if (response === 0) {
+                win.setProgressBar(0);
+            }
+        });
+});
+
+// Handle download progress
+autoUpdater.on("download-progress", (progress) => {
+    const win = BrowserWindow.getFocusedWindow();
+    win.setProgressBar(progress.percent / 100);
 });
 
 // Handle downloaded updates
 autoUpdater.on("update-downloaded", (info) => {
+    const win = BrowserWindow.getFocusedWindow();
     store.set("pendingUpdate", {
         version: info.version,
         notes: info.releaseNotes || info.releaseNotesPlainText,
     });
+    win.setProgressBar(-1);
 
     dialog
-        .showMessageBox({
+        .showMessageBox(win, {
             type: "info",
             title: "Update Downloaded",
             message:
@@ -84,6 +97,15 @@ autoUpdater.on("update-downloaded", (info) => {
 
 autoUpdater.on("error", (err) => {
     console.error("Error when update:", err);
+    const win = BrowserWindow.getFocusedWindow();
+    dialog.showMessageBox(win, {
+        type: "error",
+        title: "Update Error",
+        message: "An error occurred while checking for updates.",
+        detail: err.message,
+        buttons: ["OK"],
+    });
+    win.setProgressBar(-1);
 });
 
 app.on("window-all-closed", () => {
