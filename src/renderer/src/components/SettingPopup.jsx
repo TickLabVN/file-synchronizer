@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import * as api from "../api";
 import Toggle from "@components/Toggle";
 import Loading from "@components/Loading";
@@ -82,7 +82,6 @@ export default function SettingPopup({ onClose }) {
 
     return (
         <div className="fixed inset-0 z-15 flex items-center justify-center bg-gray-900/20 dark:bg-gray-900/50">
-            <ToastContainer position="bottom-left" />
             <div className="absolute inset-0 bg-black opacity-50" />
 
             <div className="relative w-80 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">

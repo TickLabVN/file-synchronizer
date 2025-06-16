@@ -8,7 +8,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useEffect, useState } from "react";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import * as api from "../api";
 import ModalConfirmLogout from "@components/ModalConfirmLogout";
 import SettingPopup from "@components/SettingPopup";
@@ -100,7 +100,6 @@ const Dashboard = ({
 
     return (
         <div className="flex h-full">
-            <ToastContainer position="bottom-left" autoClose={5000} />
             <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
                 <div>
                     <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">

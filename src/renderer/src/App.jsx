@@ -50,6 +50,9 @@ const App = () => {
                     if (autoDeleteOnLaunch || autoUpdateOnLaunch) {
                         setInitialSyncing(true);
                         api.syncOnLaunch()
+                            .then(() => {
+                                toast.success("Sync on launch completed!");
+                            })
                             .catch((e) => {
                                 console.error("Sync-on-launch failed:", e);
                                 toast.error(
@@ -148,42 +151,50 @@ const App = () => {
     };
 
     return (
-        <div className="flex h-screen flex-col overflow-hidden">
-            <ToastContainer position="bottom-left" autoClose={5000} />
-            <div className="fixed top-0 right-0 left-0 z-10">
-                <TitleBar />
-            </div>
-            <div className="flex-1 overflow-auto">
-                {loading || initialSyncing || updating ? (
-                    <Loading
-                        initialSyncing={initialSyncing}
-                        updating={updating}
-                    />
-                ) : !auth ? (
-                    <Login setAuth={setAuth} setUsername={setUsername} />
-                ) : !username ? (
-                    <div className="flex h-screen items-center justify-center">
-                        <div className="text-lg text-red-600">
-                            Can not retrieve username. Please log in again.
+        <>
+            <ToastContainer
+                position="bottom-left"
+                autoClose={5000}
+                pauseOnFocusLoss={false}
+            />
+            <div className="flex h-screen flex-col overflow-hidden">
+                <div className="fixed top-0 right-0 left-0 z-10">
+                    <TitleBar />
+                </div>
+                <div className="flex-1 overflow-auto">
+                    {loading || initialSyncing || updating ? (
+                        <Loading
+                            initialSyncing={initialSyncing}
+                            updating={updating}
+                        />
+                    ) : !auth ? (
+                        <Login setAuth={setAuth} setUsername={setUsername} />
+                    ) : !username ? (
+                        <div className="flex h-screen items-center justify-center">
+                            <div className="text-lg text-red-600">
+                                Can not retrieve username. Please log in again.
+                            </div>
                         </div>
-                    </div>
-                ) : !savedCentralFolderPath ? (
-                    <ChooseCentralFolder
-                        username={username}
-                        centralFolderPath={centralFolderPath}
-                        handleSelectFolder={handleSelectFolder}
-                        handleContinue={handleContinue}
-                    />
-                ) : (
-                    <Dashboard
-                        username={username}
-                        savedCentralFolderPath={savedCentralFolderPath}
-                        handleLogout={handleLogout}
-                        handleChangeCentralFolder={handleChangeCentralFolder}
-                    />
-                )}
+                    ) : !savedCentralFolderPath ? (
+                        <ChooseCentralFolder
+                            username={username}
+                            centralFolderPath={centralFolderPath}
+                            handleSelectFolder={handleSelectFolder}
+                            handleContinue={handleContinue}
+                        />
+                    ) : (
+                        <Dashboard
+                            username={username}
+                            savedCentralFolderPath={savedCentralFolderPath}
+                            handleLogout={handleLogout}
+                            handleChangeCentralFolder={
+                                handleChangeCentralFolder
+                            }
+                        />
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     );
 };
 
