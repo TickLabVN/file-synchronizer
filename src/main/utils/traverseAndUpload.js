@@ -27,6 +27,10 @@ export default async function traverseAndUpload(srcPath, parentId, drive) {
                     name: path.basename(srcPath),
                     mimeType: "application/vnd.google-apps.folder",
                     parents: [parentId],
+                    appProperties: {
+                        originalPath: srcPath,
+                        os: process.platform,
+                    },
                 },
                 fields: "id",
             });
@@ -43,12 +47,22 @@ export default async function traverseAndUpload(srcPath, parentId, drive) {
             await drive.files.update({
                 fileId: record.id,
                 media: { body: fs.createReadStream(srcPath) },
+                requestBody: {
+                    appProperties: {
+                        originalPath: srcPath,
+                        os: process.platform,
+                    },
+                },
             });
         } else {
             const fileRes = await drive.files.create({
                 requestBody: {
                     name: path.basename(srcPath),
                     parents: [parentId],
+                    appProperties: {
+                        originalPath: srcPath,
+                        os: process.platform,
+                    },
                 },
                 media: { body: fs.createReadStream(srcPath) },
             });
