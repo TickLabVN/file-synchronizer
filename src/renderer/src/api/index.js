@@ -23,3 +23,7 @@ export const updateSettings = (settings) => window.api.updateSettings(settings);
 export const syncFiles = (paths) => window.api.syncFiles(paths);
 export const syncOnLaunch = () => window.api.syncOnLaunch();
 export const pullFromDrive = () => window.api.pullFromDrive();
+
+// API for update related functions
+export const onUpdateAvailable = (cb) => window.api.onUpdateAvailable(cb);
+export const onUpdateDownloaded = (cb) => window.api.onUpdateDownloaded(cb);

@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld("api", {
     syncFiles: (paths) => ipcRenderer.invoke("app:sync-files", paths),
     syncOnLaunch: () => ipcRenderer.invoke("app:sync-on-launch"),
     pullFromDrive: () => ipcRenderer.invoke("app:pull-from-drive"),
+
+    // Update related functions
+    onUpdateAvailable: (cb) =>
+        ipcRenderer.on("app:update-available", (_e, info) => cb(info)),
+    onUpdateDownloaded: (cb) =>
+        ipcRenderer.on("app:update-downloaded", (_e, info) => cb(info)),
 });
 
 contextBridge.exposeInMainWorld("versions", {

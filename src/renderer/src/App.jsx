@@ -14,6 +14,7 @@ const App = () => {
     const [centralFolderPath, setCentralFolderPath] = useState("");
     const [savedCentralFolderPath, setSavedCentralFolderPath] = useState("");
     const [initialSyncing, setInitialSyncing] = useState(false);
+    const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
         async function init() {
@@ -62,6 +63,25 @@ const App = () => {
             );
         }
     }, [auth, savedCentralFolderPath]);
+
+    useEffect(() => {
+        if (api.onUpdateAvailable) {
+            api.onUpdateAvailable((info) => {
+                console.log("Update available:", info);
+                setUpdating(true);
+            });
+        } else {
+            console.warn("onUpdateAvailable is not defined in API");
+        }
+        if (api.onUpdateDownloaded) {
+            api.onUpdateDownloaded((info) => {
+                console.log("Update downloaded:", info);
+                setUpdating(false);
+            });
+        } else {
+            console.warn("onUpdateDownloaded is not defined in API");
+        }
+    }, []);
 
     const handleSelectFolder = async () => {
         try {
@@ -134,8 +154,11 @@ const App = () => {
                 <TitleBar />
             </div>
             <div className="flex-1 overflow-auto">
-                {loading || initialSyncing ? (
-                    <Loading initialSyncing={initialSyncing} />
+                {loading || initialSyncing || updating ? (
+                    <Loading
+                        initialSyncing={initialSyncing}
+                        updating={updating}
+                    />
                 ) : !auth ? (
                     <Login setAuth={setAuth} setUsername={setUsername} />
                 ) : !username ? (

@@ -1,4 +1,8 @@
-const Loading = ({ syncing = false, initialSyncing = false }) => {
+const Loading = ({
+    syncing = false,
+    initialSyncing = false,
+    updating = false,
+}) => {
     return (
         <div className="fixed inset-0 z-50 flex h-screen flex-col items-center justify-center bg-gray-100 dark:bg-gray-900">
             <div role="status">
@@ -28,6 +32,11 @@ const Loading = ({ syncing = false, initialSyncing = false }) => {
             {initialSyncing && (
                 <p className="mt-4 text-gray-500 dark:text-gray-400">
                     Please wait while we check your files and folders...
+                </p>
+            )}
+            {updating && (
+                <p className="mt-4 text-gray-500 dark:text-gray-400">
+                    Updating the application...
                 </p>
             )}
         </div>

@@ -12,7 +12,14 @@ import { is } from "@electron-toolkit/utils";
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
 
+// eslint-disable-next-line no-unused-vars
 let isUpdating = false;
+
+function broadcast(channel, payload) {
+    BrowserWindow.getAllWindows().forEach((win) => {
+        win.webContents.send(channel, payload);
+    });
+}
 
 app.whenReady().then(async () => {
     // Check if the Google Drive tokens are saved
@@ -51,34 +58,6 @@ app.whenReady().then(async () => {
             createWindow();
         }
     });
-
-    app.on("browser-window-created", (_, win) => {
-        win.on("close", (e) => {
-            if (isUpdating) {
-                e.preventDefault();
-                dialog.showMessageBox(win, {
-                    type: "warning",
-                    title: "Update in progress",
-                    message:
-                        "An update is currently being downloaded. Please wait until it completes.",
-                    buttons: ["OK"],
-                });
-            }
-        });
-    });
-
-    app.on("before-quit", (e) => {
-        if (isUpdating) {
-            e.preventDefault();
-            dialog.showMessageBox({
-                type: "warning",
-                title: "Update in progress",
-                message:
-                    "An update is currently being downloaded. Please wait until it completes.",
-                buttons: ["OK"],
-            });
-        }
-    });
 });
 
 // Handle the case when have new version available
@@ -94,6 +73,7 @@ autoUpdater.on("update-available", (info) => {
         .then(({ response }) => {
             if (response === 0 && win) {
                 isUpdating = true;
+                broadcast("app:update-available", info);
                 autoUpdater.downloadUpdate();
                 win.setProgressBar(0);
             }
@@ -120,6 +100,7 @@ autoUpdater.on("update-downloaded", (info) => {
     });
     win.setProgressBar(-1);
     isUpdating = false;
+    broadcast("app:update-downloaded", info);
     dialog
         .showMessageBox(win, {
             type: "info",
