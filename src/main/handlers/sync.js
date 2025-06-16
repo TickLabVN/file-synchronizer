@@ -237,6 +237,12 @@ export async function pullFromDrive() {
     );
 
     for (const entry of rootEntries) {
+        if (entry.origOS !== process.platform) {
+            console.warn(
+                `Skipping ${entry.path} as it was created on a different OS (${entry.origOS})`
+            );
+            continue;
+        }
         const src = entry.path;
         const basename = path.basename(src);
         const destLink = path.join(centralFolderPath, basename);
