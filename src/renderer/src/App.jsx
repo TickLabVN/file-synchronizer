@@ -65,7 +65,7 @@ const App = () => {
     }, [auth, savedCentralFolderPath]);
 
     useEffect(() => {
-        if (api.onUpdateAvailable) {
+        if (!initialSyncing && api.onUpdateAvailable) {
             api.onUpdateAvailable((info) => {
                 console.log("Update available:", info);
                 setUpdating(true);
@@ -73,7 +73,7 @@ const App = () => {
         } else {
             console.warn("onUpdateAvailable is not defined in API");
         }
-        if (api.onUpdateDownloaded) {
+        if (!initialSyncing && api.onUpdateDownloaded) {
             api.onUpdateDownloaded((info) => {
                 console.log("Update downloaded:", info);
                 setUpdating(false);
@@ -81,7 +81,7 @@ const App = () => {
         } else {
             console.warn("onUpdateDownloaded is not defined in API");
         }
-    }, []);
+    }, [initialSyncing]);
 
     const handleSelectFolder = async () => {
         try {
