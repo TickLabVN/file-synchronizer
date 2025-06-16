@@ -229,6 +229,42 @@ export async function pullFromDrive() {
     if (!root.length) throw new Error("Drive backup folder not found");
     const rootId = root[0].id;
 
-    await downloadTree(rootId, centralFolderPath, drive);
+    const pulledEntries = await downloadTree(rootId, centralFolderPath, drive);
+    await store.set("driveMapping", mapping);
+
+    const rootEntries = pulledEntries.filter(
+        (entry) => entry.parentId === rootId
+    );
+
+    for (const entry of rootEntries) {
+        const src = entry.path;
+        const basename = path.basename(src);
+        const destLink = path.join(centralFolderPath, basename);
+        try {
+            await fs.promises.unlink(destLink);
+            // eslint-disable-next-line no-empty
+        } catch {}
+
+        const stats = await fs.promises.stat(src);
+        const type = stats.isDirectory() ? "junction" : "file";
+        try {
+            await fs.promises.symlink(src, destLink, type);
+        } catch (err) {
+            if (process.platform === "win32" && err.code === "EPERM") {
+                if (stats.isDirectory()) {
+                    await fs.promises.cp(src, destLink, { recursive: true });
+                } else {
+                    try {
+                        await fs.promises.link(src, destLink);
+                    } catch {
+                        await fs.promises.copyFile(src, destLink);
+                    }
+                }
+            } else {
+                throw err;
+            }
+        }
+    }
+
     return true;
 }
