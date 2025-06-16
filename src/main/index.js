@@ -75,21 +75,8 @@ autoUpdater.on("update-available", (info) => {
                 isUpdating = true;
                 broadcast("app:update-available", info);
                 autoUpdater.downloadUpdate();
-                win.setProgressBar(0);
             }
         });
-});
-
-// Handle download progress
-autoUpdater.on("download-progress", (progress) => {
-    const win = BrowserWindow.getFocusedWindow();
-    if (win) {
-        isUpdating = true;
-        win.setProgressBar(progress.percent / 100);
-        console.log(`Download progress: ${progress.percent}%`);
-    } else {
-        console.warn("No focused window to update progress bar.");
-    }
 });
 
 // Handle downloaded updates
@@ -98,7 +85,6 @@ autoUpdater.on("update-downloaded", (info) => {
     store.set("pendingUpdate", {
         version: info.version,
     });
-    win.setProgressBar(-1);
     isUpdating = false;
     broadcast("app:update-downloaded", info);
     dialog
@@ -130,7 +116,6 @@ autoUpdater.on("error", (err) => {
         detail: err.message,
         buttons: ["OK"],
     });
-    win.setProgressBar(-1);
 });
 
 app.on("window-all-closed", () => {
