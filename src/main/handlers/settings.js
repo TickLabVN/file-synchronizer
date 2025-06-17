@@ -5,8 +5,6 @@ const { store } = constants;
 // Handle retrieving the current settings
 export async function getSettings() {
     return store.get("settings", {
-        autoDeleteOnLaunch: false,
-        autoUpdateOnLaunch: false,
         darkMode: false,
     });
 }

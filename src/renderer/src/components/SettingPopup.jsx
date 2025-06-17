@@ -8,15 +8,11 @@ import Loading from "@components/Loading";
 
 const buttonLabels = {
     darkMode: "Dark mode",
-    autoDeleteOnLaunch: "Auto delete on launch",
-    autoUpdateOnLaunch: "Auto update on launch",
 };
 
 export default function SettingPopup({ onClose }) {
     const [setting, setSetting] = useState({
         darkMode: false,
-        autoDeleteOnLaunch: false,
-        autoUpdateOnLaunch: false,
         stopSyncPaths: [],
     });
     const [pulling, setPulling] = useState(false);
