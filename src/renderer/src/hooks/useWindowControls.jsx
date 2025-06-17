@@ -13,8 +13,7 @@ const useWindowControls = () => {
         setIsMax((prev) => !prev);
     };
     const onClose = () => {
-        window.confirm("Do you want to close the application") &&
-            window.windowControls.close();
+        window.windowControls.close();
     };
 
     return {

@@ -37,4 +37,6 @@ export default function createWindow() {
     } else {
         win.loadFile(path.join(__dirname, "../renderer/index.html"));
     }
+
+    return win;
 }

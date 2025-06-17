@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, dialog, Tray, Menu, nativeImage } from "electron";
 import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
@@ -8,12 +8,17 @@ import { getTokenKeytar } from "./lib/credentials";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
 import { is } from "@electron-toolkit/utils";
+import icon from "../../resources/icon.png?asset";
+import { syncOnLaunch } from "./handlers/sync";
 
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
 
 // eslint-disable-next-line no-unused-vars
 let isUpdating = false;
+let mainWindow;
+let tray;
+let isQuiting = false;
 
 function broadcast(channel, payload) {
     BrowserWindow.getAllWindows().forEach((win) => {
@@ -32,7 +37,7 @@ app.whenReady().then(async () => {
         }).catch(console.error);
     }
 
-    createWindow();
+    mainWindow = createWindow();
 
     if (!is.dev) {
         autoUpdater.autoDownload = false;
@@ -58,7 +63,42 @@ app.whenReady().then(async () => {
             createWindow();
         }
     });
+
+    // Create a tray icon
+    const trayIcon = nativeImage.createFromPath(icon);
+    tray = new Tray(trayIcon);
+    const contextMenu = Menu.buildFromTemplate([
+        { label: "Open App", click: () => mainWindow.show() },
+        {
+            label: "Quit",
+            click: () => {
+                isQuiting = true;
+                app.quit();
+            },
+        },
+    ]);
+    tray.setToolTip("File Synchornizer");
+    tray.setContextMenu(contextMenu);
+    tray.on("click", () =>
+        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()
+    );
+
+    // Close the app when the main window is closed
+    mainWindow.on("close", (e) => {
+        if (!isQuiting) {
+            e.preventDefault();
+            mainWindow.hide();
+        }
+    });
 });
+
+// Set five minutes interval to sync on launch
+const FIVE_MIN = 5 * 60 * 1000;
+setInterval(() => {
+    syncOnLaunch()
+        .then(() => console.log("[Background] syncOnLaunch completed"))
+        .catch((err) => console.error("[Background] syncOnLaunch error:", err));
+}, FIVE_MIN);
 
 // Handle the case when have new version available
 autoUpdater.on("update-available", (info) => {
@@ -116,10 +156,4 @@ autoUpdater.on("error", (err) => {
         detail: err.message,
         buttons: ["OK"],
     });
-});
-
-app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-        app.quit();
-    }
 });

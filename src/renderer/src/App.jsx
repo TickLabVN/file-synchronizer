@@ -13,7 +13,6 @@ const App = () => {
     const [loading, setLoading] = useState(true);
     const [centralFolderPath, setCentralFolderPath] = useState("");
     const [savedCentralFolderPath, setSavedCentralFolderPath] = useState("");
-    const [initialSyncing, setInitialSyncing] = useState(false);
     const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
@@ -44,31 +43,7 @@ const App = () => {
     }, []);
 
     useEffect(() => {
-        if (auth && savedCentralFolderPath) {
-            api.getSettings().then(
-                ({ autoDeleteOnLaunch, autoUpdateOnLaunch }) => {
-                    if (autoDeleteOnLaunch || autoUpdateOnLaunch) {
-                        setInitialSyncing(true);
-                        api.syncOnLaunch()
-                            .then(() => {
-                                toast.success("Sync on launch completed!");
-                            })
-                            .catch((e) => {
-                                console.error("Sync-on-launch failed:", e);
-                                toast.error(
-                                    "Failed to sync on launch: " +
-                                        (e.message || "Unknown error")
-                                );
-                            })
-                            .finally(() => setInitialSyncing(false));
-                    }
-                }
-            );
-        }
-    }, [auth, savedCentralFolderPath]);
-
-    useEffect(() => {
-        if (!initialSyncing && api.onUpdateAvailable) {
+        if (api.onUpdateAvailable) {
             api.onUpdateAvailable((info) => {
                 console.log("Update available:", info);
                 setUpdating(true);
@@ -76,7 +51,7 @@ const App = () => {
         } else {
             console.warn("onUpdateAvailable is not defined in API");
         }
-        if (!initialSyncing && api.onUpdateDownloaded) {
+        if (api.onUpdateDownloaded) {
             api.onUpdateDownloaded((info) => {
                 console.log("Update downloaded:", info);
                 setUpdating(false);
@@ -84,7 +59,7 @@ const App = () => {
         } else {
             console.warn("onUpdateDownloaded is not defined in API");
         }
-    }, [initialSyncing]);
+    }, []);
 
     const handleSelectFolder = async () => {
         try {
@@ -162,11 +137,8 @@ const App = () => {
                     <TitleBar />
                 </div>
                 <div className="flex-1 overflow-auto">
-                    {loading || initialSyncing || updating ? (
-                        <Loading
-                            initialSyncing={initialSyncing}
-                            updating={updating}
-                        />
+                    {loading || updating ? (
+                        <Loading updating={updating} />
                     ) : !auth ? (
                         <Login setAuth={setAuth} setUsername={setUsername} />
                     ) : !username ? (
