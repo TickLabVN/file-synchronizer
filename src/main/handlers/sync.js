@@ -7,6 +7,7 @@ import traverseCompare from "../utils/traverseCompare";
 import downloadTree from "../utils/downloadTree";
 import getDriveClient from "../utils/getDriveClient";
 import "dotenv/config";
+import { cleanupDrive } from "../utils/cleanupDrive";
 
 const { store, mapping } = constants;
 
@@ -41,7 +42,18 @@ export async function syncFiles(_, paths) {
     }
 
     for (const p of paths) {
-        await traverseAndUpload(p, driveFolderId, drive);
+        try {
+            await traverseAndUpload(p, driveFolderId, drive);
+        } catch (err) {
+            if (err.code === "ENOENT") {
+                console.warn(
+                    `Path "${p}" not found locally, cleaning up on Drive...`
+                );
+                await cleanupDrive(p, drive);
+            }
+            throw err;
+        }
+
         // create or replace symlink in central folder
         const linkPath = path.join(centralFolderPath, path.basename(p));
         try {
