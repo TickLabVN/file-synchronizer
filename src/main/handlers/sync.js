@@ -40,51 +40,56 @@ export async function syncFiles(_, paths) {
         });
         driveFolderId = createRes.data.id;
     }
-
+    const failed = [];
     for (const p of paths) {
         try {
             await traverseAndUpload(p, driveFolderId, drive);
+            // create or replace symlink in central folder
+            const linkPath = path.join(centralFolderPath, path.basename(p));
+            try {
+                await fs.promises.unlink(linkPath);
+                // eslint-disable-next-line no-empty
+            } catch {}
+
+            // Determine symlink type and handle Windows EPERM by falling back to copy
+            const stats = await fs.promises.stat(p);
+            const linkType = stats.isDirectory() ? "junction" : "file";
+            try {
+                await fs.promises.symlink(p, linkPath, linkType);
+            } catch (err) {
+                if (process.platform === "win32" && err.code === "EPERM") {
+                    // Windows symlink not permitted: fallback to copy
+                    if (stats.isDirectory()) {
+                        await fs.promises.cp(p, linkPath, { recursive: true });
+                    } else {
+                        try {
+                            await fs.promises.link(p, linkPath);
+                        } catch {
+                            await fs.promises.copyFile(p, linkPath);
+                        }
+                    }
+                } else {
+                    throw err;
+                }
+            }
+            await store.set("driveMapping", mapping);
         } catch (err) {
             if (err.code === "ENOENT") {
                 console.warn(
                     `Path "${p}" not found locally, cleaning up on Drive...`
                 );
                 await cleanupDrive(p, drive);
+                await store.set("driveMapping", mapping);
+                failed.push({ path: p, message: err.message });
+                continue;
             }
             throw err;
         }
-
-        // create or replace symlink in central folder
-        const linkPath = path.join(centralFolderPath, path.basename(p));
-        try {
-            await fs.promises.unlink(linkPath);
-            // eslint-disable-next-line no-empty
-        } catch {}
-
-        // Determine symlink type and handle Windows EPERM by falling back to copy
-        const stats = await fs.promises.stat(p);
-        const linkType = stats.isDirectory() ? "junction" : "file";
-        try {
-            await fs.promises.symlink(p, linkPath, linkType);
-        } catch (err) {
-            if (process.platform === "win32" && err.code === "EPERM") {
-                // Windows symlink not permitted: fallback to copy
-                if (stats.isDirectory()) {
-                    await fs.promises.cp(p, linkPath, { recursive: true });
-                } else {
-                    try {
-                        await fs.promises.link(p, linkPath);
-                    } catch {
-                        await fs.promises.copyFile(p, linkPath);
-                    }
-                }
-            } else {
-                throw err;
-            }
-        }
     }
-    await store.set("driveMapping", mapping);
-    return true;
+    return {
+        success: failed.length === 0,
+        failed: failed,
+    };
 }
 
 // Handle syncing on app launch
