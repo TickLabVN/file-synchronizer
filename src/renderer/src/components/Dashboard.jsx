@@ -69,9 +69,19 @@ const Dashboard = ({
         setSyncing(true);
         try {
             const paths = selectedItems.map((item) => item.path);
-            await api.syncFiles(paths);
-            toast.success("Sync completed successfully!");
-            setSelectedItems([]);
+            const result = await api.syncFiles(paths);
+            if (result.success) {
+                toast.success("All files synced successfully!");
+                setSelectedItems([]);
+            } else {
+                const failedPaths = result.failed.map((f) => f.path);
+                toast.error(
+                    `${failedPaths.length} file(s) failed to sync. Please check and try again.`
+                );
+                setSelectedItems((prev) =>
+                    prev.filter((item) => failedPaths.includes(item.path))
+                );
+            }
         } catch (err) {
             console.error(err);
             toast.error("Sync failed: " + (err.message || "Unknown error"));
