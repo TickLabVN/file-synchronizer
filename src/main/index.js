@@ -90,6 +90,15 @@ app.whenReady().then(async () => {
             mainWindow.hide();
         }
     });
+
+    // First sync on launch
+    console.log("[Background] Starting syncOnLaunch on app ready");
+    try {
+        await syncOnLaunch();
+        console.log("[Background] syncOnLaunch completed");
+    } catch (err) {
+        console.error("[Background] syncOnLaunch error:", err);
+    }
 });
 
 // Set five minutes interval to sync on launch
