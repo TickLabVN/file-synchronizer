@@ -4,6 +4,7 @@ import * as centralConfig from "./handlers/centralConfig";
 import * as selection from "./handlers/selection";
 import * as settings from "./handlers/settings";
 import * as sync from "./handlers/sync";
+import * as trackedFiles from "./handlers/trackedFiles";
 
 export default function registerIpcHandlers() {
     // Register IPC handlers for Google Drive authentication and user information
@@ -33,4 +34,8 @@ export default function registerIpcHandlers() {
     ipcMain.handle("app:sync-files", sync.syncFiles);
     ipcMain.handle("app:sync-on-launch", sync.syncOnLaunch);
     ipcMain.handle("app:pull-from-drive", sync.pullFromDrive);
+
+    // Register IPC handlers for tracked files
+    ipcMain.handle("app:get-tracked-files", trackedFiles.getTrackedFiles);
+    ipcMain.handle("app:delete-tracked-file", trackedFiles.deleteTrackedFile);
 }

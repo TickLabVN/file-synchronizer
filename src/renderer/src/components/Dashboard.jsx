@@ -7,7 +7,7 @@ import {
     faGear,
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import * as api from "../api";
 import ModalConfirmLogout from "@components/ModalConfirmLogout";
@@ -35,6 +35,7 @@ const Dashboard = ({
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showChooseModal, setShowChooseModal] = useState(false);
+    const [trackedFiles, setTrackedFiles] = useState([]);
 
     useEffect(() => {
         api.getSettings().then(({ stopSyncPaths = [] }) => {
@@ -54,6 +55,44 @@ const Dashboard = ({
             setShowChooseModal(false);
         }
     }, [savedCentralFolderPath]);
+
+    const loadTrackedFiles = useCallback(() => {
+        api.getTrackedFiles()
+            .then((files) => setTrackedFiles(files))
+            .catch((err) => {
+                console.error("Failed to load tracked files", err);
+                toast.error(
+                    "Failed to load tracked files: " +
+                        (err.message || "Unknown error")
+                );
+            });
+    }, []);
+
+    useEffect(() => {
+        if (auth && savedCentralFolderPath) {
+            loadTrackedFiles();
+        }
+    }, [loadTrackedFiles, auth, savedCentralFolderPath]);
+
+    useEffect(() => {
+        const handler = () => loadTrackedFiles();
+        api.onTrackedFilesUpdated(handler);
+    }, [loadTrackedFiles]);
+
+    const handleDeleteTrackedFile = async (file) => {
+        toast.info("Deleting tracked file...");
+        try {
+            await api.deleteTrackedFile(file);
+            toast.success("Tracked file deleted successfully!");
+            loadTrackedFiles();
+        } catch (err) {
+            console.error("Failed to delete tracked file", err);
+            toast.error(
+                "Failed to delete tracked file: " +
+                    (err.message || "Unknown error")
+            );
+        }
+    };
 
     const handleRemoveStopSync = (p) => {
         const next = stopSyncPaths.filter((x) => x !== p);
@@ -101,6 +140,7 @@ const Dashboard = ({
         try {
             const paths = selectedItems.map((item) => item.path);
             const result = await api.syncFiles(paths);
+            loadTrackedFiles();
             if (result.success) {
                 toast.success("All files synced successfully!");
                 setSelectedItems([]);
@@ -297,6 +337,58 @@ const Dashboard = ({
                                         </button>
                                     </li>
                                 ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {trackedFiles.length > 0 && (
+                        <div className="mt-6">
+                            <h2 className="mb-2 text-center text-lg dark:text-gray-400">
+                                Tracked Files
+                            </h2>
+                            <ul className="scrollbar max-h-48 space-y-2 overflow-auto">
+                                {trackedFiles.map(
+                                    ({ src, lastSync, isDirectory }) => (
+                                        <li
+                                            key={src}
+                                            className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
+                                        >
+                                            <span className="flex-1 truncate">
+                                                <FontAwesomeIcon
+                                                    icon={
+                                                        isDirectory
+                                                            ? faFolder
+                                                            : faFile
+                                                    }
+                                                    className="mr-2 text-yellow-500"
+                                                />
+                                                {src}
+                                            </span>
+                                            <span className="mr-4 ml-4 text-sm text-gray-500 dark:text-gray-400">
+                                                {lastSync
+                                                    ? new Date(
+                                                          lastSync
+                                                      ).toLocaleString(
+                                                          "en-US",
+                                                          {
+                                                              hour12: false,
+                                                          }
+                                                      )
+                                                    : "No sync yet"}
+                                            </span>
+                                            <button
+                                                onClick={() =>
+                                                    handleDeleteTrackedFile(src)
+                                                }
+                                                className="cursor-pointer text-red-500 hover:text-red-600"
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faTrash}
+                                                />
+                                            </button>
+                                        </li>
+                                    )
+                                )}
                             </ul>
                         </div>
                     )}

@@ -96,6 +96,7 @@ app.whenReady().then(async () => {
     try {
         await syncOnLaunch();
         console.log("[Background] syncOnLaunch completed");
+        broadcast("app:tracked-files-updated");
     } catch (err) {
         console.error("[Background] syncOnLaunch error:", err);
     }
@@ -107,6 +108,7 @@ setInterval(() => {
     syncOnLaunch()
         .then(() => console.log("[Background] syncOnLaunch completed"))
         .catch((err) => console.error("[Background] syncOnLaunch error:", err));
+    broadcast("app:tracked-files-updated");
 }, FIVE_MIN);
 
 // Handle the case when have new version available

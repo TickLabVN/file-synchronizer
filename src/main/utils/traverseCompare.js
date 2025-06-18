@@ -15,6 +15,7 @@ const { mapping } = constants;
  * @param {object} drive - The authenticated Google Drive API client.
  */
 export default async function traverseCompare(srcPath, fileId, drive) {
+    let hasChanged = false;
     try {
         const stats = await fs.promises.stat(srcPath);
         if (stats.isDirectory()) {
@@ -23,7 +24,12 @@ export default async function traverseCompare(srcPath, fileId, drive) {
                 const childPath = path.join(srcPath, entry);
                 const rec = mapping[childPath];
                 if (rec) {
-                    await traverseCompare(childPath, rec.id, drive);
+                    const childChanged = await traverseCompare(
+                        childPath,
+                        rec.id,
+                        drive
+                    );
+                    if (childChanged) hasChanged = true;
                 }
             }
         } else {
@@ -38,6 +44,9 @@ export default async function traverseCompare(srcPath, fileId, drive) {
                     fileId,
                     media: { body: fs.createReadStream(srcPath) },
                 });
+                const now = new Date().toISOString();
+                mapping[srcPath].lastSync = now;
+                hasChanged = true;
             }
         }
     } catch (err) {
@@ -51,9 +60,10 @@ export default async function traverseCompare(srcPath, fileId, drive) {
             console.log(
                 `Deleted ${srcPath} locally : removed on Drive (ID=${fileId})`
             );
-            return;
+            return true;
         } else {
             throw err;
         }
     }
+    return hasChanged;
 }

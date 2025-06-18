@@ -27,3 +27,9 @@ export const pullFromDrive = () => window.api.pullFromDrive();
 // API for update related functions
 export const onUpdateAvailable = (cb) => window.api.onUpdateAvailable(cb);
 export const onUpdateDownloaded = (cb) => window.api.onUpdateDownloaded(cb);
+
+// API for tracked files
+export const getTrackedFiles = () => window.api.getTrackedFiles();
+export const onTrackedFilesUpdated = (cb) =>
+    window.api.onTrackedFilesUpdated(cb);
+export const deleteTrackedFile = (file) => window.api.deleteTrackedFile(file);

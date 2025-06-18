@@ -193,7 +193,11 @@ export async function syncOnLaunch() {
             continue;
         }
         try {
-            await traverseCompare(src, rec.id, drive);
+            const changed = await traverseCompare(src, rec.id, drive);
+            if (changed) {
+                rec.lastSync = new Date().toISOString();
+                console.log(`Updated lastSync for ${src} to ${rec.lastSync}`);
+            }
         } catch (e) {
             console.error("Error syncing on launch for", src, e);
         }
