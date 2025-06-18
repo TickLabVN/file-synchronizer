@@ -35,7 +35,11 @@ export default async function traverseAndUpload(srcPath, parentId, drive) {
                 fields: "id",
             });
             folderId = folderRes.data.id;
-            mapping[key] = { id: folderId, parentId };
+            mapping[key] = {
+                id: folderId,
+                parentId,
+                lastSync: new Date().toISOString(),
+            };
         }
         const entries = await fs.promises.readdir(srcPath);
         for (const entry of entries) {
@@ -66,7 +70,11 @@ export default async function traverseAndUpload(srcPath, parentId, drive) {
                 },
                 media: { body: fs.createReadStream(srcPath) },
             });
-            mapping[key] = { id: fileRes.data.id, parentId };
+            mapping[key] = {
+                id: fileRes.data.id,
+                parentId,
+                lastSync: new Date().toISOString(),
+            };
         }
     }
 }

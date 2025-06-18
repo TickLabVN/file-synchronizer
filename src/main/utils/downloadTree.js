@@ -35,7 +35,11 @@ export default async function downloadTree(parentId, localDir, drive) {
             }
             const isFolder =
                 file.mimeType === "application/vnd.google-apps.folder";
-            mapping[targetPath] = { id: file.id, parentId };
+            mapping[targetPath] = {
+                id: file.id,
+                parentId,
+                lastSync: new Date().toISOString(),
+            };
             entries.push({
                 path: targetPath,
                 id: file.id,

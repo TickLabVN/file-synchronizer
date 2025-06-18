@@ -33,6 +33,13 @@ contextBridge.exposeInMainWorld("api", {
         ipcRenderer.on("app:update-available", (_e, info) => cb(info)),
     onUpdateDownloaded: (cb) =>
         ipcRenderer.on("app:update-downloaded", (_e, info) => cb(info)),
+
+    // Tracked files and folders functions
+    getTrackedFiles: () => ipcRenderer.invoke("app:get-tracked-files"),
+    onTrackedFilesUpdated: (cb) =>
+        ipcRenderer.on("app:tracked-files-updated", (_e, data) => cb(data)),
+    deleteTrackedFile: (file) =>
+        ipcRenderer.invoke("app:delete-tracked-file", file),
 });
 
 contextBridge.exposeInMainWorld("versions", {
