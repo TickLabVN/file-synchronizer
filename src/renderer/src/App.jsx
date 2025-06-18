@@ -1,7 +1,5 @@
-import Login from "@components/Login";
 import { useEffect, useState } from "react";
 import Loading from "@components/Loading";
-import ChooseCentralFolder from "@components/ChooseCentralFolder";
 import Dashboard from "@components/Dashboard";
 import TitleBar from "@components/TitleBar";
 import { toast, ToastContainer } from "react-toastify";
@@ -94,6 +92,7 @@ const App = () => {
     const handleLogout = async () => {
         try {
             await api.signOut();
+            setSavedCentralFolderPath("");
             window.location.reload();
         } catch (err) {
             console.error("Logout error:", err);
@@ -139,29 +138,22 @@ const App = () => {
                 <div className="flex-1 overflow-auto">
                     {loading || updating ? (
                         <Loading updating={updating} />
-                    ) : !auth ? (
-                        <Login setAuth={setAuth} setUsername={setUsername} />
-                    ) : !username ? (
-                        <div className="flex h-screen items-center justify-center">
-                            <div className="text-lg text-red-600">
-                                Can not retrieve username. Please log in again.
-                            </div>
-                        </div>
-                    ) : !savedCentralFolderPath ? (
-                        <ChooseCentralFolder
-                            username={username}
-                            centralFolderPath={centralFolderPath}
-                            handleSelectFolder={handleSelectFolder}
-                            handleContinue={handleContinue}
-                        />
                     ) : (
                         <Dashboard
+                            auth={auth}
                             username={username}
                             savedCentralFolderPath={savedCentralFolderPath}
                             handleLogout={handleLogout}
                             handleChangeCentralFolder={
                                 handleChangeCentralFolder
                             }
+                            handleSelectFolder={handleSelectFolder}
+                            handleContinue={handleContinue}
+                            handleLoginSuccess={(name) => {
+                                setAuth(true);
+                                setUsername(name);
+                            }}
+                            centralFolderPath={centralFolderPath}
                         />
                     )}
                 </div>
