@@ -13,24 +13,47 @@ import * as api from "../api";
 import ModalConfirmLogout from "@components/ModalConfirmLogout";
 import SettingPopup from "@components/SettingPopup";
 import Loading from "@components/Loading";
+import Login from "./Login";
+import ChooseCentralFolder from "./ChooseCentralFolder";
+import ggdrive from "@assets/ggdrive.svg";
 
 const Dashboard = ({
     username,
     savedCentralFolderPath,
     handleLogout,
     handleChangeCentralFolder,
+    auth,
+    handleSelectFolder,
+    handleContinue,
+    handleLoginSuccess,
+    centralFolderPath,
 }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
     const [showSettings, setShowSettings] = useState(false);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [showChooseModal, setShowChooseModal] = useState(false);
 
     useEffect(() => {
         api.getSettings().then(({ stopSyncPaths = [] }) => {
             setStopSyncPaths(stopSyncPaths);
         });
     }, []);
+
+    useEffect(() => {
+        if (auth) {
+            setShowLoginModal(false);
+            setShowChooseModal(true);
+        }
+    }, [auth]);
+
+    useEffect(() => {
+        if (savedCentralFolderPath) {
+            setShowChooseModal(false);
+        }
+    }, [savedCentralFolderPath]);
 
     const handleRemoveStopSync = (p) => {
         const next = stopSyncPaths.filter((x) => x !== p);
@@ -62,6 +85,14 @@ const Dashboard = ({
         setSelectedItems((prev) => prev.filter((item) => item.path !== p));
 
     const handleSync = async () => {
+        if (!auth) {
+            setShowLoginModal(true);
+            return;
+        }
+        if (!savedCentralFolderPath) {
+            setShowChooseModal(true);
+            return;
+        }
         if (!selectedItems.length) {
             toast.error("Please select files or folders to sync.");
             return;
@@ -110,25 +141,27 @@ const Dashboard = ({
 
     return (
         <div className="flex h-full">
-            <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
-                <div>
-                    <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
-                        USER
+            {auth && savedCentralFolderPath && (
+                <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
+                    <div>
+                        <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
+                            USER
+                        </div>
+                        <ul>
+                            <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2 dark:bg-gray-700 dark:text-gray-200">
+                                <FontAwesomeIcon icon={faGoogleDrive} />{" "}
+                                {username}{" "}
+                            </li>
+                        </ul>
                     </div>
-                    <ul>
-                        <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2 dark:bg-gray-700 dark:text-gray-200">
-                            <FontAwesomeIcon icon={faGoogleDrive} />{" "}
-                            {username}{" "}
-                        </li>
-                    </ul>
-                </div>
-                <button
-                    className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 dark:bg-violet-800 dark:text-gray-200 dark:hover:bg-violet-700"
-                    onClick={onLogoutClick}
-                >
-                    Logout
-                </button>
-            </aside>
+                    <button
+                        className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 dark:bg-violet-800 dark:text-gray-200 dark:hover:bg-violet-700"
+                        onClick={onLogoutClick}
+                    >
+                        Logout
+                    </button>
+                </aside>
+            )}
 
             {showLogoutModal && (
                 <ModalConfirmLogout
@@ -143,17 +176,19 @@ const Dashboard = ({
                 </header>
 
                 <main className="flex-1 bg-white p-6 dark:bg-gray-900">
-                    <div className="mb-6 flex items-center justify-between rounded border px-4 py-2 dark:border-gray-700">
-                        <span className="overflow-hidden font-medium text-ellipsis dark:text-gray-400">
-                            Central path: {savedCentralFolderPath}
-                        </span>
-                        <button
-                            className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600"
-                            onClick={handleChangeCentralFolder}
-                        >
-                            <FontAwesomeIcon icon={faRepeat} />
-                        </button>
-                    </div>
+                    {auth && savedCentralFolderPath && (
+                        <div className="mb-6 flex items-center justify-between rounded border px-4 py-2 dark:border-gray-700">
+                            <span className="overflow-hidden font-medium text-ellipsis dark:text-gray-400">
+                                Central path: {savedCentralFolderPath}
+                            </span>
+                            <button
+                                className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600"
+                                onClick={handleChangeCentralFolder}
+                            >
+                                <FontAwesomeIcon icon={faRepeat} />
+                            </button>
+                        </div>
+                    )}
 
                     <h2 className="mb-4 text-center text-lg dark:text-gray-400">
                         Choose file or folder that you need to backup
@@ -269,6 +304,31 @@ const Dashboard = ({
             </div>
             {syncing && <Loading syncing={syncing} />}
             {showSettings && <SettingPopup onClose={handleSettingsClose} />}
+            {showLoginModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Login
+                        providerList={[
+                            {
+                                id: "google",
+                                label: "Google Drive",
+                                icon: ggdrive,
+                            },
+                        ]}
+                        onSuccess={handleLoginSuccess}
+                    />
+                </div>
+            )}
+
+            {showChooseModal && !savedCentralFolderPath && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black/50 bg-white">
+                    <ChooseCentralFolder
+                        username={username}
+                        centralFolderPath={centralFolderPath}
+                        handleSelectFolder={handleSelectFolder}
+                        handleContinue={handleContinue}
+                    />
+                </div>
+            )}
         </div>
     );
 };
