@@ -5,6 +5,7 @@ import {
     faFolder,
     faTrash,
     faGear,
+    faPause,
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -98,6 +99,7 @@ const Dashboard = ({
         const next = stopSyncPaths.filter((x) => x !== p);
         setStopSyncPaths(next);
         api.updateSettings({ stopSyncPaths: next });
+        toast.success("Removed stop sync for " + p);
     };
 
     const handleChooseFiles = async () => {
@@ -309,38 +311,6 @@ const Dashboard = ({
                         <FontAwesomeIcon icon={faGear} size="lg" />
                     </button>
 
-                    {stopSyncPaths.length > 0 && (
-                        <div className="mt-6">
-                            <h2 className="mb-2 text-center text-lg dark:text-gray-400">
-                                Stopped Sync Files
-                            </h2>
-                            <ul className="scrollbar max-h-48 space-y-2 overflow-auto">
-                                {stopSyncPaths.map((p) => (
-                                    <li
-                                        key={p}
-                                        className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
-                                    >
-                                        <span className="flex-1 truncate">
-                                            <FontAwesomeIcon
-                                                icon={faFile}
-                                                className="mr-2 text-yellow-500"
-                                            />
-                                            {p}
-                                        </span>
-                                        <button
-                                            onClick={() =>
-                                                handleRemoveStopSync(p)
-                                            }
-                                            className="cursor-pointer text-red-500 hover:text-red-600"
-                                        >
-                                            <FontAwesomeIcon icon={faTrash} />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
                     {trackedFiles.length > 0 && (
                         <div className="mt-6">
                             <h2 className="mb-2 text-center text-lg dark:text-gray-400">
@@ -376,6 +346,20 @@ const Dashboard = ({
                                                       )
                                                     : "No sync yet"}
                                             </span>
+                                            {stopSyncPaths.includes(src) && (
+                                                <button
+                                                    onClick={() =>
+                                                        handleRemoveStopSync(
+                                                            src
+                                                        )
+                                                    }
+                                                    className="mr-2 cursor-pointer text-yellow-500 hover:text-yellow-600"
+                                                >
+                                                    <FontAwesomeIcon
+                                                        icon={faPause}
+                                                    />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() =>
                                                     handleDeleteTrackedFile(src)
