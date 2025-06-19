@@ -11,14 +11,28 @@ import { is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { syncOnLaunch } from "./handlers/sync";
 
-// Register IPC handlers for various functionalities
-registerIpcHandlers();
-
 // eslint-disable-next-line no-unused-vars
 let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
+
+// Prevent multiple instances of the app from running
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+    app.quit();
+} else {
+    app.on("second-instance", () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
+}
+
+// Register IPC handlers for various functionalities
+registerIpcHandlers();
 
 function broadcast(channel, payload) {
     BrowserWindow.getAllWindows().forEach((win) => {
@@ -59,8 +73,11 @@ app.whenReady().then(async () => {
     }
 
     app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
+        if (mainWindow) {
+            if (!mainWindow.isVisible()) mainWindow.show();
+            mainWindow.focus();
+        } else {
+            mainWindow = createWindow();
         }
     });
 
