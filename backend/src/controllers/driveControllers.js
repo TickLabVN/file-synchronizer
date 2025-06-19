@@ -1,4 +1,4 @@
-import { oauth2Client, SCOPES } from "../config/googleAuth.js";
+import { oauth2Client, SCOPES } from "../config/driveAuth.js";
 
 // Redirects user to Google's consent page
 export const auth = (req, res) => {
