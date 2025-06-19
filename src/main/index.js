@@ -104,11 +104,14 @@ app.whenReady().then(async () => {
 
 // Set five minutes interval to sync on launch
 const FIVE_MIN = 5 * 60 * 1000;
-setInterval(() => {
-    syncOnLaunch()
-        .then(() => console.log("[Background] syncOnLaunch completed"))
-        .catch((err) => console.error("[Background] syncOnLaunch error:", err));
-    broadcast("app:tracked-files-updated");
+setInterval(async () => {
+    try {
+        await syncOnLaunch();
+        console.log("[Background] syncOnLaunch completed");
+        broadcast("app:tracked-files-updated");
+    } catch (err) {
+        console.error("[Background] syncOnLaunch error:", err);
+    }
 }, FIVE_MIN);
 
 // Handle the case when have new version available

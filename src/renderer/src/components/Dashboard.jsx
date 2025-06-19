@@ -304,12 +304,14 @@ const Dashboard = ({
                             Choose file to stop sync
                         </button>
                     </div>
-                    <button
-                        className="fixed right-4 bottom-4 cursor-pointer rounded-full bg-gray-200 p-3 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                        onClick={() => setShowSettings(true)}
-                    >
-                        <FontAwesomeIcon icon={faGear} size="lg" />
-                    </button>
+                    {auth && savedCentralFolderPath && (
+                        <button
+                            className="fixed right-4 bottom-4 cursor-pointer rounded-full bg-gray-200 p-3 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                            onClick={() => setShowSettings(true)}
+                        >
+                            <FontAwesomeIcon icon={faGear} size="lg" />
+                        </button>
+                    )}
 
                     {trackedFiles.length > 0 && (
                         <div className="mt-6">

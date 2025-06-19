@@ -59,7 +59,10 @@ export async function deleteTrackedFile(_, src) {
             delete mapping[key];
         }
     });
-    // Persist updated mapping
+    // Persist updated
     await store.set("driveMapping", mapping);
+    const settings = store.get("settings", { stopSyncPaths: [] });
+    settings.stopSyncPaths = settings.stopSyncPaths.filter((p) => p !== src);
+    await store.set("settings", settings);
     return true;
 }
