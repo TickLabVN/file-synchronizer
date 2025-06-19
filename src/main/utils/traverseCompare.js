@@ -2,7 +2,7 @@ import path from "path";
 import fs from "fs";
 import "dotenv/config";
 import { constants } from "../lib/constants";
-const { mapping } = constants;
+const { mapping, store } = constants;
 
 // * Traverse a directory structure and compare local files with Google Drive.
 /**
@@ -15,6 +15,12 @@ const { mapping } = constants;
  * @param {object} drive - The authenticated Google Drive API client.
  */
 export default async function traverseCompare(srcPath, fileId, drive) {
+    const settings = store.get("settings", {});
+    const stopSyncPaths = settings.stopSyncPaths || [];
+    if (stopSyncPaths.includes(srcPath)) {
+        return false;
+    }
+
     let hasChanged = false;
     try {
         const stats = await fs.promises.stat(srcPath);
