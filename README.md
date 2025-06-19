@@ -116,4 +116,4 @@ If you encounter any bugs or errors, please open an issue on GitHub and include:
 
 ---
 
-> **Note:** This application is currently in beta. If you find any issues or have suggestions for improvements, please report them or contribute via pull requests. We appreciate your feedback!
+> **Note:** This application is currently in development. If you find any issues or have suggestions for improvements, please report them or contribute via pull requests. We appreciate your feedback!
