@@ -40,14 +40,14 @@ export async function handleSignIn() {
                     authWin.close();
                     return;
                 }
-                fetch(`${BACKEND_URL}/auth/token?code=${code}`)
+                fetch(`${BACKEND_URL}/auth/google/token?code=${code}`)
                     .then((res) => {
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         return res.json();
                     })
                     .then(async (tokens) => {
                         await setTokenKeytar(tokens);
-                        await fetch(`${BACKEND_URL}/auth/set-tokens`, {
+                        await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(tokens),

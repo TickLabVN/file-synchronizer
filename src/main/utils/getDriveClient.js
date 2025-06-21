@@ -13,7 +13,7 @@ const { BACKEND_URL } = constants;
  * @returns {Promise<google.drive_v3.Drive>} A Google Drive client instance
  */
 export default async function getDriveClient() {
-    const res = await axios.get(`${BACKEND_URL}/auth/get-tokens`);
+    const res = await axios.get(`${BACKEND_URL}/auth/google/refresh-tokens`);
     const tokens = res.data;
 
     const oauth2Client = new google.auth.OAuth2();
