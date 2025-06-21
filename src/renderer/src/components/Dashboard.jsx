@@ -6,6 +6,8 @@ import {
     faTrash,
     faGear,
     faPause,
+    faPlay,
+    faBox,
 } from "@fortawesome/free-solid-svg-icons";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -17,6 +19,7 @@ import Loading from "@components/Loading";
 import Login from "./Login";
 import ChooseCentralFolder from "./ChooseCentralFolder";
 import ggdrive from "@assets/ggdrive.svg";
+import box from "@assets/box.svg";
 
 const Dashboard = ({
     username,
@@ -28,6 +31,7 @@ const Dashboard = ({
     handleContinue,
     handleLoginSuccess,
     centralFolderPath,
+    provider,
 }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
@@ -100,6 +104,21 @@ const Dashboard = ({
         setStopSyncPaths(next);
         api.updateSettings({ stopSyncPaths: next });
         toast.success("Removed stop sync for " + p);
+    };
+
+    const handleAddStopSync = (p) => {
+        const next = Array.from(new Set([...stopSyncPaths, p]));
+        setStopSyncPaths(next);
+        api.updateSettings({ stopSyncPaths: next });
+        toast.success("Stopped sync for " + p);
+    };
+
+    const handleToggleStopSync = (p) => {
+        if (stopSyncPaths.includes(p)) {
+            handleRemoveStopSync(p);
+        } else {
+            handleAddStopSync(p);
+        }
     };
 
     const handleChooseFiles = async () => {
@@ -176,11 +195,6 @@ const Dashboard = ({
         setShowSettings(false);
     };
 
-    const handleStopSync = async () => {
-        const paths = await api.selectStopSyncFiles();
-        if (paths) setStopSyncPaths(paths);
-    };
-
     return (
         <div className="flex h-full">
             {auth && savedCentralFolderPath && (
@@ -191,8 +205,18 @@ const Dashboard = ({
                         </div>
                         <ul>
                             <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2 dark:bg-gray-700 dark:text-gray-200">
-                                <FontAwesomeIcon icon={faGoogleDrive} />{" "}
-                                {username}{" "}
+                                {provider === "google" ? (
+                                    <FontAwesomeIcon
+                                        icon={faGoogleDrive}
+                                        className="mr-2"
+                                    />
+                                ) : (
+                                    <FontAwesomeIcon
+                                        icon={faBox}
+                                        className="mr-2"
+                                    />
+                                )}{" "}
+                                {username}
                             </li>
                         </ul>
                     </div>
@@ -294,14 +318,7 @@ const Dashboard = ({
                             className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:text-gray-200 dark:hover:bg-green-900"
                             onClick={handleSync}
                         >
-                            Sync to Drive
-                        </button>
-
-                        <button
-                            className="w-48 cursor-pointer rounded bg-yellow-500 py-2 text-white hover:bg-yellow-600 dark:bg-yellow-700 dark:text-gray-200 dark:hover:bg-yellow-800"
-                            onClick={handleStopSync}
-                        >
-                            Choose file to stop sync
+                            Upload
                         </button>
                     </div>
                     {auth && savedCentralFolderPath && (
@@ -348,20 +365,24 @@ const Dashboard = ({
                                                       )
                                                     : "No sync yet"}
                                             </span>
-                                            {stopSyncPaths.includes(src) && (
-                                                <button
-                                                    onClick={() =>
-                                                        handleRemoveStopSync(
+
+                                            <button
+                                                onClick={() =>
+                                                    handleToggleStopSync(src)
+                                                }
+                                                className="mr-2 cursor-pointer text-yellow-500 hover:text-yellow-600"
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={
+                                                        stopSyncPaths.includes(
                                                             src
                                                         )
+                                                            ? faPause
+                                                            : faPlay
                                                     }
-                                                    className="mr-2 cursor-pointer text-yellow-500 hover:text-yellow-600"
-                                                >
-                                                    <FontAwesomeIcon
-                                                        icon={faPause}
-                                                    />
-                                                </button>
-                                            )}
+                                                />
+                                            </button>
+
                                             <button
                                                 onClick={() =>
                                                     handleDeleteTrackedFile(src)
@@ -390,6 +411,11 @@ const Dashboard = ({
                                 id: "google",
                                 label: "Google Drive",
                                 icon: ggdrive,
+                            },
+                            {
+                                id: "box",
+                                label: "Box",
+                                icon: box,
                             },
                         ]}
                         onSuccess={handleLoginSuccess}

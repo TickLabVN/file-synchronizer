@@ -12,6 +12,11 @@ export default function registerIpcHandlers() {
     ipcMain.handle("google-drive:get-tokens", auth.getTokens);
     ipcMain.handle("google-drive:get-username", auth.getUserName);
     ipcMain.handle("app:sign-out", auth.handleSignOut);
+    // Register IPC handlers for Box authentication
+    ipcMain.handle("box:sign-in", auth.handleBoxSignIn);
+    ipcMain.handle("box:get-tokens", auth.getBoxTokens);
+    ipcMain.handle("box:get-username", auth.getBoxUserName);
+    ipcMain.handle("box:sign-out", auth.handleBoxSignOut);
 
     // Register IPC handlers for central folder management
     ipcMain.handle(

@@ -6,6 +6,11 @@ contextBridge.exposeInMainWorld("api", {
     getTokens: () => ipcRenderer.invoke("google-drive:get-tokens"),
     getGDUserName: () => ipcRenderer.invoke("google-drive:get-username"),
     signOut: () => ipcRenderer.invoke("app:sign-out"),
+    // Box related functions
+    boxSignIn: () => ipcRenderer.invoke("box:sign-in"),
+    getBoxTokens: () => ipcRenderer.invoke("box:get-tokens"),
+    getBoxUserName: () => ipcRenderer.invoke("box:get-username"),
+    boxSignOut: () => ipcRenderer.invoke("box:sign-out"),
 
     // Central folder management functions
     selectCentralFolder: () => ipcRenderer.invoke("app:select-central-folder"),

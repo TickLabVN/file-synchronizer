@@ -3,6 +3,11 @@ export const signIn = () => window.api.signIn();
 export const getTokens = () => window.api.getTokens();
 export const getGDUserName = () => window.api.getGDUserName();
 export const signOut = () => window.api.signOut();
+// API for Box authentication
+export const boxSignIn = () => window.api.boxSignIn();
+export const getBoxTokens = () => window.api.getBoxTokens();
+export const getBoxUserName = () => window.api.getBoxUserName();
+export const boxSignOut = () => window.api.boxSignOut();
 
 // API for central folder management
 export const selectCentralFolder = () => window.api.selectCentralFolder();

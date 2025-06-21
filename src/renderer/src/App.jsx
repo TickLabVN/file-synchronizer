@@ -12,6 +12,7 @@ const App = () => {
     const [centralFolderPath, setCentralFolderPath] = useState("");
     const [savedCentralFolderPath, setSavedCentralFolderPath] = useState("");
     const [updating, setUpdating] = useState(false);
+    const [provider, setProvider] = useState("");
 
     useEffect(() => {
         async function init() {
@@ -21,6 +22,15 @@ const App = () => {
                     setAuth(true);
                     const name = await api.getGDUserName();
                     if (name) setUsername(name);
+                    setProvider("google");
+                } else {
+                    const boxTokens = await api.getBoxTokens();
+                    if (boxTokens?.access_token) {
+                        setAuth(true);
+                        const name = await api.getBoxUserName();
+                        if (name) setUsername(name);
+                        setProvider("box");
+                    }
                 }
                 api.getCentralFolderConfig().then((stored) => {
                     if (stored) {
@@ -91,7 +101,13 @@ const App = () => {
 
     const handleLogout = async () => {
         try {
-            await api.signOut();
+            if (provider === "google") {
+                await api.signOut();
+            } else if (provider === "box") {
+                await api.boxSignOut();
+            }
+            setAuth(false);
+            setUsername("");
             setSavedCentralFolderPath("");
             window.location.reload();
         } catch (err) {
@@ -149,11 +165,13 @@ const App = () => {
                             }
                             handleSelectFolder={handleSelectFolder}
                             handleContinue={handleContinue}
-                            handleLoginSuccess={(name) => {
+                            handleLoginSuccess={(id, name) => {
                                 setAuth(true);
+                                setProvider(id);
                                 setUsername(name);
                             }}
                             centralFolderPath={centralFolderPath}
+                            provider={provider}
                         />
                     )}
                 </div>
