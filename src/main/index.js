@@ -10,12 +10,22 @@ const { autoUpdater } = pkg;
 import { is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { syncOnLaunch } from "./handlers/sync";
+import path from "path";
+import fs from "fs";
 
 // eslint-disable-next-line no-unused-vars
 let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
+
+async function shouldSync() {
+    const tokens = await getTokenKeytar();
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const raw = await fs.promises.readFile(cfgPath, "utf-8");
+    const { centralFolderPath } = JSON.parse(raw);
+    return Boolean(tokens && centralFolderPath);
+}
 
 // Prevent multiple instances of the app from running
 const gotLock = app.requestSingleInstanceLock();
@@ -44,7 +54,7 @@ app.whenReady().then(async () => {
     // Check if the Google Drive tokens are saved
     const saved = await getTokenKeytar();
     if (saved) {
-        fetch(`${BACKEND_URL}/auth/set-tokens`, {
+        fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(saved),
@@ -109,25 +119,33 @@ app.whenReady().then(async () => {
     });
 
     // First sync on launch
-    console.log("[Background] Starting syncOnLaunch on app ready");
-    try {
-        await syncOnLaunch();
-        console.log("[Background] syncOnLaunch completed");
-        broadcast("app:tracked-files-updated");
-    } catch (err) {
-        console.error("[Background] syncOnLaunch error:", err);
+    if (await shouldSync()) {
+        console.log("[Background] Starting syncOnLaunch on app ready");
+        try {
+            await syncOnLaunch();
+            console.log("[Background] syncOnLaunch completed");
+            broadcast("app:tracked-files-updated");
+        } catch (err) {
+            console.error("[Background] syncOnLaunch error:", err);
+        }
+    } else {
+        console.log("[Background] No sync needed on launch");
     }
 });
 
 // Set five minutes interval to sync on launch
 const FIVE_MIN = 5 * 60 * 1000;
 setInterval(async () => {
-    try {
-        await syncOnLaunch();
-        console.log("[Background] syncOnLaunch completed");
-        broadcast("app:tracked-files-updated");
-    } catch (err) {
-        console.error("[Background] syncOnLaunch error:", err);
+    if (await shouldSync()) {
+        try {
+            await syncOnLaunch();
+            console.log("[Background] syncOnLaunch completed");
+            broadcast("app:tracked-files-updated");
+        } catch (err) {
+            console.error("[Background] syncOnLaunch error:", err);
+        }
+    } else {
+        console.log("[Background] No sync needed at this interval");
     }
 }, FIVE_MIN);
 

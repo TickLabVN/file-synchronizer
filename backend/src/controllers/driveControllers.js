@@ -52,7 +52,7 @@ export const refreshTokens = async (req, res) => {
         const { credentials } = await oauth2Client.refreshAccessToken();
         res.json(credentials);
     } catch (err) {
-        console.error("Error in /auth/get-tokens:", err);
+        console.error("Error in /auth/google/refresh-tokens:", err);
         res.status(500).json({ error: "Failed to fetch tokens" });
     }
 };
