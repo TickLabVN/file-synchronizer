@@ -4,7 +4,7 @@ import createWindow from "./window";
 import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
 const { BACKEND_URL, store } = constants;
-import { getTokenKeytar } from "./lib/credentials";
+import { getTokenKeytar, getBoxTokenKeytar } from "./lib/credentials";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
 import { is } from "@electron-toolkit/utils";
@@ -20,10 +20,15 @@ let tray;
 let isQuiting = false;
 
 async function shouldSync() {
-    const tokens = await getTokenKeytar();
+    const tokens = (await getTokenKeytar()) || (await getBoxTokenKeytar());
     const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
-    const raw = await fs.promises.readFile(cfgPath, "utf-8");
-    const { centralFolderPath } = JSON.parse(raw);
+    let centralFolderPath = null;
+    try {
+        const raw = await fs.promises.readFile(cfgPath, "utf-8");
+        ({ centralFolderPath } = JSON.parse(raw));
+    } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+    }
     return Boolean(tokens && centralFolderPath);
 }
 
@@ -58,6 +63,16 @@ app.whenReady().then(async () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(saved),
+        }).catch(console.error);
+    }
+
+    // Check if the Box tokens are saved
+    const boxSaved = await getBoxTokenKeytar();
+    if (boxSaved) {
+        fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(boxSaved),
         }).catch(console.error);
     }
 

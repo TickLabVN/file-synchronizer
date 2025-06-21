@@ -6,9 +6,11 @@ const BACKEND_URL = is.dev
     : "https://file-synchronizer.onrender.com";
 const store = new Store();
 const mapping = store.get("driveMapping", {});
+const boxMapping = store.get("boxMapping", {});
 
 export const constants = {
     BACKEND_URL,
     store,
     mapping,
+    boxMapping,
 };

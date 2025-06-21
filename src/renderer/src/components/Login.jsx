@@ -5,16 +5,20 @@ const Login = ({ providerList, onSuccess }) => {
     const [status, setStatus] = useState("idle");
     const [error, setError] = useState(null);
 
-    const handleSignIn = async () => {
+    const handleSignIn = async (id) => {
         setStatus("loading");
         setError(null);
         try {
-            const result = await api.signIn();
-            console.log("GGDrive token:", result.token);
-            const name = await api.getGDUserName();
+            const result =
+                id === "google" ? await api.signIn() : await api.boxSignIn();
+            console.log("Cloud token:", result.token);
+            const name =
+                id === "google"
+                    ? await api.getGDUserName()
+                    : await api.getBoxUserName();
             if (name) {
                 console.log("Google Drive user:", name);
-                onSuccess(name);
+                onSuccess(id, name);
                 setStatus("success");
             } else {
                 throw new Error("Failed to fetch username after sign-in");
