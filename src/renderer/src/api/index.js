@@ -28,6 +28,9 @@ export const updateSettings = (settings) => window.api.updateSettings(settings);
 export const syncFiles = (paths) => window.api.syncFiles(paths);
 export const syncOnLaunch = () => window.api.syncOnLaunch();
 export const pullFromDrive = () => window.api.pullFromDrive();
+export const syncBoxFiles = (paths) => window.api.syncBoxFiles(paths);
+export const syncBoxOnLaunch = () => window.api.syncBoxOnLaunch();
+export const pullFromBox = () => window.api.pullFromBox();
 
 // API for update related functions
 export const onUpdateAvailable = (cb) => window.api.onUpdateAvailable(cb);
@@ -38,3 +41,6 @@ export const getTrackedFiles = () => window.api.getTrackedFiles();
 export const onTrackedFilesUpdated = (cb) =>
     window.api.onTrackedFilesUpdated(cb);
 export const deleteTrackedFile = (file) => window.api.deleteTrackedFile(file);
+export const getTrackedFilesBox = () => window.api.getTrackedFilesBox();
+export const deleteTrackedFileBox = (file) =>
+    window.api.deleteTrackedFileBox(file);

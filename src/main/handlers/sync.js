@@ -8,8 +8,13 @@ import downloadTree from "../utils/downloadTree";
 import getDriveClient from "../utils/getDriveClient";
 import "dotenv/config";
 import { cleanupDrive } from "../utils/cleanupDrive";
+import cleanupBox from "../utils/cleanupBox";
+import { getBoxClient } from "../utils/getBoxClient";
+import { traverseAndUploadBox } from "../utils/traverseAndUploadBox";
+import traverseCompareBox from "../utils/traverseCompareBox";
+import downloadTreeBox from "../utils/downloadTreeBox";
 
-const { store, mapping } = constants;
+const { store, mapping, boxMapping } = constants;
 
 // Handle syncing files/folders to Google Drive and creating symlinks
 export async function syncFiles(_, paths) {
@@ -90,6 +95,90 @@ export async function syncFiles(_, paths) {
         success: failed.length === 0,
         failed: failed,
     };
+}
+
+export async function syncBoxFiles(_, paths) {
+    // 4a. Locate the user’s “central folder” (where we create symlinks)
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const rawCfg = await fs.promises.readFile(cfgPath, "utf-8");
+    const { centralFolderPath } = JSON.parse(rawCfg);
+    if (!centralFolderPath) throw new Error("Central folder not set");
+
+    // 4b. Prepare Box client
+    const client = await getBoxClient();
+
+    // 4c. Find or create the dedicated backup folder at the Box root
+    const folderName = "FS-Backup-Data";
+    let rootFolderId;
+    const rootItems = await client.folders.getItems("0", {
+        fields: "id,type,name",
+        limit: 1000,
+    });
+    const existing = rootItems.entries.find(
+        (it) => it.type === "folder" && it.name === folderName
+    );
+    if (existing) {
+        rootFolderId = existing.id;
+    } else {
+        const created = await client.folders.create("0", folderName);
+        rootFolderId = created.id;
+    }
+
+    // 4d. Iterate over each requested local path
+    const failed = [];
+    for (const p of paths) {
+        try {
+            // 4d‑i. Mirror the local tree on Box
+            await traverseAndUploadBox(p, rootFolderId, client);
+
+            // 4d‑ii. Ensure a symlink (or copy fallback) exists in central folder
+            const linkPath = path.join(centralFolderPath, path.basename(p));
+            try {
+                await fs.promises.unlink(linkPath);
+            } catch {
+                /* ignore — link did not exist */
+            }
+
+            const stats = await fs.promises.stat(p);
+            const linkType = stats.isDirectory() ? "junction" : "file";
+
+            try {
+                await fs.promises.symlink(p, linkPath, linkType);
+            } catch (err) {
+                // On Windows the user may lack the SeCreateSymbolicLink privilege
+                if (process.platform === "win32" && err.code === "EPERM") {
+                    if (stats.isDirectory()) {
+                        await fs.promises.cp(p, linkPath, { recursive: true });
+                    } else {
+                        try {
+                            await fs.promises.link(p, linkPath);
+                        } catch {
+                            await fs.promises.copyFile(p, linkPath);
+                        }
+                    }
+                } else {
+                    throw err;
+                }
+            }
+
+            // 4d‑iii. Persist updated mapping
+            await store.set("boxMapping", boxMapping);
+        } catch (err) {
+            // 4d‑iv. Handle a path that disappeared locally
+            if (err.code === "ENOENT") {
+                console.warn(
+                    `Path "${p}" not found locally, cleaning up on Box…`
+                );
+                await cleanupBox(p, client);
+                await store.set("boxMapping", boxMapping);
+                failed.push({ path: p, message: err.message });
+                continue;
+            }
+            throw err;
+        }
+    }
+
+    return { success: failed.length === 0, failed };
 }
 
 // Handle syncing on app launch
@@ -207,6 +296,126 @@ export async function syncOnLaunch() {
     return true;
 }
 
+// Handle syncing on app launch for Box
+export async function syncBoxOnLaunch() {
+    const settings = store.get("settings", {
+        stopSyncPaths: [],
+    });
+    const { stopSyncPaths = [] } = settings;
+
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    let centralFolderPath;
+    try {
+        const raw = await fs.promises.readFile(cfgPath, "utf-8");
+        centralFolderPath = JSON.parse(raw).centralFolderPath;
+    } catch {
+        console.log(
+            "No central folder config found, skipping Box sync-on-launch"
+        );
+        return true;
+    }
+
+    if (Object.keys(boxMapping).length === 0) {
+        console.log("Skip Box sync-on-launch: no files mapped yet");
+        return true;
+    }
+
+    const client = await getBoxClient();
+
+    console.log("Starting Box auto-delete on launch...");
+    const rootItems = await client.folders.getItems("0", {
+        fields: "id,type,name",
+        limit: 1000,
+    });
+    const folderName = "FS-Backup-Data";
+    let rootFolderId;
+    const existing = rootItems.entries.find(
+        (it) => it.type === "folder" && it.name === folderName
+    );
+    if (existing) {
+        rootFolderId = existing.id;
+    } else {
+        console.warn("Box backup folder not found, skipping deletion check");
+        return true;
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    for (const [src, _] of Object.entries(boxMapping)) {
+        try {
+            await fs.promises.stat(src);
+        } catch (err) {
+            if (err.code === "ENOENT") {
+                const linkPath = path.join(
+                    centralFolderPath,
+                    path.basename(src)
+                );
+                try {
+                    await fs.promises.unlink(linkPath);
+                    console.log(`Deleted local link: ${linkPath}`);
+                } catch (unlinkErr) {
+                    console.error(
+                        `Failed to delete link at ${linkPath}`,
+                        unlinkErr
+                    );
+                }
+            } else {
+                throw err;
+            }
+        }
+    }
+
+    for (const [src, rec] of Object.entries(boxMapping)) {
+        if (rec.parentId === rootFolderId) {
+            const linkPath = path.join(centralFolderPath, path.basename(src));
+            try {
+                await fs.promises.lstat(linkPath);
+            } catch (err) {
+                if (err.code === "ENOENT") {
+                    try {
+                        if (rec.isFolder) {
+                            await client.folders.delete(rec.id, {
+                                recursive: true,
+                            });
+                        } else {
+                            await client.files.delete(rec.id);
+                        }
+                        console.log(`Deleted on Box: ${rec.id} (src=${src})`);
+                    } catch (boxErr) {
+                        console.error("Failed to delete on Box:", boxErr);
+                    }
+                    for (const key of Object.keys(boxMapping)) {
+                        if (key === src || key.startsWith(src + path.sep)) {
+                            delete boxMapping[key];
+                        }
+                    }
+                } else {
+                    throw err;
+                }
+            }
+        }
+    }
+    console.log("Starting Box auto-update on launch...");
+    for (const [src, rec] of Object.entries(boxMapping)) {
+        if (stopSyncPaths.includes(src)) {
+            console.log(
+                `Skipping Box sync for ${src} as it is in stopSyncPaths`
+            );
+            continue;
+        }
+        try {
+            const changed = await traverseCompareBox(src, rec.id, client);
+            if (changed) {
+                rec.lastSync = new Date().toISOString();
+                console.log(`Updated lastSync for ${src} to ${rec.lastSync}`);
+            }
+        } catch (e) {
+            console.error("Error syncing on launch for Box", src, e);
+        }
+    }
+    await store.set("boxMapping", boxMapping);
+    return true;
+}
+
 // Handle pulling data from Google Drive to the central folder
 export async function pullFromDrive() {
     const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
@@ -269,5 +478,75 @@ export async function pullFromDrive() {
         }
     }
 
+    return true;
+}
+
+// Handle pulling data from Box to the central folder
+export async function pullFromBox() {
+    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const { centralFolderPath } = JSON.parse(
+        await fs.promises.readFile(cfgPath, "utf-8")
+    );
+    if (!centralFolderPath) throw new Error("Central folder not set");
+    const client = await getBoxClient();
+    const rootItems = await client.folders.getItems("0", {
+        fields: "id,type,name",
+        limit: 1000,
+    });
+    const folderName = "FS-Backup-Data";
+    let rootFolderId;
+    const existing = rootItems.entries.find(
+        (it) => it.type === "folder" && it.name === folderName
+    );
+    if (existing) {
+        rootFolderId = existing.id;
+    } else {
+        console.warn("Box backup folder not found, skipping pull");
+        return true;
+    }
+    const pulledEntries = await downloadTreeBox(
+        rootFolderId,
+        centralFolderPath,
+        client
+    );
+    await store.set("boxMapping", boxMapping);
+    const rootEntries = pulledEntries.filter(
+        (entry) => entry.parentId === rootFolderId
+    );
+    for (const entry of rootEntries) {
+        if (entry.origOS !== process.platform) {
+            console.warn(
+                `Skipping ${entry.path} as it was created on a different OS (${entry.origOS})`
+            );
+            continue;
+        }
+        const src = entry.path;
+        const basename = path.basename(src);
+        const destLink = path.join(centralFolderPath, basename);
+        try {
+            await fs.promises.unlink(destLink);
+            // eslint-disable-next-line no-empty
+        } catch {}
+
+        const stats = await fs.promises.stat(src);
+        const type = stats.isDirectory() ? "junction" : "file";
+        try {
+            await fs.promises.symlink(src, destLink, type);
+        } catch (err) {
+            if (process.platform === "win32" && err.code === "EPERM") {
+                if (stats.isDirectory()) {
+                    await fs.promises.cp(src, destLink, { recursive: true });
+                } else {
+                    try {
+                        await fs.promises.link(src, destLink);
+                    } catch {
+                        await fs.promises.copyFile(src, destLink);
+                    }
+                }
+            } else {
+                throw err;
+            }
+        }
+    }
     return true;
 }

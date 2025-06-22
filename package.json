@@ -46,6 +46,7 @@
         "@fortawesome/react-fontawesome": "^0.2.2",
         "@getstation/electron-google-oauth2": "^14.0.0",
         "@tailwindcss/vite": "^4.1.8",
+        "assert-plus": "^1.0.0",
         "axios": "^1.9.0",
         "box-node-sdk": "^3.8.1",
         "custom-electron-titlebar": "^4.2.8",
