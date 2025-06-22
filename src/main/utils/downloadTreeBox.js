@@ -72,13 +72,14 @@ export default async function downloadTreeBox(
             const isFolder = item.type === "folder";
 
             // Cập nhật boxMapping (ghi đè hoặc thêm mới)
-            boxMapping[targetPath] = {
-                id: item.id,
-                parentId,
-                isFolder,
-                lastSync: new Date().toISOString(),
-            };
-
+            if (isSameOS) {
+                boxMapping[targetPath] = {
+                    id: item.id,
+                    parentId,
+                    isFolder,
+                    lastSync: new Date().toISOString(),
+                };
+            }
             // Ghi nhận để pullFromBox dùng tạo symlink về sau
             entries.push({
                 path: targetPath,
