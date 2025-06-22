@@ -74,10 +74,10 @@ export const me = async (_req, res) => {
         if (!boxClient)
             return res.status(400).json({ error: "Client not ready" });
         const me = await boxClient.users.get(boxClient.CURRENT_USER_ID);
-        res.json(me);
+        return res.json(me);
     } catch (e) {
         console.error("Box me error:", e);
-        res.status(500).json({ error: "Failed to get user" });
+        return res.status(500).json({ error: "Failed to get user" });
     }
 };
 
@@ -87,16 +87,16 @@ export const refreshTokens = async (req, res) => {
     if (!refresh_token)
         return res.status(400).json({ error: "Missing refresh token" });
     try {
-        const { accessToken, refreshToken, expires_in } =
+        const { accessToken, refreshToken, accessTokenTTLMS } =
             await sdk.getTokensRefreshGrant(refresh_token);
 
         res.json({
             access_token: accessToken,
             refresh_token: refreshToken,
-            expires_in,
+            expires_in: Math.floor(accessTokenTTLMS / 1000),
         });
     } catch (err) {
         console.error("Box refresh error", err);
-        res.status(500).json({ error: "Failed to refresh tokens" });
+        res.status(err.statusCode || 500).json({ error: err.message });
     }
 };

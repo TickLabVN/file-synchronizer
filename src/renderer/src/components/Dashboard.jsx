@@ -62,7 +62,11 @@ const Dashboard = ({
     }, [savedCentralFolderPath]);
 
     const loadTrackedFiles = useCallback(() => {
-        api.getTrackedFiles()
+        const fetchTrackedFiles =
+            provider === "google"
+                ? api.getTrackedFiles
+                : api.getTrackedFilesBox;
+        fetchTrackedFiles()
             .then((files) => setTrackedFiles(files))
             .catch((err) => {
                 console.error("Failed to load tracked files", err);
@@ -71,7 +75,7 @@ const Dashboard = ({
                         (err.message || "Unknown error")
                 );
             });
-    }, []);
+    }, [provider]);
 
     useEffect(() => {
         if (auth && savedCentralFolderPath) {
@@ -87,7 +91,11 @@ const Dashboard = ({
     const handleDeleteTrackedFile = async (file) => {
         toast.info("Deleting tracked file...");
         try {
-            await api.deleteTrackedFile(file);
+            if (provider === "google") {
+                await api.deleteTrackedFile(file);
+            } else {
+                await api.deleteTrackedFileBox(file);
+            }
             toast.success("Tracked file deleted successfully!");
             loadTrackedFiles();
         } catch (err) {
@@ -160,7 +168,10 @@ const Dashboard = ({
         setSyncing(true);
         try {
             const paths = selectedItems.map((item) => item.path);
-            const result = await api.syncFiles(paths);
+            const result =
+                provider === "google"
+                    ? await api.syncFiles(paths)
+                    : await api.syncBoxFiles(paths);
             loadTrackedFiles();
             if (result.success) {
                 toast.success("All files synced successfully!");
@@ -402,7 +413,13 @@ const Dashboard = ({
                 </main>
             </div>
             {syncing && <Loading syncing={syncing} />}
-            {showSettings && <SettingPopup onClose={handleSettingsClose} />}
+            {showSettings && (
+                <SettingPopup
+                    onClose={handleSettingsClose}
+                    provider={provider}
+                    loadTrackedFiles={loadTrackedFiles}
+                />
+            )}
             {showLoginModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <Login

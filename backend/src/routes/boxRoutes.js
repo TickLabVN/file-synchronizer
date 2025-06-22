@@ -14,7 +14,7 @@ router.get("/", auth);
 router.get("/callback", callback);
 router.get("/token", getToken);
 router.post("/set-tokens", setTokens);
-router.get("/refresh-tokens", refreshTokens);
+router.post("/refresh-tokens", refreshTokens);
 router.get("/me", me);
 
 export default router;

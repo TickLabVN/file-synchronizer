@@ -9,7 +9,7 @@ import pkg from "electron-updater";
 const { autoUpdater } = pkg;
 import { is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
-import { syncOnLaunch } from "./handlers/sync";
+import { syncOnLaunch, syncBoxOnLaunch } from "./handlers/sync";
 import path from "path";
 import fs from "fs";
 
@@ -18,6 +18,7 @@ let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
+let isDrive = false;
 
 async function shouldSync() {
     const tokens = (await getTokenKeytar()) || (await getBoxTokenKeytar());
@@ -64,6 +65,7 @@ app.whenReady().then(async () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(saved),
         }).catch(console.error);
+        isDrive = true;
     }
 
     // Check if the Box tokens are saved
@@ -74,6 +76,7 @@ app.whenReady().then(async () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(boxSaved),
         }).catch(console.error);
+        isDrive = false;
     }
 
     mainWindow = createWindow();
@@ -137,7 +140,11 @@ app.whenReady().then(async () => {
     if (await shouldSync()) {
         console.log("[Background] Starting syncOnLaunch on app ready");
         try {
-            await syncOnLaunch();
+            if (isDrive) {
+                await syncOnLaunch();
+            } else {
+                await syncBoxOnLaunch();
+            }
             console.log("[Background] syncOnLaunch completed");
             broadcast("app:tracked-files-updated");
         } catch (err) {
@@ -153,7 +160,11 @@ const FIVE_MIN = 5 * 60 * 1000;
 setInterval(async () => {
     if (await shouldSync()) {
         try {
-            await syncOnLaunch();
+            if (isDrive) {
+                await syncOnLaunch();
+            } else {
+                await syncBoxOnLaunch();
+            }
             console.log("[Background] syncOnLaunch completed");
             broadcast("app:tracked-files-updated");
         } catch (err) {

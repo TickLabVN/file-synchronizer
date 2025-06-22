@@ -39,8 +39,20 @@ export default function registerIpcHandlers() {
     ipcMain.handle("app:sync-files", sync.syncFiles);
     ipcMain.handle("app:sync-on-launch", sync.syncOnLaunch);
     ipcMain.handle("app:pull-from-drive", sync.pullFromDrive);
+    // Register IPC handlers for Box sync
+    ipcMain.handle("app:sync-box-files", sync.syncBoxFiles);
+    ipcMain.handle("app:sync-box-on-launch", sync.syncBoxOnLaunch);
+    ipcMain.handle("app:pull-from-box", sync.pullFromBox);
 
     // Register IPC handlers for tracked files
     ipcMain.handle("app:get-tracked-files", trackedFiles.getTrackedFiles);
     ipcMain.handle("app:delete-tracked-file", trackedFiles.deleteTrackedFile);
+    ipcMain.handle(
+        "app:get-tracked-files-box",
+        trackedFiles.getTrackedFilesBox
+    );
+    ipcMain.handle(
+        "app:delete-tracked-file-box",
+        trackedFiles.deleteTrackedFileBox
+    );
 }

@@ -10,7 +10,7 @@ const buttonLabels = {
     darkMode: "Dark mode",
 };
 
-export default function SettingPopup({ onClose }) {
+export default function SettingPopup({ onClose, provider, loadTrackedFiles }) {
     const [setting, setSetting] = useState({
         darkMode: false,
         stopSyncPaths: [],
@@ -63,7 +63,16 @@ export default function SettingPopup({ onClose }) {
     const handlePullDown = async () => {
         setPulling(true);
         try {
-            await api.pullFromDrive();
+            if (provider === "google") {
+                await api.pullFromDrive();
+            } else if (provider === "box") {
+                await api.pullFromBox();
+            } else {
+                throw new Error("Unsupported provider: " + provider);
+            }
+            if (loadTrackedFiles) {
+                await loadTrackedFiles();
+            }
             toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);

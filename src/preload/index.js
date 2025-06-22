@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld("api", {
     syncFiles: (paths) => ipcRenderer.invoke("app:sync-files", paths),
     syncOnLaunch: () => ipcRenderer.invoke("app:sync-on-launch"),
     pullFromDrive: () => ipcRenderer.invoke("app:pull-from-drive"),
+    syncBoxFiles: (paths) => ipcRenderer.invoke("app:sync-box-files", paths),
+    syncBoxOnLaunch: () => ipcRenderer.invoke("app:sync-box-on-launch"),
+    pullFromBox: () => ipcRenderer.invoke("app:pull-from-box"),
 
     // Update related functions
     onUpdateAvailable: (cb) =>
@@ -45,6 +48,9 @@ contextBridge.exposeInMainWorld("api", {
         ipcRenderer.on("app:tracked-files-updated", (_e, data) => cb(data)),
     deleteTrackedFile: (file) =>
         ipcRenderer.invoke("app:delete-tracked-file", file),
+    getTrackedFilesBox: () => ipcRenderer.invoke("app:get-tracked-files-box"),
+    deleteTrackedFileBox: (file) =>
+        ipcRenderer.invoke("app:delete-tracked-file-box", file),
 });
 
 contextBridge.exposeInMainWorld("versions", {
