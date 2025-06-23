@@ -24,7 +24,7 @@ export async function syncFiles(_, paths) {
     if (!centralFolderPath) throw new Error("Central folder not set");
 
     const drive = await getDriveClient();
-    const folderName = "FS-Backup-Data";
+    const folderName = "__ticklabfs_backup";
 
     // find or create central Drive folder
     const listRes = await drive.files.list({
@@ -108,7 +108,7 @@ export async function syncBoxFiles(_, paths) {
     const client = await getBoxClient();
 
     // 4c. Find or create the dedicated backup folder at the Box root
-    const folderName = "FS-Backup-Data";
+    const folderName = "__ticklabfs_backup";
     let rootFolderId;
     const rootItems = await client.folders.getItems("0", {
         fields: "id,type,name",
@@ -207,7 +207,7 @@ export async function syncOnLaunch() {
 
     console.log("Starting auto-delete on launch...");
     const listRes = await drive.files.list({
-        q: "name='FS-Backup-Data' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        q: "name='__ticklabfs_backup' and mimeType='application/vnd.google-apps.folder' and trashed=false",
         fields: "files(id)",
         spaces: "drive",
     });
@@ -327,7 +327,7 @@ export async function syncBoxOnLaunch() {
         fields: "id,type,name",
         limit: 1000,
     });
-    const folderName = "FS-Backup-Data";
+    const folderName = "__ticklabfs_backup";
     let rootFolderId;
     const existing = rootItems.entries.find(
         (it) => it.type === "folder" && it.name === folderName
@@ -428,7 +428,7 @@ export async function pullFromDrive() {
     const {
         data: { files: root },
     } = await drive.files.list({
-        q: "name='FS-Backup-Data' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        q: "name='__ticklabfs_backup' and mimeType='application/vnd.google-apps.folder' and trashed=false",
         fields: "files(id)",
         spaces: "drive",
     });
@@ -493,7 +493,7 @@ export async function pullFromBox() {
         fields: "id,type,name",
         limit: 1000,
     });
-    const folderName = "FS-Backup-Data";
+    const folderName = "__ticklabfs_backup";
     let rootFolderId;
     const existing = rootItems.entries.find(
         (it) => it.type === "folder" && it.name === folderName
