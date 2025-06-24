@@ -9,12 +9,6 @@ export const getBoxTokens = () => window.api.getBoxTokens();
 export const getBoxUserName = () => window.api.getBoxUserName();
 export const boxSignOut = () => window.api.boxSignOut();
 
-// API for central folder management
-export const selectCentralFolder = () => window.api.selectCentralFolder();
-export const getCentralFolderConfig = () => window.api.getCentralFolderConfig();
-export const saveCentralFolderConfig = (path) =>
-    window.api.saveCentralFolderConfig(path);
-
 // API for file and folder selection
 export const selectFiles = () => window.api.selectFiles();
 export const selectFolders = () => window.api.selectFolders();

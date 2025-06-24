@@ -1,6 +1,5 @@
 import { ipcMain } from "electron";
 import * as auth from "./handlers/auth";
-import * as centralConfig from "./handlers/centralConfig";
 import * as selection from "./handlers/selection";
 import * as settings from "./handlers/settings";
 import * as sync from "./handlers/sync";
@@ -17,14 +16,6 @@ export default function registerIpcHandlers() {
     ipcMain.handle("box:get-tokens", auth.getBoxTokens);
     ipcMain.handle("box:get-username", auth.getBoxUserName);
     ipcMain.handle("box:sign-out", auth.handleBoxSignOut);
-
-    // Register IPC handlers for central folder management
-    ipcMain.handle(
-        "app:select-central-folder",
-        centralConfig.selectCentralFolder
-    );
-    ipcMain.handle("app:save-central-folder", centralConfig.saveCentralFolder);
-    ipcMain.handle("app:get-central-folder", centralConfig.getCentralFolder);
 
     // Register IPC handlers for file and folder selection
     ipcMain.handle("app:select-files", selection.selectFiles);

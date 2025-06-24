@@ -9,8 +9,6 @@ const App = () => {
     const [auth, setAuth] = useState(false);
     const [username, setUsername] = useState("");
     const [loading, setLoading] = useState(true);
-    const [centralFolderPath, setCentralFolderPath] = useState("");
-    const [savedCentralFolderPath, setSavedCentralFolderPath] = useState("");
     const [updating, setUpdating] = useState(false);
     const [provider, setProvider] = useState("");
 
@@ -32,11 +30,6 @@ const App = () => {
                         setProvider("box");
                     }
                 }
-                api.getCentralFolderConfig().then((stored) => {
-                    if (stored) {
-                        setSavedCentralFolderPath(stored);
-                    }
-                });
             } catch (err) {
                 console.error("Init error:", err);
                 toast.error(
@@ -69,36 +62,6 @@ const App = () => {
         }
     }, []);
 
-    const handleSelectFolder = async () => {
-        try {
-            const path = await api.selectCentralFolder();
-            if (path) {
-                setCentralFolderPath(path);
-            }
-        } catch (err) {
-            console.error("Select folder error:", err);
-            toast.error(
-                "Failed to select central folder: " +
-                    (err.message || "Unknown error")
-            );
-        }
-    };
-
-    const handleContinue = async () => {
-        try {
-            if (centralFolderPath) {
-                await api.saveCentralFolderConfig(centralFolderPath);
-                setSavedCentralFolderPath(centralFolderPath);
-            }
-        } catch (err) {
-            console.error("Save central folder error:", err);
-            toast.error(
-                "Failed to save central folder: " +
-                    (err.message || "Unknown error")
-            );
-        }
-    };
-
     const handleLogout = async () => {
         try {
             if (provider === "google") {
@@ -108,35 +71,12 @@ const App = () => {
             }
             setAuth(false);
             setUsername("");
-            setSavedCentralFolderPath("");
             window.location.reload();
         } catch (err) {
             console.error("Logout error:", err);
             toast.error(
                 "Failed to log out: " + (err.message || "Unknown error")
             );
-        }
-    };
-
-    const handleChangeCentralFolder = async () => {
-        const confirmed = window.confirm(
-            "Are you sure you want to change the central folder?"
-        );
-        if (confirmed) {
-            try {
-                const newPath = await api.selectCentralFolder();
-                if (newPath) {
-                    await api.saveCentralFolderConfig(newPath);
-                    setSavedCentralFolderPath(newPath);
-                    toast.success("Central folder changed successfully!");
-                }
-            } catch (err) {
-                console.error("Change central folder error:", err);
-                toast.error(
-                    "Failed to change central folder: " +
-                        (err.message || "Unknown error")
-                );
-            }
         }
     };
 
@@ -158,19 +98,12 @@ const App = () => {
                         <Dashboard
                             auth={auth}
                             username={username}
-                            savedCentralFolderPath={savedCentralFolderPath}
                             handleLogout={handleLogout}
-                            handleChangeCentralFolder={
-                                handleChangeCentralFolder
-                            }
-                            handleSelectFolder={handleSelectFolder}
-                            handleContinue={handleContinue}
                             handleLoginSuccess={(id, name) => {
                                 setAuth(true);
                                 setProvider(id);
                                 setUsername(name);
                             }}
-                            centralFolderPath={centralFolderPath}
                             provider={provider}
                         />
                     )}

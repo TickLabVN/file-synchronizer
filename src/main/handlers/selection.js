@@ -29,7 +29,7 @@ export async function selectFolders() {
 export async function selectStopSyncFiles() {
     const win = BrowserWindow.getFocusedWindow();
 
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");

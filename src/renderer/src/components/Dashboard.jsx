@@ -1,6 +1,5 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-    faRepeat,
     faFile,
     faFolder,
     faTrash,
@@ -17,20 +16,14 @@ import ModalConfirmLogout from "@components/ModalConfirmLogout";
 import SettingPopup from "@components/SettingPopup";
 import Loading from "@components/Loading";
 import Login from "./Login";
-import ChooseCentralFolder from "./ChooseCentralFolder";
 import ggdrive from "@assets/ggdrive.svg";
 import box from "@assets/box.svg";
 
 const Dashboard = ({
     username,
-    savedCentralFolderPath,
     handleLogout,
-    handleChangeCentralFolder,
     auth,
-    handleSelectFolder,
-    handleContinue,
     handleLoginSuccess,
-    centralFolderPath,
     provider,
 }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -39,7 +32,6 @@ const Dashboard = ({
     const [showSettings, setShowSettings] = useState(false);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
     const [showLoginModal, setShowLoginModal] = useState(false);
-    const [showChooseModal, setShowChooseModal] = useState(false);
     const [trackedFiles, setTrackedFiles] = useState([]);
 
     useEffect(() => {
@@ -51,15 +43,8 @@ const Dashboard = ({
     useEffect(() => {
         if (auth) {
             setShowLoginModal(false);
-            setShowChooseModal(true);
         }
     }, [auth]);
-
-    useEffect(() => {
-        if (savedCentralFolderPath) {
-            setShowChooseModal(false);
-        }
-    }, [savedCentralFolderPath]);
 
     const loadTrackedFiles = useCallback(() => {
         const fetchTrackedFiles =
@@ -78,10 +63,10 @@ const Dashboard = ({
     }, [provider]);
 
     useEffect(() => {
-        if (auth && savedCentralFolderPath) {
+        if (auth) {
             loadTrackedFiles();
         }
-    }, [loadTrackedFiles, auth, savedCentralFolderPath]);
+    }, [loadTrackedFiles, auth]);
 
     useEffect(() => {
         const handler = () => loadTrackedFiles();
@@ -157,10 +142,6 @@ const Dashboard = ({
             setShowLoginModal(true);
             return;
         }
-        if (!savedCentralFolderPath) {
-            setShowChooseModal(true);
-            return;
-        }
         if (!selectedItems.length) {
             toast.error("Please select files or folders to sync.");
             return;
@@ -208,7 +189,7 @@ const Dashboard = ({
 
     return (
         <div className="flex h-full">
-            {auth && savedCentralFolderPath && (
+            {auth && (
                 <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
                     <div>
                         <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
@@ -253,20 +234,6 @@ const Dashboard = ({
                 </header>
 
                 <main className="flex-1 bg-white p-6 dark:bg-gray-900">
-                    {auth && savedCentralFolderPath && (
-                        <div className="mb-6 flex items-center justify-between rounded border px-4 py-2 dark:border-gray-700">
-                            <span className="overflow-hidden font-medium text-ellipsis dark:text-gray-400">
-                                Central path: {savedCentralFolderPath}
-                            </span>
-                            <button
-                                className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600"
-                                onClick={handleChangeCentralFolder}
-                            >
-                                <FontAwesomeIcon icon={faRepeat} />
-                            </button>
-                        </div>
-                    )}
-
                     <h2 className="mb-4 text-center text-lg dark:text-gray-400">
                         Choose file or folder that you need to backup
                     </h2>
@@ -332,7 +299,7 @@ const Dashboard = ({
                             Upload
                         </button>
                     </div>
-                    {auth && savedCentralFolderPath && (
+                    {auth && (
                         <button
                             className="fixed right-4 bottom-4 cursor-pointer rounded-full bg-gray-200 p-3 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                             onClick={() => setShowSettings(true)}
@@ -436,17 +403,6 @@ const Dashboard = ({
                             },
                         ]}
                         onSuccess={handleLoginSuccess}
-                    />
-                </div>
-            )}
-
-            {showChooseModal && !savedCentralFolderPath && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 bg-white">
-                    <ChooseCentralFolder
-                        username={username}
-                        centralFolderPath={centralFolderPath}
-                        handleSelectFolder={handleSelectFolder}
-                        handleContinue={handleContinue}
                     />
                 </div>
             )}

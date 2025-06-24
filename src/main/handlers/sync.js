@@ -18,7 +18,7 @@ const { store, mapping, boxMapping } = constants;
 
 // Handle syncing files/folders to Google Drive and creating symlinks
 export async function syncFiles(_, paths) {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
@@ -99,7 +99,7 @@ export async function syncFiles(_, paths) {
 
 export async function syncBoxFiles(_, paths) {
     // 4a. Locate the user’s “central folder” (where we create symlinks)
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const rawCfg = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(rawCfg);
     if (!centralFolderPath) throw new Error("Central folder not set");
@@ -188,7 +188,7 @@ export async function syncOnLaunch() {
     });
     const { stopSyncPaths = [] } = settings;
 
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
@@ -303,7 +303,7 @@ export async function syncBoxOnLaunch() {
     });
     const { stopSyncPaths = [] } = settings;
 
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
@@ -418,7 +418,7 @@ export async function syncBoxOnLaunch() {
 
 // Handle pulling data from Google Drive to the central folder
 export async function pullFromDrive() {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
     );
@@ -483,7 +483,7 @@ export async function pullFromDrive() {
 
 // Handle pulling data from Box to the central folder
 export async function pullFromBox() {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
     );

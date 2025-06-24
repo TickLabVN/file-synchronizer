@@ -12,12 +12,6 @@ contextBridge.exposeInMainWorld("api", {
     getBoxUserName: () => ipcRenderer.invoke("box:get-username"),
     boxSignOut: () => ipcRenderer.invoke("box:sign-out"),
 
-    // Central folder management functions
-    selectCentralFolder: () => ipcRenderer.invoke("app:select-central-folder"),
-    getCentralFolderConfig: () => ipcRenderer.invoke("app:get-central-folder"),
-    saveCentralFolderConfig: (path) =>
-        ipcRenderer.invoke("app:save-central-folder", path),
-
     // File and folder selection functions
     selectFiles: () => ipcRenderer.invoke("app:select-files"),
     selectFolders: () => ipcRenderer.invoke("app:select-folders"),

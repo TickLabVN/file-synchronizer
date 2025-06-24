@@ -12,6 +12,7 @@ import icon from "../../resources/icon.png?asset";
 import { syncOnLaunch, syncBoxOnLaunch } from "./handlers/sync";
 import path from "path";
 import fs from "fs";
+import createCentralFolder from "./utils/centralConfig";
 
 // eslint-disable-next-line no-unused-vars
 let isUpdating = false;
@@ -22,7 +23,7 @@ let isDrive = false;
 
 async function shouldSync() {
     const tokens = (await getTokenKeytar()) || (await getBoxTokenKeytar());
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath = null;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
@@ -57,6 +58,19 @@ function broadcast(channel, payload) {
 }
 
 app.whenReady().then(async () => {
+    // Create the central folder automatically
+    try {
+        await createCentralFolder();
+    } catch (err) {
+        console.error("Error creating central folder:", err);
+        dialog.showErrorBox(
+            "Central Folder Error",
+            "Failed to create the central folder. Please check your permissions."
+        );
+        app.quit();
+        return;
+    }
+
     // Check if the Google Drive tokens are saved
     const saved = await getTokenKeytar();
     if (saved) {
