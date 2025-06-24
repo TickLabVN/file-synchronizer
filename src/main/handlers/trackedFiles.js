@@ -8,7 +8,7 @@ import { getBoxClient } from "../utils/getBoxClient";
 
 // Handler to get all tracked files with their last sync timestamp
 export async function getTrackedFiles() {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
@@ -33,7 +33,7 @@ export async function getTrackedFiles() {
 
 // Handler to get all tracked files with their Box metadata
 export async function getTrackedFilesBox() {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
@@ -70,7 +70,7 @@ export async function deleteTrackedFile(_, src) {
         console.error("Drive delete error:", err);
     }
     // Delete local symlink in central folder
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
     );
@@ -115,7 +115,7 @@ export async function deleteTrackedFileBox(_, src) {
         console.error("Box delete error:", err);
     }
 
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
     );
