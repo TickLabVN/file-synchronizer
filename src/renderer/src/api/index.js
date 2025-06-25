@@ -15,6 +15,7 @@ export const boxSignOut = (login) => window.api.boxSignOut(login);
 export const selectFiles = () => window.api.selectFiles();
 export const selectFolders = () => window.api.selectFolders();
 export const selectStopSyncFiles = () => window.api.selectStopSyncFiles();
+export const listDirectory = (path) => window.api.listDirectory(path);
 
 // API for settings management
 export const getSettings = () => window.api.getSettings();

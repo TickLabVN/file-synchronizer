@@ -24,6 +24,7 @@ export default function registerIpcHandlers() {
     ipcMain.handle("app:select-files", selection.selectFiles);
     ipcMain.handle("app:select-folders", selection.selectFolders);
     ipcMain.handle("app:select-stop-sync-files", selection.selectStopSyncFiles);
+    ipcMain.handle("app:list-directory", selection.listDirectory);
 
     // Register IPC handlers for settings
     ipcMain.handle("app:get-settings", settings.getSettings);
