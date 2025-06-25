@@ -3,36 +3,52 @@ import {
     faFile,
     faFolder,
     faTrash,
-    faGear,
     faPause,
     faPlay,
-    faBox,
 } from "@fortawesome/free-solid-svg-icons";
-import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
+// import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import * as api from "../api";
-import ModalConfirmLogout from "@components/ModalConfirmLogout";
-import SettingPopup from "@components/SettingPopup";
+// import ModalConfirmLogout from "@components/ModalConfirmLogout";
 import Loading from "@components/Loading";
 import Login from "./Login";
 import ggdrive from "@assets/ggdrive.svg";
 import box from "@assets/box.svg";
-
-const Dashboard = ({
-    username,
-    handleLogout,
-    auth,
-    handleLoginSuccess,
-    provider,
-}) => {
-    const [showLogoutModal, setShowLogoutModal] = useState(false);
+import Header from "./Header";
+const Dashboard = ({ auth, handleLoginSuccess, provider }) => {
+    // const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
-    const [showSettings, setShowSettings] = useState(false);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [trackedFiles, setTrackedFiles] = useState([]);
+    const [pulling, setPulling] = useState(false);
+
+    const handlePullDown = async () => {
+        setPulling(true);
+        try {
+            if (provider === "google") {
+                await api.pullFromDrive();
+            } else if (provider === "box") {
+                await api.pullFromBox();
+            } else {
+                throw new Error("Unsupported provider: " + provider);
+            }
+            if (loadTrackedFiles) {
+                await loadTrackedFiles();
+            }
+            toast.success("Pull down successful!");
+        } catch (err) {
+            console.error(err);
+            toast.error(
+                "Failed to pull down from Drive:" +
+                    (err.message || "Unknown error")
+            );
+        } finally {
+            setPulling(false);
+        }
+    };
 
     useEffect(() => {
         api.getSettings().then(({ stopSyncPaths = [] }) => {
@@ -174,219 +190,153 @@ const Dashboard = ({
         }
     };
 
-    const onLogoutClick = () => setShowLogoutModal(true);
+    // const onLogoutClick = () => setShowLogoutModal(true);
 
-    const confirmLogout = () => {
-        setShowLogoutModal(false);
-        handleLogout();
-    };
+    // const confirmLogout = () => {
+    //     setShowLogoutModal(false);
+    //     handleLogout();
+    // };
 
-    const cancelLogout = () => setShowLogoutModal(false);
-
-    const handleSettingsClose = () => {
-        setShowSettings(false);
-    };
+    // const cancelLogout = () => setShowLogoutModal(false);
 
     return (
-        <div className="flex h-full">
-            {auth && (
-                <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
-                    <div>
-                        <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
-                            USER
-                        </div>
-                        <ul>
-                            <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2 dark:bg-gray-700 dark:text-gray-200">
-                                {provider === "google" ? (
+        <div className="flex h-full flex-col">
+            <Header />
+            <main className="flex-1 overflow-auto bg-white p-6 dark:bg-gray-900">
+                <h2 className="mb-4 text-center text-lg dark:text-gray-400">
+                    Choose file or folder that you need to backup
+                </h2>
+
+                {selectedItems.length > 0 && (
+                    <ul className="scrollbar mb-4 max-h-48 space-y-2 overflow-auto">
+                        {selectedItems.map(({ path, isDirectory }) => (
+                            <li
+                                key={path}
+                                className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
+                            >
+                                <span className="truncate">
                                     <FontAwesomeIcon
-                                        icon={faGoogleDrive}
-                                        className="mr-2"
-                                    />
-                                ) : (
-                                    <FontAwesomeIcon
-                                        icon={faBox}
-                                        className="mr-2"
-                                    />
-                                )}{" "}
-                                {username}
+                                        icon={isDirectory ? faFolder : faFile}
+                                        className="mr-2 text-yellow-500"
+                                    />{" "}
+                                    {path}
+                                </span>
+                                <button
+                                    onClick={() => handleRemove(path)}
+                                    className="cursor-pointer text-red-500 hover:text-red-600"
+                                >
+                                    <FontAwesomeIcon icon={faTrash} />
+                                </button>
                             </li>
-                        </ul>
+                        ))}
+                    </ul>
+                )}
+
+                {selectedItems.length == 0 && (
+                    <div className="mb-6 flex items-center justify-center">
+                        <input
+                            type="text"
+                            readOnly
+                            placeholder="No file or folder selected"
+                            className="w-2/3 rounded border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                        />
+                    </div>
+                )}
+
+                <div className="flex flex-col items-center space-y-4">
+                    <div className="flex space-x-4">
+                        <button
+                            className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
+                            onClick={handleChooseFiles}
+                        >
+                            Choose file <FontAwesomeIcon icon={faFile} />
+                        </button>
+                        <button
+                            className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
+                            onClick={handleChooseFolders}
+                        >
+                            Choose folder <FontAwesomeIcon icon={faFolder} />
+                        </button>
                     </div>
                     <button
-                        className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 dark:bg-violet-800 dark:text-gray-200 dark:hover:bg-violet-700"
-                        onClick={onLogoutClick}
+                        className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:text-gray-200 dark:hover:bg-green-900"
+                        onClick={handleSync}
                     >
-                        Logout
+                        Upload
                     </button>
-                </aside>
-            )}
+                    <button
+                        className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:text-gray-200 dark:hover:bg-green-900"
+                        onClick={handlePullDown}
+                    >
+                        Pull from cloud
+                    </button>
+                </div>
 
-            {showLogoutModal && (
-                <ModalConfirmLogout
-                    confirmLogout={confirmLogout}
-                    cancelLogout={cancelLogout}
-                />
-            )}
-
-            <div className="scrollbar flex h-full flex-[4] flex-col overflow-auto pt-12">
-                <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-                    <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
-                </header>
-
-                <main className="flex-1 bg-white p-6 dark:bg-gray-900">
-                    <h2 className="mb-4 text-center text-lg dark:text-gray-400">
-                        Choose file or folder that you need to backup
-                    </h2>
-
-                    {selectedItems.length > 0 && (
-                        <ul className="scrollbar mb-4 max-h-48 space-y-2 overflow-auto">
-                            {selectedItems.map(({ path, isDirectory }) => (
-                                <li
-                                    key={path}
-                                    className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
-                                >
-                                    <span className="truncate">
-                                        <FontAwesomeIcon
-                                            icon={
-                                                isDirectory ? faFolder : faFile
-                                            }
-                                            className="mr-2 text-yellow-500"
-                                        />{" "}
-                                        {path}
-                                    </span>
-                                    <button
-                                        onClick={() => handleRemove(path)}
-                                        className="cursor-pointer text-red-500 hover:text-red-600"
+                {trackedFiles.length > 0 && (
+                    <div className="mt-6">
+                        <h2 className="mb-2 text-center text-lg dark:text-gray-400">
+                            Tracked Files
+                        </h2>
+                        <ul className="scrollbar max-h-48 space-y-2 overflow-auto">
+                            {trackedFiles.map(
+                                ({ src, lastSync, isDirectory }) => (
+                                    <li
+                                        key={src}
+                                        className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
                                     >
-                                        <FontAwesomeIcon icon={faTrash} />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                                        <span className="flex-1 truncate">
+                                            <FontAwesomeIcon
+                                                icon={
+                                                    isDirectory
+                                                        ? faFolder
+                                                        : faFile
+                                                }
+                                                className="mr-2 text-yellow-500"
+                                            />
+                                            {src}
+                                        </span>
+                                        <span className="mr-4 ml-4 text-sm text-gray-500 dark:text-gray-400">
+                                            {lastSync
+                                                ? new Date(
+                                                      lastSync
+                                                  ).toLocaleString("en-US", {
+                                                      hour12: false,
+                                                  })
+                                                : "No sync yet"}
+                                        </span>
 
-                    {selectedItems.length == 0 && (
-                        <div className="mb-6 flex items-center justify-center">
-                            <input
-                                type="text"
-                                readOnly
-                                placeholder="No file or folder selected"
-                                className="w-2/3 rounded border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                            />
-                        </div>
-                    )}
-
-                    <div className="flex flex-col items-center space-y-4">
-                        <div className="flex space-x-4">
-                            <button
-                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
-                                onClick={handleChooseFiles}
-                            >
-                                Choose file <FontAwesomeIcon icon={faFile} />
-                            </button>
-                            <button
-                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
-                                onClick={handleChooseFolders}
-                            >
-                                Choose folder{" "}
-                                <FontAwesomeIcon icon={faFolder} />
-                            </button>
-                        </div>
-                        <button
-                            className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:text-gray-200 dark:hover:bg-green-900"
-                            onClick={handleSync}
-                        >
-                            Upload
-                        </button>
-                    </div>
-                    {auth && (
-                        <button
-                            className="fixed right-4 bottom-4 cursor-pointer rounded-full bg-gray-200 p-3 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                            onClick={() => setShowSettings(true)}
-                        >
-                            <FontAwesomeIcon icon={faGear} size="lg" />
-                        </button>
-                    )}
-
-                    {trackedFiles.length > 0 && (
-                        <div className="mt-6">
-                            <h2 className="mb-2 text-center text-lg dark:text-gray-400">
-                                Tracked Files
-                            </h2>
-                            <ul className="scrollbar max-h-48 space-y-2 overflow-auto">
-                                {trackedFiles.map(
-                                    ({ src, lastSync, isDirectory }) => (
-                                        <li
-                                            key={src}
-                                            className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
+                                        <button
+                                            onClick={() =>
+                                                handleToggleStopSync(src)
+                                            }
+                                            className="mr-2 cursor-pointer text-yellow-500 hover:text-yellow-600"
                                         >
-                                            <span className="flex-1 truncate">
-                                                <FontAwesomeIcon
-                                                    icon={
-                                                        isDirectory
-                                                            ? faFolder
-                                                            : faFile
-                                                    }
-                                                    className="mr-2 text-yellow-500"
-                                                />
-                                                {src}
-                                            </span>
-                                            <span className="mr-4 ml-4 text-sm text-gray-500 dark:text-gray-400">
-                                                {lastSync
-                                                    ? new Date(
-                                                          lastSync
-                                                      ).toLocaleString(
-                                                          "en-US",
-                                                          {
-                                                              hour12: false,
-                                                          }
-                                                      )
-                                                    : "No sync yet"}
-                                            </span>
-
-                                            <button
-                                                onClick={() =>
-                                                    handleToggleStopSync(src)
+                                            <FontAwesomeIcon
+                                                icon={
+                                                    stopSyncPaths.includes(src)
+                                                        ? faPause
+                                                        : faPlay
                                                 }
-                                                className="mr-2 cursor-pointer text-yellow-500 hover:text-yellow-600"
-                                            >
-                                                <FontAwesomeIcon
-                                                    icon={
-                                                        stopSyncPaths.includes(
-                                                            src
-                                                        )
-                                                            ? faPause
-                                                            : faPlay
-                                                    }
-                                                />
-                                            </button>
+                                            />
+                                        </button>
 
-                                            <button
-                                                onClick={() =>
-                                                    handleDeleteTrackedFile(src)
-                                                }
-                                                className="cursor-pointer text-red-500 hover:text-red-600"
-                                            >
-                                                <FontAwesomeIcon
-                                                    icon={faTrash}
-                                                />
-                                            </button>
-                                        </li>
-                                    )
-                                )}
-                            </ul>
-                        </div>
-                    )}
-                </main>
-            </div>
+                                        <button
+                                            onClick={() =>
+                                                handleDeleteTrackedFile(src)
+                                            }
+                                            className="cursor-pointer text-red-500 hover:text-red-600"
+                                        >
+                                            <FontAwesomeIcon icon={faTrash} />
+                                        </button>
+                                    </li>
+                                )
+                            )}
+                        </ul>
+                    </div>
+                )}
+            </main>
+            {pulling && <Loading syncing={true} />}
             {syncing && <Loading syncing={syncing} />}
-            {showSettings && (
-                <SettingPopup
-                    onClose={handleSettingsClose}
-                    provider={provider}
-                    loadTrackedFiles={loadTrackedFiles}
-                />
-            )}
             {showLoginModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <Login
