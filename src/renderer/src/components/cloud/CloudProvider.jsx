@@ -6,6 +6,7 @@ import Login from "../Login";
 import ggdrive from "@assets/ggdrive.svg";
 import box from "@assets/box.svg";
 import * as api from "../../api";
+import ModalConfirmDelete from "./ModalConfirmLogout";
 const PROVIDER_OPTIONS = [
     { id: "google", label: "Google Drive", icon: ggdrive },
     { id: "box", label: "Box", icon: box },
@@ -14,6 +15,19 @@ export default function CloudProvider() {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [cloud, setCloud] = useState("");
     const [connected, setConnected] = useState([]);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [cloudID, setCloudID] = useState("");
+    const onDeleteClick = (id) => {
+        setCloudID(id);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = () => {
+        setShowDeleteModal(false);
+        handleRemoveProvider(cloudID);
+    };
+
+    const cancelDelete = () => setShowDeleteModal(false);
 
     useEffect(() => {
         async function restoreProviders() {
@@ -46,7 +60,7 @@ export default function CloudProvider() {
             setConnected(restored);
         }
 
-        restoreProviders(); // chạy duy nhất 1 lần
+        restoreProviders();
     }, []);
 
     const handleCloudChoose = (id) => {
@@ -112,7 +126,7 @@ export default function CloudProvider() {
                         <Trash
                             size={16}
                             className="text-destructive cursor-pointer"
-                            onClick={() => handleRemoveProvider(p.id)}
+                            onClick={() => onDeleteClick(p.id)}
                         />
                     </div>
                 ))}
@@ -130,6 +144,12 @@ export default function CloudProvider() {
                         handleCloudChoose={handleCloudChoose}
                     />
                 </div>
+            )}
+            {showDeleteModal && (
+                <ModalConfirmDelete
+                    cancelDelete={cancelDelete}
+                    confirmDelete={confirmDelete}
+                />
             )}
         </Card>
     );

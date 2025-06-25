@@ -6,22 +6,16 @@ import {
     faPause,
     faPlay,
 } from "@fortawesome/free-solid-svg-icons";
-// import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import * as api from "../api";
-// import ModalConfirmLogout from "@components/ModalConfirmLogout";
 import Loading from "@components/Loading";
-import Login from "./Login";
-import ggdrive from "@assets/ggdrive.svg";
-import box from "@assets/box.svg";
 import Header from "./Header";
 import CloudProvider from "./cloud/CloudProvider";
-const Dashboard = ({ auth, handleLoginSuccess, provider }) => {
+const Dashboard = ({ auth, provider }) => {
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
-    const [showLoginModal, setShowLoginModal] = useState(false);
     const [trackedFiles, setTrackedFiles] = useState([]);
     const [pulling, setPulling] = useState(false);
 
@@ -55,12 +49,6 @@ const Dashboard = ({ auth, handleLoginSuccess, provider }) => {
             setStopSyncPaths(stopSyncPaths);
         });
     }, []);
-
-    useEffect(() => {
-        if (auth) {
-            setShowLoginModal(false);
-        }
-    }, [auth]);
 
     const loadTrackedFiles = useCallback(() => {
         const fetchTrackedFiles =
@@ -154,10 +142,6 @@ const Dashboard = ({ auth, handleLoginSuccess, provider }) => {
         setSelectedItems((prev) => prev.filter((item) => item.path !== p));
 
     const handleSync = async () => {
-        if (!auth) {
-            setShowLoginModal(true);
-            return;
-        }
         if (!selectedItems.length) {
             toast.error("Please select files or folders to sync.");
             return;
@@ -343,26 +327,6 @@ const Dashboard = ({ auth, handleLoginSuccess, provider }) => {
             </div>
             {pulling && <Loading syncing={true} />}
             {syncing && <Loading syncing={syncing} />}
-            {showLoginModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <Login
-                        providerList={[
-                            {
-                                id: "google",
-                                label: "Google Drive",
-                                icon: ggdrive,
-                            },
-                            {
-                                id: "box",
-                                label: "Box",
-                                icon: box,
-                            },
-                        ]}
-                        onSuccess={handleLoginSuccess}
-                        onClose={() => setShowLoginModal(false)}
-                    />
-                </div>
-            )}
         </div>
     );
 };
