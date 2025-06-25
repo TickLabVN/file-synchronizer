@@ -1,6 +1,7 @@
 import { useState } from "react";
 import * as api from "../api";
 import { X } from "lucide-react";
+import { toast } from "react-toastify";
 const Login = ({
     providerList,
     onSuccess,
@@ -12,23 +13,24 @@ const Login = ({
     const [error, setError] = useState(null);
 
     const handleSignIn = async (id) => {
+        if (!id) {
+            toast.error("Please choose a cloud provider first!");
+            setError("No cloud provider selected");
+            return;
+        }
         setStatus("loading");
         setError(null);
         try {
             const result =
                 id === "google" ? await api.signIn() : await api.boxSignIn();
-            console.log("Cloud token:", result.token);
-            const name =
-                id === "google"
-                    ? await api.getGDUserName()
-                    : await api.getBoxUserName();
-            if (name) {
-                console.log("Google Drive user:", name);
-                onSuccess(id, name);
-                setStatus("success");
-            } else {
-                throw new Error("Failed to fetch username after sign-in");
-            }
+
+            const accountId = result.email || result.login;
+            const username = result.name || accountId;
+
+            if (!accountId) throw new Error("No account identifier returned");
+
+            onSuccess(id, accountId, username);
+            setStatus("success");
         } catch (err) {
             console.error(err);
             setError(err.toString() || "An error occurred during sign-in");
@@ -76,7 +78,7 @@ const Login = ({
                 <li>
                     <button
                         onClick={() => handleSignIn(cloud)}
-                        disabled={status === "loading"}
+                        disabled={!cloud || status === "loading"}
                         className="w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {status === "loading" ? "Signing in..." : "Sign In"}

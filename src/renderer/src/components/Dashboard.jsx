@@ -12,19 +12,21 @@ import * as api from "../api";
 import Loading from "@components/Loading";
 import Header from "./Header";
 import CloudProvider from "./cloud/CloudProvider";
+
 const Dashboard = ({ auth, provider }) => {
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
     const [trackedFiles, setTrackedFiles] = useState([]);
     const [pulling, setPulling] = useState(false);
+    const providerType = provider?.type;
 
     const handlePullDown = async () => {
         setPulling(true);
         try {
-            if (provider === "google") {
+            if (providerType === "google") {
                 await api.pullFromDrive();
-            } else if (provider === "box") {
+            } else if (providerType === "box") {
                 await api.pullFromBox();
             } else {
                 throw new Error("Unsupported provider: " + provider);
@@ -52,7 +54,7 @@ const Dashboard = ({ auth, provider }) => {
 
     const loadTrackedFiles = useCallback(() => {
         const fetchTrackedFiles =
-            provider === "google"
+            providerType === "google"
                 ? api.getTrackedFiles
                 : api.getTrackedFilesBox;
         fetchTrackedFiles()
@@ -64,7 +66,7 @@ const Dashboard = ({ auth, provider }) => {
                         (err.message || "Unknown error")
                 );
             });
-    }, [provider]);
+    }, [providerType]);
 
     useEffect(() => {
         if (auth) {
@@ -80,7 +82,7 @@ const Dashboard = ({ auth, provider }) => {
     const handleDeleteTrackedFile = async (file) => {
         toast.info("Deleting tracked file...");
         try {
-            if (provider === "google") {
+            if (providerType === "google") {
                 await api.deleteTrackedFile(file);
             } else {
                 await api.deleteTrackedFileBox(file);
@@ -150,7 +152,7 @@ const Dashboard = ({ auth, provider }) => {
         try {
             const paths = selectedItems.map((item) => item.path);
             const result =
-                provider === "google"
+                providerType === "google"
                     ? await api.syncFiles(paths)
                     : await api.syncBoxFiles(paths);
             loadTrackedFiles();
