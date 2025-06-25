@@ -1,16 +1,20 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("api", {
-    // Google Drive related functions
+    // Google Drive authentication functions
     signIn: () => ipcRenderer.invoke("google-drive:sign-in"),
-    getTokens: () => ipcRenderer.invoke("google-drive:get-tokens"),
-    getGDUserName: () => ipcRenderer.invoke("google-drive:get-username"),
-    signOut: () => ipcRenderer.invoke("app:sign-out"),
-    // Box related functions
+    listAccounts: () => ipcRenderer.invoke("google-drive:list-accounts"),
+    useAccount: (email) =>
+        ipcRenderer.invoke("google-drive:use-account", email),
+    getProfile: (email) =>
+        ipcRenderer.invoke("google-drive:get-profile", email),
+    signOut: (email) => ipcRenderer.invoke("google-drive:sign-out", email),
+    // Box authentication functions
     boxSignIn: () => ipcRenderer.invoke("box:sign-in"),
-    getBoxTokens: () => ipcRenderer.invoke("box:get-tokens"),
-    getBoxUserName: () => ipcRenderer.invoke("box:get-username"),
-    boxSignOut: () => ipcRenderer.invoke("box:sign-out"),
+    listBoxAccounts: () => ipcRenderer.invoke("box:list-accounts"),
+    useBoxAccount: (login) => ipcRenderer.invoke("box:use-account", login),
+    getBoxProfile: (login) => ipcRenderer.invoke("box:get-profile", login),
+    boxSignOut: (login) => ipcRenderer.invoke("box:sign-out", login),
 
     // File and folder selection functions
     selectFiles: () => ipcRenderer.invoke("app:select-files"),

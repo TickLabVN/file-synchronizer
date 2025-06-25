@@ -6,15 +6,18 @@ import * as sync from "./handlers/sync";
 import * as trackedFiles from "./handlers/trackedFiles";
 
 export default function registerIpcHandlers() {
-    // Register IPC handlers for Google Drive authentication and user information
+    // GOOGLE DRIVE
     ipcMain.handle("google-drive:sign-in", auth.handleSignIn);
-    ipcMain.handle("google-drive:get-tokens", auth.getTokens);
-    ipcMain.handle("google-drive:get-username", auth.getUserName);
-    ipcMain.handle("app:sign-out", auth.handleSignOut);
-    // Register IPC handlers for Box authentication
+    ipcMain.handle("google-drive:list-accounts", auth.listAccounts);
+    ipcMain.handle("google-drive:use-account", auth.useAccount);
+    ipcMain.handle("google-drive:get-profile", auth.getGoogleProfile);
+    ipcMain.handle("google-drive:sign-out", auth.handleSignOut);
+
+    // BOX
     ipcMain.handle("box:sign-in", auth.handleBoxSignIn);
-    ipcMain.handle("box:get-tokens", auth.getBoxTokens);
-    ipcMain.handle("box:get-username", auth.getBoxUserName);
+    ipcMain.handle("box:list-accounts", auth.listBoxAccounts);
+    ipcMain.handle("box:use-account", auth.useBoxAccount);
+    ipcMain.handle("box:get-profile", auth.getBoxProfile);
     ipcMain.handle("box:sign-out", auth.handleBoxSignOut);
 
     // Register IPC handlers for file and folder selection

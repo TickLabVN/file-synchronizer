@@ -1,31 +1,58 @@
 import keytar from "keytar";
 
-const SERVICE = "com.filesynchronizer.googledrive";
+const GD_SERVICE = "com.filesynchronizer.googledrive";
 const BOX_SERVICE = "com.filesynchronizer.box";
-const ACCOUNT = "user-tokens";
 
-export async function setTokenKeytar(tokens) {
-    await keytar.setPassword(SERVICE, ACCOUNT, JSON.stringify(tokens));
+/** ---------------- GOOGLE DRIVE ---------------- */
+function emailFromIdToken(id_token) {
+    const payload = JSON.parse(
+        Buffer.from(id_token.split(".")[1], "base64").toString()
+    );
+    return payload.email;
 }
 
-export async function getTokenKeytar() {
-    const stored = await keytar.getPassword(SERVICE, ACCOUNT);
-    return stored ? JSON.parse(stored) : null;
+export async function addGDTokens(tokens) {
+    const email = emailFromIdToken(tokens.id_token);
+    await keytar.setPassword(GD_SERVICE, email, JSON.stringify(tokens));
+    return email;
 }
 
-export async function deleteTokenKeytar() {
-    await keytar.deletePassword(SERVICE, ACCOUNT);
+export async function listGDTokens() {
+    const items = await keytar.findCredentials(GD_SERVICE);
+    return items.map(({ account, password }) => ({
+        email: account,
+        tokens: JSON.parse(password),
+    }));
 }
 
-export async function setBoxTokenKeytar(tokens) {
-    await keytar.setPassword(BOX_SERVICE, ACCOUNT, JSON.stringify(tokens));
+export async function getGDTokens(email) {
+    const raw = await keytar.getPassword(GD_SERVICE, email);
+    return raw ? JSON.parse(raw) : null;
 }
 
-export async function getBoxTokenKeytar() {
-    const stored = await keytar.getPassword(BOX_SERVICE, ACCOUNT);
-    return stored ? JSON.parse(stored) : null;
+export async function deleteGDTokens(email) {
+    await keytar.deletePassword(GD_SERVICE, email);
 }
 
-export async function deleteBoxTokenKeytar() {
-    await keytar.deletePassword(BOX_SERVICE, ACCOUNT);
+/** ---------------- BOX ---------------- */
+export async function addBoxTokens(tokens, login /* login = user e-mail */) {
+    await keytar.setPassword(BOX_SERVICE, login, JSON.stringify(tokens));
+    return login;
+}
+
+export async function listBoxTokens() {
+    const items = await keytar.findCredentials(BOX_SERVICE);
+    return items.map(({ account, password }) => ({
+        login: account,
+        tokens: JSON.parse(password),
+    }));
+}
+
+export async function getBoxTokens(login) {
+    const raw = await keytar.getPassword(BOX_SERVICE, login);
+    return raw ? JSON.parse(raw) : null;
+}
+
+export async function deleteBoxTokens(login) {
+    await keytar.deletePassword(BOX_SERVICE, login);
 }

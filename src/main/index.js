@@ -3,10 +3,13 @@ import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
-const { BACKEND_URL, store } = constants;
-import { getTokenKeytar, getBoxTokenKeytar } from "./lib/credentials";
+import {
+    listGDTokens,
+    getGDTokens,
+    listBoxTokens,
+    getBoxTokens,
+} from "./lib/credentials";
 import pkg from "electron-updater";
-const { autoUpdater } = pkg;
 import { is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { syncOnLaunch, syncBoxOnLaunch } from "./handlers/sync";
@@ -14,15 +17,17 @@ import path from "path";
 import fs from "fs";
 import createCentralFolder from "./utils/centralConfig";
 
+const { BACKEND_URL, store } = constants;
+const { autoUpdater } = pkg;
+
 // eslint-disable-next-line no-unused-vars
 let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
-let isDrive = false;
+let activeProvider = null; // "google" | "box"
 
 async function shouldSync() {
-    const tokens = (await getTokenKeytar()) || (await getBoxTokenKeytar());
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath = null;
     try {
@@ -30,6 +35,15 @@ async function shouldSync() {
         ({ centralFolderPath } = JSON.parse(raw));
     } catch (err) {
         if (err.code !== "ENOENT") throw err;
+    }
+
+    let tokens = null;
+    if (activeProvider === "google") {
+        const email = store.get("gdActive");
+        if (email) tokens = await getGDTokens(email);
+    } else if (activeProvider === "box") {
+        const login = store.get("boxActive");
+        if (login) tokens = await getBoxTokens(login);
     }
     return Boolean(tokens && centralFolderPath);
 }
@@ -71,28 +85,57 @@ app.whenReady().then(async () => {
         return;
     }
 
-    // Check if the Google Drive tokens are saved
-    const saved = await getTokenKeytar();
-    if (saved) {
-        fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(saved),
-        }).catch(console.error);
-        isDrive = true;
+    const gdActive = store.get("gdActive");
+    const boxActive = store.get("boxActive");
+
+    if (gdActive) {
+        const tk = await getGDTokens(gdActive);
+        if (tk) {
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tk),
+            });
+            activeProvider = "google";
+        }
+    } else if (boxActive) {
+        const tk = await getBoxTokens(boxActive);
+        if (tk) {
+            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tk),
+            });
+            activeProvider = "box";
+        }
     }
 
-    // Check if the Box tokens are saved
-    const boxSaved = await getBoxTokenKeytar();
-    if (boxSaved) {
-        fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(boxSaved),
-        }).catch(console.error);
-        isDrive = false;
+    /* Nếu chưa có “active” ⇒ chọn account đầu tiên tìm thấy */
+    if (!activeProvider) {
+        const gd = await listGDTokens();
+        if (gd.length) {
+            const { email, tokens } = gd[0];
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            store.set("gdActive", email);
+            activeProvider = "google";
+        } else {
+            const bx = await listBoxTokens();
+            if (bx.length) {
+                const { login, tokens } = bx[0];
+                await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(tokens),
+                });
+                store.set("boxActive", login);
+                activeProvider = "box";
+            }
+        }
     }
-
     mainWindow = createWindow();
 
     if (!is.dev) {
@@ -154,7 +197,7 @@ app.whenReady().then(async () => {
     if (await shouldSync()) {
         console.log("[Background] Starting syncOnLaunch on app ready");
         try {
-            if (isDrive) {
+            if (activeProvider === "google") {
                 await syncOnLaunch();
             } else {
                 await syncBoxOnLaunch();
@@ -174,7 +217,7 @@ const FIVE_MIN = 5 * 60 * 1000;
 setInterval(async () => {
     if (await shouldSync()) {
         try {
-            if (isDrive) {
+            if (activeProvider === "google") {
                 await syncOnLaunch();
             } else {
                 await syncBoxOnLaunch();

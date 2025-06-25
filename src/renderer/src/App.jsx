@@ -15,20 +15,23 @@ const App = () => {
     useEffect(() => {
         async function init() {
             try {
-                const tokens = await api.getTokens();
-                if (tokens?.access_token) {
+                const gdAccounts = await api.listAccounts(); // [{email}]
+                const boxAccounts = await api.listBoxAccounts(); // [{login}]
+
+                if (gdAccounts.length) {
+                    const { email } = gdAccounts[0];
+                    await api.useAccount(email);
+                    setProvider({ type: "google", accountId: email });
+                    const prof = await api.getProfile(email);
+                    setUsername(prof?.name || email);
                     setAuth(true);
-                    const name = await api.getGDUserName();
-                    if (name) setUsername(name);
-                    setProvider("google");
-                } else {
-                    const boxTokens = await api.getBoxTokens();
-                    if (boxTokens?.access_token) {
-                        setAuth(true);
-                        const name = await api.getBoxUserName();
-                        if (name) setUsername(name);
-                        setProvider("box");
-                    }
+                } else if (boxAccounts.length) {
+                    const { login } = boxAccounts[0];
+                    await api.useBoxAccount(login);
+                    setProvider({ type: "box", accountId: login });
+                    const prof = await api.getBoxProfile();
+                    setUsername(prof?.name || login);
+                    setAuth(true);
                 }
             } catch (err) {
                 console.error("Init error:", err);
@@ -62,23 +65,29 @@ const App = () => {
         }
     }, []);
 
-    const handleLogout = async () => {
-        try {
-            if (provider === "google") {
-                await api.signOut();
-            } else if (provider === "box") {
-                await api.boxSignOut();
+    useEffect(() => {
+        if (!window?.electron?.ipcRenderer) return;
+        const handler = (_, data) => {
+            setProvider(data); // {type, accountId} | null
+            if (!data) return setUsername("");
+
+            if (data.type === "google") {
+                api.getProfile(data.accountId).then((p) =>
+                    setUsername(p?.name || data.accountId)
+                );
+            } else {
+                api.getBoxProfile().then((p) =>
+                    setUsername(p?.name || data.accountId)
+                );
             }
-            setAuth(false);
-            setUsername("");
-            window.location.reload();
-        } catch (err) {
-            console.error("Logout error:", err);
-            toast.error(
-                "Failed to log out: " + (err.message || "Unknown error")
+        };
+        window.electron.ipcRenderer.on("ui:set-active-provider", handler);
+        return () =>
+            window.electron.ipcRenderer.removeListener(
+                "ui:set-active-provider",
+                handler
             );
-        }
-    };
+    }, []);
 
     return (
         <>
@@ -98,12 +107,6 @@ const App = () => {
                         <Dashboard
                             auth={auth}
                             username={username}
-                            handleLogout={handleLogout}
-                            handleLoginSuccess={(id, name) => {
-                                setAuth(true);
-                                setProvider(id);
-                                setUsername(name);
-                            }}
                             provider={provider}
                         />
                     )}
