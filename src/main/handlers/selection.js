@@ -89,3 +89,11 @@ export async function selectStopSyncFiles() {
     store.set("settings", { ...settings, stopSyncPaths: next });
     return next;
 }
+
+export async function listDirectory(_, dirPath) {
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    return entries.map((ent) => ({
+        path: path.join(dirPath, ent.name),
+        isDirectory: ent.isDirectory(),
+    }));
+}
