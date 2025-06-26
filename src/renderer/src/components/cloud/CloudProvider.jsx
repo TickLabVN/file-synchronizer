@@ -117,7 +117,7 @@ export default function CloudProvider() {
     };
 
     return (
-        <Card className="w-full max-w-sm">
+        <Card className="w-full max-w-sm rounded-lg border-2 border-dashed dark:border-gray-600 dark:bg-gray-700">
             <CardHeader>
                 <CardTitle>Cloud Providers</CardTitle>
             </CardHeader>
@@ -136,7 +136,7 @@ export default function CloudProvider() {
                     return (
                         <div
                             key={`${c.type}-${c.accountId}`}
-                            className="flex items-center justify-between rounded-md border px-3 py-2"
+                            className="flex items-center justify-between rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600"
                         >
                             <div className="flex items-center gap-2">
                                 <img src={c.icon} alt="" className="h-5 w-5" />
