@@ -17,7 +17,7 @@ import downloadTreeBox from "../utils/downloadTreeBox";
 const { store, mapping, boxMapping } = constants;
 
 // Handle syncing files/folders to Google Drive and creating symlinks
-export async function syncFiles(_, paths) {
+export async function syncFiles(_, { paths, exclude = [] }) {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
@@ -47,8 +47,13 @@ export async function syncFiles(_, paths) {
     }
     const failed = [];
     for (const p of paths) {
+        // Skip excluded paths
+        if (exclude.includes(p)) {
+            console.log(`Skipping excluded path: ${p}`);
+            continue;
+        }
         try {
-            await traverseAndUpload(p, driveFolderId, drive);
+            await traverseAndUpload(p, driveFolderId, drive, exclude);
             // create or replace symlink in central folder
             const linkPath = path.join(centralFolderPath, path.basename(p));
             try {
@@ -97,7 +102,7 @@ export async function syncFiles(_, paths) {
     };
 }
 
-export async function syncBoxFiles(_, paths) {
+export async function syncBoxFiles(_, { paths, exclude = [] }) {
     // 4a. Locate the user’s “central folder” (where we create symlinks)
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const rawCfg = await fs.promises.readFile(cfgPath, "utf-8");
@@ -127,9 +132,14 @@ export async function syncBoxFiles(_, paths) {
     // 4d. Iterate over each requested local path
     const failed = [];
     for (const p of paths) {
+        // 4d‑a. Skip excluded paths
+        if (exclude.includes(p)) {
+            console.log(`Skipping excluded path: ${p}`);
+            continue;
+        }
         try {
             // 4d‑i. Mirror the local tree on Box
-            await traverseAndUploadBox(p, rootFolderId, client);
+            await traverseAndUploadBox(p, rootFolderId, client, exclude);
 
             // 4d‑ii. Ensure a symlink (or copy fallback) exists in central folder
             const linkPath = path.join(centralFolderPath, path.basename(p));

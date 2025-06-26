@@ -72,12 +72,14 @@ export default function CloudProvider() {
             setPicked("");
             return;
         }
+        const uname = username || accountId.split("@")[0];
+        const providerLabel = type === "google" ? "Drive" : "Box";
         const newAccount = {
             type,
             accountId,
-            label: option.label,
             icon: option.icon,
-            username: username || accountId,
+            username: uname,
+            label: `${providerLabel} – ${uname}`,
         };
         const next = [...connected, newAccount];
         setConnected(next);

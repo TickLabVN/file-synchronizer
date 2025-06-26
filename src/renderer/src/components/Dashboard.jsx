@@ -10,6 +10,17 @@ function mergeUnique(prev, next) {
     const existed = new Set(prev.map((it) => it.path));
     return [...prev, ...next.filter((it) => !existed.has(it.path))];
 }
+function pruneExcluded(prevExcluded, newItems) {
+    if (!newItems?.length) return prevExcluded;
+    return prevExcluded.filter((ex) => {
+        return !newItems.some(
+            (it) =>
+                ex === it.path ||
+                ex.startsWith(it.path + "/") ||
+                ex.startsWith(it.path + "\\")
+        );
+    });
+}
 const Dashboard = ({ auth, provider }) => {
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
@@ -18,6 +29,15 @@ const Dashboard = ({ auth, provider }) => {
     const [pulling, setPulling] = useState(false);
     const [showAddPopup, setShowAddPopup] = useState(false);
     const providerType = provider?.type;
+    const [excludedPaths, setExcludedPaths] = useState([]);
+
+    const handleExclude = useCallback(
+        (p) =>
+            setExcludedPaths((prev) =>
+                prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+            ),
+        []
+    );
 
     const handlePullDown = async () => {
         setPulling(true);
@@ -120,7 +140,10 @@ const Dashboard = ({ auth, provider }) => {
 
     const handleChooseFiles = async () => {
         const items = await api.selectFiles(); // [{ path, size, isDirectory }]
-        if (items) setSelectedItems((prev) => mergeUnique(prev, items));
+        if (items) {
+            setSelectedItems((prev) => mergeUnique(prev, items));
+            setExcludedPaths((prev) => pruneExcluded(prev, items));
+        }
     };
 
     const handleChooseFolders = async () => {
@@ -128,8 +151,10 @@ const Dashboard = ({ auth, provider }) => {
         if (items) setSelectedItems((prev) => mergeUnique(prev, items));
     };
 
-    const handleRemove = (p) =>
+    const handleRemove = (p) => {
         setSelectedItems((prev) => prev.filter((item) => item.path !== p));
+        setExcludedPaths((prev) => prev.filter((x) => !x.startsWith(p)));
+    };
 
     const handleSync = async (target) => {
         if (!selectedItems.length) {
@@ -146,14 +171,18 @@ const Dashboard = ({ auth, provider }) => {
             else await api.useBoxAccount(target.id);
 
             // B2: upload
-            const paths = selectedItems.map((it) => it.path);
+            const payload = {
+                paths: selectedItems.map((it) => it.path),
+                exclude: excludedPaths,
+            };
             const result =
                 target.type === "google"
-                    ? await api.syncFiles(paths)
-                    : await api.syncBoxFiles(paths);
+                    ? await api.syncFiles(payload)
+                    : await api.syncBoxFiles(payload);
             if (result.success) {
                 toast.success("All files synced successfully!");
                 setSelectedItems([]);
+                setExcludedPaths([]);
             } else {
                 const failedPaths = result.failed.map((f) => f.path);
                 toast.error(
@@ -201,6 +230,8 @@ const Dashboard = ({ auth, provider }) => {
                 handleUpload={(targetAcc) => handleSync(targetAcc)}
                 selectedItems={selectedItems}
                 handleRemove={handleRemove}
+                excludedPaths={excludedPaths}
+                handleExclude={handleExclude}
             />
         </div>
     );

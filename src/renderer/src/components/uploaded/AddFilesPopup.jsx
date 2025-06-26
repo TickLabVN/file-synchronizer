@@ -15,6 +15,7 @@ import {
     Trash,
     ChevronRight,
     ChevronDown,
+    Undo,
 } from "lucide-react";
 
 import * as api from "../../api";
@@ -37,6 +38,8 @@ export default function AddFilesPopup({
     handleUpload,
     selectedItems,
     handleRemove,
+    excludedPaths,
+    handleExclude,
 }) {
     const [expanded, setExpanded] = useState({}); // track folder expand/collapse
     const [dirContents, setDirContents] = useState({});
@@ -113,13 +116,17 @@ export default function AddFilesPopup({
         const isExpanded = expanded[item.path];
         const children = dirContents[item.path] ?? [];
         const hasChild = children.length > 0;
+        const isExcluded = excludedPaths.includes(item.path);
+
+        const indentStyle = depth ? { paddingLeft: depth * 12 } : undefined;
+        const rowClasses = isExcluded ? "opacity-50 line-through" : "";
 
         return (
             <li key={item.path} className="flex flex-col">
                 {/* Hàng tiêu đề của file / folder */}
                 <div
-                    className="flex items-start gap-2 rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
-                    style={{ paddingLeft: depth ? depth * 12 : undefined }}
+                    className={`flex items-start gap-2 rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400 ${rowClasses}`}
+                    style={indentStyle}
                 >
                     {isDir ? (
                         <>
@@ -154,13 +161,25 @@ export default function AddFilesPopup({
                     </p>
 
                     {/* Chỉ cho xoá ở cấp đã chọn trực tiếp */}
-                    {depth === 0 && (
+                    {depth === 0 ? (
                         <button
                             onClick={() => handleRemove(item.path)}
                             className="flex-shrink-0 text-red-500 hover:text-red-600"
                             aria-label="Remove"
                         >
                             <Trash size={14} />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => handleExclude(item.path)}
+                            className="flex-shrink-0 text-red-500 hover:text-red-600"
+                            aria-label={isExcluded ? "Undo exclude" : "Exclude"}
+                        >
+                            {isExcluded ? (
+                                <Undo size={14} />
+                            ) : (
+                                <Trash size={14} />
+                            )}
                         </button>
                     )}
                 </div>
