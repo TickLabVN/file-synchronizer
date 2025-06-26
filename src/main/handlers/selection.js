@@ -4,7 +4,19 @@ import path from "path";
 import "dotenv/config";
 import { constants } from "../lib/constants";
 const { store, mapping } = constants;
-
+async function getDirSize(dir) {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    let total = 0;
+    for (const e of entries) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) {
+            total += await getDirSize(full);
+        } else {
+            total += (await fs.promises.stat(full)).size;
+        }
+    }
+    return total;
+}
 // Handle selecting multiple files
 export async function selectFiles() {
     const win = BrowserWindow.getFocusedWindow();
@@ -12,7 +24,14 @@ export async function selectFiles() {
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openFile", "multiSelections"],
     });
-    return canceled ? null : filePaths;
+    if (canceled) return null;
+    return Promise.all(
+        filePaths.map(async (p) => ({
+            path: p,
+            size: (await fs.promises.stat(p)).size,
+            isDirectory: false,
+        }))
+    );
 }
 
 // Handle selecting multiple folders
@@ -22,7 +41,14 @@ export async function selectFolders() {
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openDirectory", "multiSelections"],
     });
-    return canceled ? null : filePaths;
+    if (canceled) return null;
+    return Promise.all(
+        filePaths.map(async (p) => ({
+            path: p,
+            size: await getDirSize(p),
+            isDirectory: true,
+        }))
+    );
 }
 
 // Handle selecting files to stop syncing
@@ -92,8 +118,16 @@ export async function selectStopSyncFiles() {
 
 export async function listDirectory(_, dirPath) {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-    return entries.map((ent) => ({
-        path: path.join(dirPath, ent.name),
-        isDirectory: ent.isDirectory(),
-    }));
+    return Promise.all(
+        entries.map(async (e) => {
+            const full = path.join(dirPath, e.name);
+            return {
+                path: full,
+                isDirectory: e.isDirectory(),
+                size: e.isDirectory()
+                    ? null
+                    : (await fs.promises.stat(full)).size,
+            };
+        })
+    );
 }
