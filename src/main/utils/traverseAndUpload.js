@@ -13,7 +13,17 @@ const { mapping } = constants;
  * @param {string} parentId - The ID of the parent folder in Google Drive.
  * @param {object} drive - The authenticated Google Drive API client.
  */
-export default async function traverseAndUpload(srcPath, parentId, drive) {
+export default async function traverseAndUpload(
+    srcPath,
+    parentId,
+    drive,
+    exclude = []
+) {
+    // Check if the path is excluded
+    if (exclude.includes(srcPath)) {
+        console.log(`Skipping excluded path: ${srcPath}`);
+        return;
+    }
     const stats = await fs.promises.stat(srcPath);
     const key = srcPath;
     const record = mapping[key];
@@ -43,7 +53,12 @@ export default async function traverseAndUpload(srcPath, parentId, drive) {
         }
         const entries = await fs.promises.readdir(srcPath);
         for (const entry of entries) {
-            await traverseAndUpload(path.join(srcPath, entry), folderId, drive);
+            await traverseAndUpload(
+                path.join(srcPath, entry),
+                folderId,
+                drive,
+                exclude
+            );
         }
     } else {
         const isSameParent = record && record.parentId === parentId;
