@@ -215,7 +215,7 @@ const Dashboard = ({ auth, provider }) => {
                         onAddClick={() => setShowAddPopup(true)}
                     />
                 </main>
-                <aside>
+                <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">
                     <CloudProvider />
                 </aside>
             </div>
