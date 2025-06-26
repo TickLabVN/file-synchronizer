@@ -6,7 +6,10 @@ import Header from "./Header";
 import CloudProvider from "./cloud/CloudProvider";
 import UploadedFile from "./uploaded/UploadedFile";
 import AddFilesPopup from "./uploaded/AddFilesPopup";
-
+function mergeUnique(prev, next) {
+    const existed = new Set(prev.map((it) => it.path));
+    return [...prev, ...next.filter((it) => !existed.has(it.path))];
+}
 const Dashboard = ({ auth, provider }) => {
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
@@ -116,41 +119,38 @@ const Dashboard = ({ auth, provider }) => {
     };
 
     const handleChooseFiles = async () => {
-        const paths = await api.selectFiles();
-        if (paths) {
-            setSelectedItems((prev) => [
-                ...prev,
-                ...paths.map((p) => ({ path: p, isDirectory: false })),
-            ]);
-        }
+        const items = await api.selectFiles(); // [{ path, size, isDirectory }]
+        if (items) setSelectedItems((prev) => mergeUnique(prev, items));
     };
 
     const handleChooseFolders = async () => {
-        const paths = await api.selectFolders();
-        if (paths) {
-            setSelectedItems((prev) => [
-                ...prev,
-                ...paths.map((p) => ({ path: p, isDirectory: true })),
-            ]);
-        }
+        const items = await api.selectFolders();
+        if (items) setSelectedItems((prev) => mergeUnique(prev, items));
     };
 
     const handleRemove = (p) =>
         setSelectedItems((prev) => prev.filter((item) => item.path !== p));
 
-    const handleSync = async () => {
+    const handleSync = async (target) => {
         if (!selectedItems.length) {
             toast.error("Please select files or folders to sync.");
             return;
         }
+        if (!target) {
+            toast.error("Please select a target account to sync.");
+            return;
+        }
         setSyncing(true);
         try {
-            const paths = selectedItems.map((item) => item.path);
+            if (target.type === "google") await api.useAccount(target.id);
+            else await api.useBoxAccount(target.id);
+
+            // B2: upload
+            const paths = selectedItems.map((it) => it.path);
             const result =
-                providerType === "google"
+                target.type === "google"
                     ? await api.syncFiles(paths)
                     : await api.syncBoxFiles(paths);
-            loadTrackedFiles();
             if (result.success) {
                 toast.success("All files synced successfully!");
                 setSelectedItems([]);
@@ -163,6 +163,7 @@ const Dashboard = ({ auth, provider }) => {
                     prev.filter((item) => failedPaths.includes(item.path))
                 );
             }
+            loadTrackedFiles();
         } catch (err) {
             console.error(err);
             toast.error("Sync failed: " + (err.message || "Unknown error"));
@@ -197,7 +198,7 @@ const Dashboard = ({ auth, provider }) => {
                 providerType={providerType}
                 chooseFiles={handleChooseFiles}
                 chooseFolder={handleChooseFolders}
-                handleUpload={handleSync}
+                handleUpload={(targetAcc) => handleSync(targetAcc)}
                 selectedItems={selectedItems}
                 handleRemove={handleRemove}
             />

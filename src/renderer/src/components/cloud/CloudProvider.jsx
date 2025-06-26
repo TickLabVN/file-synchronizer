@@ -28,12 +28,13 @@ export default function CloudProvider() {
             for (const { email } of gd) {
                 await api.useAccount(email);
                 const prof = await api.getProfile(email); // { name, email }
+                const uname = prof?.name || email.split("@")[0];
                 list.push({
                     type: "google",
                     accountId: email,
-                    label: "Google Drive",
                     icon: ggdrive,
-                    username: prof?.name ?? email,
+                    username: uname,
+                    label: `Drive – ${uname}`,
                 });
             }
 
@@ -41,12 +42,13 @@ export default function CloudProvider() {
             for (const { login } of bx) {
                 await api.useBoxAccount(login);
                 const prof = await api.getBoxProfile(); // { name, login }
+                const uname = prof?.name || login;
                 list.push({
                     type: "box",
                     accountId: login,
-                    label: "Box",
                     icon: box,
-                    username: prof?.name ?? login,
+                    username: uname,
+                    label: `Box – ${uname}`,
                 });
             }
 
@@ -77,7 +79,10 @@ export default function CloudProvider() {
             icon: option.icon,
             username: username || accountId,
         };
-        setConnected((prev) => [...prev, newAccount]);
+        const next = [...connected, newAccount];
+        setConnected(next);
+
+        window.dispatchEvent(new CustomEvent("cloud-accounts-updated"));
 
         if (type === "google") await api.useAccount(accountId);
         else await api.useBoxAccount(accountId);
@@ -97,15 +102,15 @@ export default function CloudProvider() {
             console.error("Revoke token fail", e);
         }
 
-        setConnected((prev) =>
-            prev.filter(
-                (p) =>
-                    !(
-                        p.type === delTarget.type &&
-                        p.accountId === delTarget.accountId
-                    )
-            )
+        const next = connected.filter(
+            (p) =>
+                !(
+                    p.type === delTarget.type &&
+                    p.accountId === delTarget.accountId
+                )
         );
+        setConnected(next);
+        window.dispatchEvent(new CustomEvent("cloud-accounts-updated"));
         setDelTarget(null);
     };
 
@@ -136,9 +141,6 @@ export default function CloudProvider() {
                                 <div className="flex flex-col">
                                     <span className="font-medium">
                                         {c.label}
-                                    </span>
-                                    <span className="text-muted-foreground text-xs">
-                                        {c.username}
                                     </span>
                                 </div>
                             </div>
