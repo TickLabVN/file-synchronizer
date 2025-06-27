@@ -8,7 +8,9 @@ export async function traverseAndUploadBox(
     srcPath,
     parentId,
     client,
-    exclude = []
+    exclude = [],
+    provider = null,
+    username = null
 ) {
     // Skip excluded paths
     if (exclude.includes(srcPath)) {
@@ -48,6 +50,8 @@ export async function traverseAndUploadBox(
                 parentId,
                 isFolder: true,
                 lastSync: new Date().toISOString(),
+                provider,
+                username,
             };
         }
         const entries = await fs.promises.readdir(srcPath);
@@ -56,7 +60,9 @@ export async function traverseAndUploadBox(
                 path.join(srcPath, e),
                 folderId,
                 client,
-                exclude
+                exclude,
+                provider,
+                username
             );
         }
     } else {
@@ -95,6 +101,8 @@ export async function traverseAndUploadBox(
                 parentId,
                 isFolder: false,
                 lastSync: new Date().toISOString(),
+                provider,
+                username,
             };
         }
     }

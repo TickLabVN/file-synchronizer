@@ -17,7 +17,9 @@ export default async function traverseAndUpload(
     srcPath,
     parentId,
     drive,
-    exclude = []
+    exclude = [],
+    provider = null,
+    username = null
 ) {
     // Check if the path is excluded
     if (exclude.includes(srcPath)) {
@@ -49,6 +51,9 @@ export default async function traverseAndUpload(
                 id: folderId,
                 parentId,
                 lastSync: new Date().toISOString(),
+                provider,
+                username,
+                isDirectory: stats.isDirectory(),
             };
         }
         const entries = await fs.promises.readdir(srcPath);
@@ -57,7 +62,9 @@ export default async function traverseAndUpload(
                 path.join(srcPath, entry),
                 folderId,
                 drive,
-                exclude
+                exclude,
+                provider,
+                username
             );
         }
     } else {
@@ -89,6 +96,9 @@ export default async function traverseAndUpload(
                 id: fileRes.data.id,
                 parentId,
                 lastSync: new Date().toISOString(),
+                provider,
+                username,
+                isDirectory: stats.isDirectory(),
             };
         }
     }
