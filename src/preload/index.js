@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("api", {
     selectFolders: () => ipcRenderer.invoke("app:select-folders"),
     selectStopSyncFiles: () => ipcRenderer.invoke("app:select-stop-sync-files"),
     listDirectory: (path) => ipcRenderer.invoke("app:list-directory", path),
+    openInExplorer: (path) => ipcRenderer.invoke("app:open-in-explorer", path),
 
     // Settings functions
     getSettings: () => ipcRenderer.invoke("app:get-settings"),

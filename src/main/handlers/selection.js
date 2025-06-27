@@ -1,9 +1,11 @@
-import { app, dialog, BrowserWindow } from "electron";
+import { app, dialog, BrowserWindow, shell } from "electron";
 import fs from "fs";
 import path from "path";
 import "dotenv/config";
 import { constants } from "../lib/constants";
+
 const { store, mapping } = constants;
+
 async function getDirSize(dir) {
     const entries = await fs.promises.readdir(dir, { withFileTypes: true });
     let total = 0;
@@ -130,4 +132,21 @@ export async function listDirectory(_, dirPath) {
             };
         })
     );
+}
+
+export async function openInExplorer(_, fullPath) {
+    try {
+        if (!fs.existsSync(fullPath)) return false;
+        const st = fs.statSync(fullPath);
+        // Folder ⇒ mở thư mục; File ⇒ highlight trong Explorer/Finder
+        if (st.isDirectory()) {
+            await shell.openPath(fullPath);
+        } else {
+            await shell.showItemInFolder(fullPath);
+        }
+        return true;
+    } catch (e) {
+        console.error("Open path failed:", e);
+        return false;
+    }
 }

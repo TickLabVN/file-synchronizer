@@ -12,21 +12,32 @@ import { useMemo, useState } from "react";
 import ggdrive from "@assets/ggdrive.svg";
 import box from "@assets/box.svg";
 import FileExtIcon from "../FileExtIcon";
+import * as api from "../../api";
+
+const openInExplorer = (path) => api.openInExplorer(path);
 
 /* ------------------------------------------------------------------
  * Helpers
  * ------------------------------------------------------------------ */
 const formatBytes = (n) => {
-    if (!n) return "";
-    const u = ["B", "KB", "MB", "GB", "TB"];
+    if (n == null) return "";
+    if (n === 0) return "0B";
+    const u = ["B", "KB", "MB", "GB", "TB", "PB"];
     const i = Math.floor(Math.log(n) / Math.log(1024));
     return `${(n / 1024 ** i).toFixed(i ? 1 : 0)}${u[i]}`;
 };
+
+// --- NEW: helper để lấy dung lượng từ node.raw với nhiều key khác nhau ----
+const pickSize = (raw = {}) =>
+    Number(
+        raw.size ?? raw.bytes ?? raw.byteSize ?? raw.fileSize ?? 0 // fallback
+    );
 
 const PROVIDER_ICONS = {
     google: ggdrive,
     box: box,
 };
+
 // UploadedFile.jsx
 function propagateMeta(node, parentProvider, parentUsername) {
     // nếu thiếu thì thừa kế của cha
@@ -38,7 +49,23 @@ function propagateMeta(node, parentProvider, parentUsername) {
         );
     }
 }
+// --- FIX: aggregateSize giờ sẽ gắn đúng size cho cả file & folder ---------
+function aggregateSize(node) {
+    if (node.isDirectory) {
+        let total = 0;
+        if (node.children) {
+            for (const child of Object.values(node.children)) {
+                total += aggregateSize(child);
+            }
+        }
+        node.size = total;
+        return total;
+    }
 
+    // File: lấy size từ chính node hoặc từ raw, đảm bảo là number
+    node.size = Number(node.size ?? pickSize(node.raw));
+    return node.size;
+}
 /**
  * Duyệt danh sách path đã theo dõi → dựng cây thư mục lồng nhau
  *   root.children = {
@@ -62,10 +89,23 @@ function buildTree(list) {
                     isDirectory: idx < parts.length - 1 || item.isDirectory,
                     provider: item.provider,
                     username: item.username,
-                    size: idx === parts.length - 1 ? item.size : undefined,
+                    // --- FIX: đảm bảo leaf node nào cũng có size nếu có ---
+                    size:
+                        idx === parts.length - 1
+                            ? Number(
+                                  item.size ??
+                                      item.bytes ??
+                                      item.byteSize ??
+                                      item.fileSize ??
+                                      0
+                              )
+                            : undefined,
                     lastSync:
                         idx === parts.length - 1 ? item.lastSync : undefined,
-                    raw: idx === parts.length - 1 ? item : undefined, // ← node gốc được track
+                    raw:
+                        idx === parts.length - 1
+                            ? { ...item } // lưu cả object gốc để lấy thông tin sau
+                            : undefined,
                 };
             } else {
                 // node đã tồn tại → bổ sung thông tin còn khuyết
@@ -148,20 +188,17 @@ export default function UploadedFile({
     const tree = useMemo(() => {
         // 1) dựng cây đầy đủ
         const rawRoot = buildTree(trackedFiles);
+        if (rawRoot) {
+            Object.values(rawRoot).forEach(aggregateSize);
+        }
 
         // 2) nếu lọc cloud → cắt bỏ nhánh không khớp
         if (filterAccount) {
             for (const k of Object.keys(rawRoot)) {
-                const node = rawRoot[k];
-                const matchSelf =
-                    node.provider === filterAccount.type &&
-                    node.username === filterAccount.username;
-                if (!matchSelf) {
-                    // giữ lại child khớp
-                    const kept = filterTree(node, filterAccount);
-                    if (!kept) delete rawRoot[k];
-                    else rawRoot[k] = kept;
-                }
+                const filtered = filterTree(rawRoot[k], filterAccount);
+                if (filtered)
+                    rawRoot[k] = filtered; // chỉ giữ lại phần đã lọc
+                else delete rawRoot[k];
             }
         }
 
@@ -232,13 +269,20 @@ export default function UploadedFile({
                                 }
                             />
                             <span className="truncate font-medium">{name}</span>
+                            {/* --- size giờ luôn có mặt nếu có dữ liệu --- */}
+                            {size != null && (
+                                <span className="ml-2 text-xs whitespace-nowrap text-gray-500">
+                                    {formatBytes(size)}
+                                </span>
+                            )}
                         </div>
-                        <p className="truncate text-xs text-gray-500">
+                        <button
+                            onClick={() => openInExplorer(path)}
+                            title="Open in Explorer"
+                            className="truncate text-xs text-blue-600 hover:underline focus:outline-none"
+                        >
                             {path}
-                            {!isDirectory && size
-                                ? ` • ${formatBytes(size)}`
-                                : ""}
-                        </p>
+                        </button>
                         <p className="text-xs text-gray-500">
                             {lastSync
                                 ? `Last sync ${formatDistanceToNow(
@@ -307,7 +351,7 @@ export default function UploadedFile({
 
             {/* File list */}
             {Object.keys(tree).length ? (
-                <ul className="scrollbar max-h-72 space-y-2 overflow-auto pr-2">
+                <ul className="scrollbar max-h-[30vw] space-y-2 overflow-auto pr-2">
                     {Object.values(tree).map((n) => renderNode(n))}
                 </ul>
             ) : (
