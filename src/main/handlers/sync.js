@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, BrowserWindow } from "electron";
 import path from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
@@ -15,7 +15,11 @@ import traverseCompareBox from "../utils/traverseCompareBox";
 import downloadTreeBox from "../utils/downloadTreeBox";
 
 const { store, mapping, boxMapping } = constants;
-
+function notifyRenderer() {
+    BrowserWindow.getAllWindows().forEach((w) =>
+        w.webContents.send("tracked-files-updated")
+    );
+}
 // Handle syncing files/folders to Google Drive and creating symlinks
 export async function syncFiles(_, { paths, exclude = [] }) {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
@@ -25,6 +29,11 @@ export async function syncFiles(_, { paths, exclude = [] }) {
 
     const drive = await getDriveClient();
     const folderName = "__ticklabfs_backup";
+    const {
+        data: { user: driveUser },
+    } = await drive.about.get({ fields: "user" });
+    const driveUsername =
+        driveUser?.displayName || driveUser?.emailAddress || "Unknown";
 
     // find or create central Drive folder
     const listRes = await drive.files.list({
@@ -82,7 +91,16 @@ export async function syncFiles(_, { paths, exclude = [] }) {
                     throw err;
                 }
             }
+            mapping[p] = {
+                id: mapping[p]?.id || null,
+                parentId: driveFolderId,
+                lastSync: new Date().toISOString(),
+                provider: "google",
+                username: driveUsername,
+                isDirectory: stats.isDirectory(),
+            };
             await store.set("driveMapping", mapping);
+            notifyRenderer();
         } catch (err) {
             if (err.code === "ENOENT") {
                 console.warn(
@@ -111,6 +129,10 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
 
     // 4b. Prepare Box client
     const client = await getBoxClient();
+    const me = await client.users.get(client.CURRENT_USER_ID, {
+        fields: "name,login",
+    });
+    const boxUsername = me.name || me.login;
 
     // 4c. Find or create the dedicated backup folder at the Box root
     const folderName = "__ticklabfs_backup";
@@ -170,9 +192,18 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
                     throw err;
                 }
             }
+            boxMapping[p] = {
+                id: boxMapping[p]?.id || null,
+                parentId: rootFolderId,
+                lastSync: new Date().toISOString(),
+                provider: "box",
+                username: boxUsername,
+                isDirectory: stats.isDirectory(),
+            };
 
             // 4d‑iii. Persist updated mapping
             await store.set("boxMapping", boxMapping);
+            notifyRenderer();
         } catch (err) {
             // 4d‑iv. Handle a path that disappeared locally
             if (err.code === "ENOENT") {

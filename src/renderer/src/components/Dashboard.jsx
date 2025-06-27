@@ -30,6 +30,23 @@ const Dashboard = ({ auth, provider }) => {
     const [showAddPopup, setShowAddPopup] = useState(false);
     const providerType = provider?.type;
     const [excludedPaths, setExcludedPaths] = useState([]);
+    const [filterAccount, setFilterAccount] = useState(null);
+    const [removedAccounts, setRemovedAccounts] = useState([]);
+
+    // lọc trước khi render
+    const displayedFiles = trackedFiles
+        .filter(
+            (f) =>
+                !removedAccounts.some(
+                    (a) => a.type === f.provider && a.username === f.username
+                )
+        )
+        .filter(
+            (f) =>
+                !filterAccount ||
+                (f.provider === filterAccount.type &&
+                    f.username === filterAccount.username)
+        );
 
     const handleExclude = useCallback(
         (p) =>
@@ -42,16 +59,10 @@ const Dashboard = ({ auth, provider }) => {
     const handlePullDown = async () => {
         setPulling(true);
         try {
-            if (providerType === "google") {
-                await api.pullFromDrive();
-            } else if (providerType === "box") {
-                await api.pullFromBox();
-            } else {
-                throw new Error("Unsupported provider: " + provider);
-            }
-            if (loadTrackedFiles) {
-                await loadTrackedFiles();
-            }
+            await Promise.all([
+                api.pullFromDrive().catch(() => {}),
+                api.pullFromBox().catch(() => {}),
+            ]);
             toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);
@@ -70,21 +81,21 @@ const Dashboard = ({ auth, provider }) => {
         });
     }, []);
 
-    const loadTrackedFiles = useCallback(() => {
-        const fetchTrackedFiles =
-            providerType === "google"
-                ? api.getTrackedFiles
-                : api.getTrackedFilesBox;
-        fetchTrackedFiles()
-            .then((files) => setTrackedFiles(files))
-            .catch((err) => {
-                console.error("Failed to load tracked files", err);
-                toast.error(
-                    "Failed to load tracked files: " +
-                        (err.message || "Unknown error")
-                );
-            });
-    }, [providerType]);
+    const loadTrackedFiles = useCallback(async () => {
+        try {
+            const [drive, box] = await Promise.all([
+                api.getTrackedFiles().catch(() => []), // ← tránh gãy cả cụm
+                api.getTrackedFilesBox().catch(() => []),
+            ]);
+            setTrackedFiles([...drive, ...box]);
+        } catch (err) {
+            console.error("Failed to load tracked files", err);
+            toast.error(
+                "Failed to load tracked files: " +
+                    (err.message || "Unknown error")
+            );
+        }
+    }, []);
 
     useEffect(() => {
         if (auth) {
@@ -100,10 +111,10 @@ const Dashboard = ({ auth, provider }) => {
     const handleDeleteTrackedFile = async (file) => {
         toast.info("Deleting tracked file...");
         try {
-            if (providerType === "google") {
-                await api.deleteTrackedFile(file);
-            } else {
-                await api.deleteTrackedFileBox(file);
+            if (file.provider === "google") {
+                await api.deleteTrackedFile(file.src);
+            } else if (file.provider === "box") {
+                await api.deleteTrackedFileBox(file.src);
             }
             toast.success("Tracked file deleted successfully!");
             loadTrackedFiles();
@@ -201,6 +212,33 @@ const Dashboard = ({ auth, provider }) => {
         }
     };
 
+    useEffect(() => {
+        // 👉 luôn dùng loadTrackedFiles đã memo-hoá
+        const onRemoved = (e) => {
+            const { type, username } = e.detail || {};
+            setRemovedAccounts((prev) => [...prev, { type, username }]);
+            loadTrackedFiles(); // reload để ẩn ngay
+        };
+
+        const onAdded = (e) => {
+            const { type, username } = e.detail || {};
+            // huỷ cờ “đã xoá” nếu người dùng login lại
+            setRemovedAccounts((prev) =>
+                prev.filter(
+                    (x) => !(x.type === type && x.username === username)
+                )
+            );
+            loadTrackedFiles(); // reload để hiện lại đúng item
+        };
+
+        window.addEventListener("cloud-account-removed", onRemoved);
+        window.addEventListener("cloud-account-added", onAdded);
+        return () => {
+            window.removeEventListener("cloud-account-removed", onRemoved);
+            window.removeEventListener("cloud-account-added", onAdded);
+        };
+    }, [loadTrackedFiles]);
+
     return (
         <div className="flex h-full flex-col">
             <Header />
@@ -208,7 +246,7 @@ const Dashboard = ({ auth, provider }) => {
                 <main className="flex-1 overflow-auto p-6">
                     <UploadedFile
                         handlePullDown={handlePullDown}
-                        trackedFiles={trackedFiles}
+                        trackedFiles={displayedFiles}
                         stopSyncPaths={stopSyncPaths}
                         onToggleStopSync={handleToggleStopSync}
                         onDeleteTrackedFile={handleDeleteTrackedFile}
@@ -216,7 +254,7 @@ const Dashboard = ({ auth, provider }) => {
                     />
                 </main>
                 <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">
-                    <CloudProvider />
+                    <CloudProvider onFilterChange={setFilterAccount} />
                 </aside>
             </div>
             {pulling && <Loading syncing={true} />}

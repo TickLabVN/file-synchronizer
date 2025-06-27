@@ -1,21 +1,37 @@
-import {
-    Pause,
-    Play,
-    Plus,
-    Trash,
-    File as FileIcon,
-    Folder as FolderIcon,
-} from "lucide-react";
-import { format } from "date-fns";
+import { Pause, Play, Plus, Trash, Folder as FolderIcon } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import ggdrive from "@assets/ggdrive.svg";
+import box from "@assets/box.svg";
+import FileExtIcon from "../FileExtIcon";
+const formatBytes = (n) => {
+    if (!n) return "";
+    const u = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(n) / Math.log(1024));
+    return `${(n / 1024 ** i).toFixed(i ? 1 : 0)}${u[i]}`;
+};
+const PROVIDER_ICONS = {
+    google: ggdrive,
+    box: box,
+};
 
-const UploadedFile = ({
+/**
+ * Render the list of already‑synced files/folders.
+ * Every item now shows:
+ *   • name (basename)
+ *   • full path (tooltip for overflow)
+ *   • cloud provider icon (Drive / Box …)
+ *   • username of the account used for the sync
+ *   • last‑sync timestamp
+ *   • pause/resume + delete icons
+ */
+export default function UploadedFile({
     handlePullDown,
     trackedFiles,
     stopSyncPaths,
     onToggleStopSync,
     onDeleteTrackedFile,
     onAddClick,
-}) => {
+}) {
     return (
         <div className="rounded-lg border-2 border-dashed p-6 dark:border-gray-600 dark:bg-gray-700">
             {/* Header */}
@@ -41,32 +57,26 @@ const UploadedFile = ({
             {/* List of tracked files */}
             {trackedFiles.length ? (
                 <ul className="scrollbar max-h-72 space-y-2 overflow-auto pr-2">
-                    {trackedFiles.map(({ src, lastSync, isDirectory }) => (
-                        <li
-                            key={src}
-                            className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-800 dark:text-gray-200"
-                        >
-                            <span className="flex items-center space-x-2 truncate">
-                                {isDirectory ? (
-                                    <FolderIcon className="h-4 w-4 text-yellow-500" />
-                                ) : (
-                                    <FileIcon className="h-4 w-4 text-yellow-500" />
-                                )}
-                                <span className="truncate text-sm">{src}</span>
-                            </span>
-                            <span className="hidden flex-shrink-0 px-2 text-xs text-gray-500 md:block">
-                                {lastSync
-                                    ? format(
-                                          new Date(lastSync),
-                                          "yyyy-MM-dd HH:mm:ss"
-                                      )
-                                    : "–"}
-                            </span>
-                            <div className="flex items-center space-x-2">
+                    {trackedFiles.map((file) => {
+                        const {
+                            src,
+                            lastSync,
+                            isDirectory,
+                            provider,
+                            username,
+                            size,
+                        } = file;
+                        const basename = src.split(/[/\\]/).pop();
+                        return (
+                            <li
+                                key={src}
+                                className="flex items-start gap-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800 dark:text-gray-200"
+                            >
+                                {/* left – toggle */}
                                 <button
                                     onClick={() => onToggleStopSync(src)}
-                                    className="rounded p-1 hover:bg-gray-200 dark:hover:bg-gray-700"
-                                    aria-label="Toggle sync"
+                                    aria-label="Toggle"
+                                    className="mt-1 rounded p-1 hover:bg-gray-200 dark:hover:bg-gray-700"
                                 >
                                     {stopSyncPaths.includes(src) ? (
                                         <Play size={16} />
@@ -74,16 +84,55 @@ const UploadedFile = ({
                                         <Pause size={16} />
                                     )}
                                 </button>
+
+                                {/* middle – main info */}
+                                <div className="flex-1 overflow-hidden">
+                                    <div className="flex items-center gap-2">
+                                        {isDirectory ? (
+                                            <FolderIcon className="h-4 w-4 text-yellow-500" />
+                                        ) : (
+                                            <FileExtIcon path={src} size={16} />
+                                        )}
+                                        <span className="truncate font-medium">
+                                            {basename}
+                                        </span>
+                                    </div>
+                                    <p className="truncate text-xs text-gray-500">
+                                        {src}
+                                        {!isDirectory && size
+                                            ? ` • ${formatBytes(size)}`
+                                            : ""}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        Last sync:{" "}
+                                        {lastSync
+                                            ? formatDistanceToNow(
+                                                  new Date(lastSync),
+                                                  { addSuffix: true }
+                                              )
+                                            : "never"}{" "}
+                                        • {username ?? "—"}
+                                    </p>
+                                </div>
+
+                                {/* right – provider + delete */}
+                                {provider && (
+                                    <img
+                                        src={PROVIDER_ICONS[provider]}
+                                        alt={provider}
+                                        className="mt-1 h-4 w-4"
+                                    />
+                                )}
                                 <button
                                     onClick={() => onDeleteTrackedFile(src)}
-                                    className="rounded p-1 hover:bg-red-50 dark:hover:bg-red-900"
                                     aria-label="Delete"
+                                    className="ml-2 rounded p-1 hover:bg-red-50 dark:hover:bg-red-900"
                                 >
                                     <Trash size={16} />
                                 </button>
-                            </div>
-                        </li>
-                    ))}
+                            </li>
+                        );
+                    })}
                 </ul>
             ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -92,6 +141,4 @@ const UploadedFile = ({
             )}
         </div>
     );
-};
-
-export default UploadedFile;
+}

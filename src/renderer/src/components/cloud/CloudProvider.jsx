@@ -13,11 +13,21 @@ const PROVIDER_OPTIONS = [
     { id: "box", label: "Box", icon: box },
 ];
 
-export default function CloudProvider() {
+export default function CloudProvider({ onFilterChange }) {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [picked, setPicked] = useState(""); // radio in Login
     const [connected, setConnected] = useState([]); // [{type,accountId,...}]
     const [delTarget, setDelTarget] = useState(null); // card đang xoá
+    const [activeFilter, setActiveFilter] = useState(null);
+    const handleCardClick = (acc) => {
+        const same =
+            activeFilter &&
+            activeFilter.type === acc.type &&
+            activeFilter.accountId === acc.accountId;
+        const next = same ? null : acc; // bỏ chọn nếu bấm lại
+        setActiveFilter(next);
+        onFilterChange?.(next); // báo cho Dashboard
+    };
 
     /* ---------- Khôi phục thẻ đã lưu ---------- */
     useEffect(() => {
@@ -85,6 +95,11 @@ export default function CloudProvider() {
         setConnected(next);
 
         window.dispatchEvent(new CustomEvent("cloud-accounts-updated"));
+        window.dispatchEvent(
+            new CustomEvent("cloud-account-added", {
+                detail: { type, username: uname },
+            })
+        );
 
         if (type === "google") await api.useAccount(accountId);
         else await api.useBoxAccount(accountId);
@@ -112,7 +127,18 @@ export default function CloudProvider() {
                 )
         );
         setConnected(next);
+        if (
+            activeFilter &&
+            activeFilter.type === delTarget.type &&
+            activeFilter.accountId === delTarget.accountId
+        ) {
+            setActiveFilter(null);
+            onFilterChange?.(null);
+        }
         window.dispatchEvent(new CustomEvent("cloud-accounts-updated"));
+        window.dispatchEvent(
+            new CustomEvent("cloud-account-removed", { detail: delTarget })
+        );
         setDelTarget(null);
     };
 
@@ -136,7 +162,14 @@ export default function CloudProvider() {
                     return (
                         <div
                             key={`${c.type}-${c.accountId}`}
-                            className="flex items-center justify-between rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600"
+                            onClick={() => handleCardClick(c)}
+                            className={`flex cursor-pointer items-center justify-between rounded-md border px-3 py-2 dark:border-gray-600 ${
+                                activeFilter &&
+                                activeFilter.type === c.type &&
+                                activeFilter.accountId === c.accountId
+                                    ? "ring-2 ring-blue-500"
+                                    : "border-gray-300"
+                            }`}
                         >
                             <div className="flex items-center gap-2">
                                 <img src={c.icon} alt="" className="h-5 w-5" />
