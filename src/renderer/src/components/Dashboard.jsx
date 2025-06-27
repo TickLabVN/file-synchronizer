@@ -32,6 +32,7 @@ const Dashboard = ({ auth, provider }) => {
     const [excludedPaths, setExcludedPaths] = useState([]);
     const [filterAccount, setFilterAccount] = useState(null);
     const [removedAccounts, setRemovedAccounts] = useState([]);
+    const [cloudAccounts, setCloudAccounts] = useState([]);
 
     // lọc trước khi render
     const displayedFiles = trackedFiles.filter(
@@ -50,12 +51,19 @@ const Dashboard = ({ auth, provider }) => {
     );
 
     const handlePullDown = async () => {
+        if (cloudAccounts.length === 0) {
+            toast.error("No cloud account connected.");
+            return;
+        }
         setPulling(true);
         try {
-            await Promise.all([
-                api.pullFromDrive().catch(() => {}),
-                api.pullFromBox().catch(() => {}),
-            ]);
+            const tasks = [];
+            if (cloudAccounts.some((c) => c.type === "google"))
+                tasks.push(api.pullFromDrive());
+            if (cloudAccounts.some((c) => c.type === "box"))
+                tasks.push(api.pullFromBox());
+            await Promise.all(tasks);
+            await loadTrackedFiles();
             toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);
@@ -206,7 +214,6 @@ const Dashboard = ({ auth, provider }) => {
     };
 
     useEffect(() => {
-        // 👉 luôn dùng loadTrackedFiles đã memo-hoá
         const onRemoved = (e) => {
             const { type, username } = e.detail || {};
             setRemovedAccounts((prev) => [...prev, { type, username }]);
@@ -232,6 +239,25 @@ const Dashboard = ({ auth, provider }) => {
         };
     }, [loadTrackedFiles]);
 
+    const refreshCloudAccounts = useCallback(async () => {
+        const drive = await api.listAccounts().catch(() => []);
+        const box = await api.listBoxAccounts().catch(() => []);
+        setCloudAccounts([
+            ...drive.map(({ email }) => ({ type: "google", id: email })),
+            ...box.map(({ login }) => ({ type: "box", id: login })),
+        ]);
+    }, []);
+
+    useEffect(() => {
+        refreshCloudAccounts(); // nạp lần đầu
+        window.addEventListener("cloud-accounts-updated", refreshCloudAccounts);
+        return () =>
+            window.removeEventListener(
+                "cloud-accounts-updated",
+                refreshCloudAccounts
+            );
+    }, [refreshCloudAccounts]);
+
     return (
         <div className="flex h-full flex-col">
             <Header />
@@ -245,6 +271,7 @@ const Dashboard = ({ auth, provider }) => {
                         onDeleteTrackedFile={handleDeleteTrackedFile}
                         onAddClick={() => setShowAddPopup(true)}
                         filterAccount={filterAccount}
+                        hasCloud={cloudAccounts.length > 0}
                     />
                 </main>
                 <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">

@@ -12,9 +12,15 @@ const { mapping } = constants;
  * @param {string} localDir - The local directory where the files and folders will be downloaded.
  * @param {object} drive - The authenticated Google Drive API client.
  */
-export default async function downloadTree(parentId, localDir, drive) {
+export default async function downloadTree(
+    parentId,
+    localDir,
+    drive,
+    entries = [],
+    provider = "google",
+    username = "default"
+) {
     await fs.promises.mkdir(localDir, { recursive: true });
-    const entries = Array.isArray(arguments[3]) ? arguments[3] : [];
     let pageToken = null;
     do {
         const { data } = await drive.files.list({
@@ -40,6 +46,9 @@ export default async function downloadTree(parentId, localDir, drive) {
                     id: file.id,
                     parentId,
                     lastSync: new Date().toISOString(),
+                    provider,
+                    username,
+                    isDirectory: isFolder,
                 };
             }
             entries.push({
@@ -47,9 +56,18 @@ export default async function downloadTree(parentId, localDir, drive) {
                 id: file.id,
                 parentId,
                 origOS: origOs,
+                provider,
+                username,
             });
             if (isFolder) {
-                await downloadTree(file.id, targetPath, drive, entries);
+                await downloadTree(
+                    file.id,
+                    targetPath,
+                    drive,
+                    entries,
+                    provider,
+                    username
+                );
             } else {
                 await fs.promises.mkdir(path.dirname(targetPath), {
                     recursive: true,
