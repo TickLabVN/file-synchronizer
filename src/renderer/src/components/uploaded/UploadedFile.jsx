@@ -182,6 +182,7 @@ export default function UploadedFile({
     onDeleteTrackedFile,
     onAddClick,
     filterAccount,
+    hasCloud = false,
 }) {
     const [expanded, setExpanded] = useState({});
 
@@ -346,6 +347,7 @@ export default function UploadedFile({
             <button
                 className="mb-4 w-40 rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:hover:bg-green-900"
                 onClick={handlePullDown}
+                disabled={!hasCloud}
             >
                 Pull from Cloud
             </button>

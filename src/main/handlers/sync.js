@@ -481,6 +481,11 @@ export async function pullFromDrive() {
 
     const drive = await getDriveClient();
     const {
+        data: { user: driveUser },
+    } = await drive.about.get({ fields: "user" });
+    const driveUsername =
+        driveUser?.displayName || driveUser?.emailAddress || "Unknown";
+    const {
         data: { files: root },
     } = await drive.files.list({
         q: "name='__ticklabfs_backup' and mimeType='application/vnd.google-apps.folder' and trashed=false",
@@ -490,7 +495,14 @@ export async function pullFromDrive() {
     if (!root.length) throw new Error("Drive backup folder not found");
     const rootId = root[0].id;
 
-    const pulledEntries = await downloadTree(rootId, centralFolderPath, drive);
+    const pulledEntries = await downloadTree(
+        rootId,
+        centralFolderPath,
+        drive,
+        [],
+        "google",
+        driveUsername
+    );
     await store.set("driveMapping", mapping);
 
     const rootEntries = pulledEntries.filter(
@@ -533,6 +545,8 @@ export async function pullFromDrive() {
         }
     }
 
+    notifyRenderer();
+    console.log("Pull from Drive completed successfully");
     return true;
 }
 
@@ -544,6 +558,10 @@ export async function pullFromBox() {
     );
     if (!centralFolderPath) throw new Error("Central folder not set");
     const client = await getBoxClient();
+    const me = await client.users.get(client.CURRENT_USER_ID, {
+        fields: "name,login",
+    });
+    const boxUsername = me.name || me.login;
     const rootItems = await client.folders.getItems("0", {
         fields: "id,type,name",
         limit: 1000,
@@ -562,7 +580,10 @@ export async function pullFromBox() {
     const pulledEntries = await downloadTreeBox(
         rootFolderId,
         centralFolderPath,
-        client
+        client,
+        [],
+        "box",
+        boxUsername
     );
     await store.set("boxMapping", boxMapping);
     const rootEntries = pulledEntries.filter(
@@ -603,5 +624,8 @@ export async function pullFromBox() {
             }
         }
     }
+
+    notifyRenderer();
+    console.log("Pull from Box completed successfully");
     return true;
 }
