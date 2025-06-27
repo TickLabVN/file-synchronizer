@@ -62,7 +62,14 @@ export async function syncFiles(_, { paths, exclude = [] }) {
             continue;
         }
         try {
-            await traverseAndUpload(p, driveFolderId, drive, exclude);
+            await traverseAndUpload(
+                p,
+                driveFolderId,
+                drive,
+                exclude,
+                "google",
+                driveUsername
+            );
             // create or replace symlink in central folder
             const linkPath = path.join(centralFolderPath, path.basename(p));
             try {
@@ -161,7 +168,14 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
         }
         try {
             // 4d‑i. Mirror the local tree on Box
-            await traverseAndUploadBox(p, rootFolderId, client, exclude);
+            await traverseAndUploadBox(
+                p,
+                rootFolderId,
+                client,
+                exclude,
+                "box",
+                boxUsername
+            );
 
             // 4d‑ii. Ensure a symlink (or copy fallback) exists in central folder
             const linkPath = path.join(centralFolderPath, path.basename(p));

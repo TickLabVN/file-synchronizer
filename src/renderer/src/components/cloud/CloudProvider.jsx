@@ -31,39 +31,69 @@ export default function CloudProvider({ onFilterChange }) {
 
     /* ---------- Khôi phục thẻ đã lưu ---------- */
     useEffect(() => {
-        (async () => {
+        const loadAccounts = async () => {
             const list = [];
 
-            const gd = await api.listAccounts(); // [{email}]
-            for (const { email } of gd) {
-                await api.useAccount(email);
-                const prof = await api.getProfile(email); // { name, email }
-                const uname = prof?.name || email.split("@")[0];
-                list.push({
-                    type: "google",
-                    accountId: email,
-                    icon: ggdrive,
-                    username: uname,
-                    label: `Drive – ${uname}`,
-                });
-            }
+            /* ---------- GOOGLE ---------- */
+            const gd = await api.listAccounts().catch(() => []); // luôn trả mảng
+            await Promise.allSettled(
+                gd.map(async ({ email }) => {
+                    try {
+                        await api.useAccount(email);
+                    } catch (e) {
+                        console.warn("[Google] useAccount fail:", e);
+                    }
+                    let prof = null;
+                    try {
+                        prof = await api.getProfile(email);
+                    } catch (e) {
+                        console.warn("[Google] getProfile fail:", e);
+                    }
+                    const uname = prof?.name || email.split("@")[0];
+                    list.push({
+                        type: "google",
+                        accountId: email,
+                        icon: ggdrive,
+                        username: uname,
+                        label: `Drive – ${uname}`,
+                    });
+                })
+            );
 
-            const bx = await api.listBoxAccounts(); // [{login}]
-            for (const { login } of bx) {
-                await api.useBoxAccount(login);
-                const prof = await api.getBoxProfile(); // { name, login }
-                const uname = prof?.name || login;
-                list.push({
-                    type: "box",
-                    accountId: login,
-                    icon: box,
-                    username: uname,
-                    label: `Box – ${uname}`,
-                });
-            }
+            /* ---------- BOX ---------- */
+            const bx = await api.listBoxAccounts().catch(() => []);
+            await Promise.allSettled(
+                bx.map(async ({ login }) => {
+                    try {
+                        await api.useBoxAccount(login);
+                    } catch (e) {
+                        console.warn("[Box] useBoxAccount fail:", e);
+                    }
+                    let prof = null;
+                    try {
+                        prof = await api.getBoxProfile();
+                    } catch (e) {
+                        console.warn("[Box] getBoxProfile fail:", e);
+                    }
+                    const uname = prof?.name || login;
+                    list.push({
+                        type: "box",
+                        accountId: login,
+                        icon: box,
+                        username: uname,
+                        label: `Box – ${uname}`,
+                    });
+                })
+            );
 
             setConnected(list);
-        })();
+        };
+
+        // nạp lần đầu + khi có sự kiện bên ngoài
+        loadAccounts();
+        window.addEventListener("cloud-accounts-updated", loadAccounts);
+        return () =>
+            window.removeEventListener("cloud-accounts-updated", loadAccounts);
     }, []);
 
     /* ---------- Login thành công ---------- */
