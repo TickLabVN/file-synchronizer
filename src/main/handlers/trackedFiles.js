@@ -26,6 +26,8 @@ export async function getTrackedFiles() {
                 src,
                 lastSync: rec.lastSync || null,
                 isDirectory,
+                provider: rec.provider ?? "google",
+                username: rec.username ?? null,
             };
         })
     );
@@ -52,6 +54,8 @@ export async function getTrackedFilesBox() {
                 lastSync: rec.lastSync || null,
                 isDirectory,
                 boxId: rec.id || null,
+                provider: rec.provider ?? "box",
+                username: rec.username ?? null,
             };
         })
     );
