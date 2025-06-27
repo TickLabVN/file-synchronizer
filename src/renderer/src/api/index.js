@@ -16,6 +16,7 @@ export const selectFiles = () => window.api.selectFiles();
 export const selectFolders = () => window.api.selectFolders();
 export const selectStopSyncFiles = () => window.api.selectStopSyncFiles();
 export const listDirectory = (path) => window.api.listDirectory(path);
+export const openInExplorer = (path) => window.api.openInExplorer(path);
 
 // API for settings management
 export const getSettings = () => window.api.getSettings();
