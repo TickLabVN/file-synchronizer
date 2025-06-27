@@ -34,19 +34,12 @@ const Dashboard = ({ auth, provider }) => {
     const [removedAccounts, setRemovedAccounts] = useState([]);
 
     // lọc trước khi render
-    const displayedFiles = trackedFiles
-        .filter(
-            (f) =>
-                !removedAccounts.some(
-                    (a) => a.type === f.provider && a.username === f.username
-                )
-        )
-        .filter(
-            (f) =>
-                !filterAccount ||
-                (f.provider === filterAccount.type &&
-                    f.username === filterAccount.username)
-        );
+    const displayedFiles = trackedFiles.filter(
+        (f) =>
+            !removedAccounts.some(
+                (a) => a.type === f.provider && a.username === f.username
+            )
+    );
 
     const handleExclude = useCallback(
         (p) =>
@@ -251,6 +244,7 @@ const Dashboard = ({ auth, provider }) => {
                         onToggleStopSync={handleToggleStopSync}
                         onDeleteTrackedFile={handleDeleteTrackedFile}
                         onAddClick={() => setShowAddPopup(true)}
+                        filterAccount={filterAccount}
                     />
                 </main>
                 <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">
