@@ -57,20 +57,20 @@ const Dashboard = ({ auth, provider }) => {
         }
         setPulling(true);
         try {
-            const tasks = [];
-            if (cloudAccounts.some((c) => c.type === "google"))
-                tasks.push(api.pullFromDrive());
-            if (cloudAccounts.some((c) => c.type === "box"))
-                tasks.push(api.pullFromBox());
-            await Promise.all(tasks);
+            for (const acc of cloudAccounts) {
+                if (acc.type === "google") {
+                    await api.useAccount(acc.id);
+                    await api.pullFromDrive();
+                } else if (acc.type === "box") {
+                    await api.useBoxAccount(acc.id);
+                    await api.pullFromBox();
+                }
+            }
             await loadTrackedFiles();
             toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);
-            toast.error(
-                "Failed to pull down from Drive:" +
-                    (err.message || "Unknown error")
-            );
+            toast.error("Failed to pull: " + (err.message || "Unknown error"));
         } finally {
             setPulling(false);
         }
