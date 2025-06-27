@@ -58,6 +58,7 @@ function aggregateSize(node) {
                 total += aggregateSize(child);
             }
         }
+        if (total === 0 && node.size != null) return node.size;
         node.size = total;
         return total;
     }
