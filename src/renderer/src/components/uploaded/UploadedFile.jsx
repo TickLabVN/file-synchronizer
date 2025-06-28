@@ -74,6 +74,8 @@ function aggregateSize(node) {
  *      ...
  *   }
  */
+const isWin = navigator?.userAgent.includes("Windows");
+const SEP = isWin ? "\\" : "/";
 function buildTree(list) {
     const root = {};
     for (const item of list) {
@@ -81,7 +83,7 @@ function buildTree(list) {
         let cur = root;
         let acc = ""; // path tích luỹ
         parts.forEach((seg, idx) => {
-            acc += (acc ? "/" : "") + seg;
+            acc += (acc ? SEP : "") + seg;
             cur.children ??= {};
             if (!cur.children[seg]) {
                 cur.children[seg] = {
@@ -224,7 +226,9 @@ export default function UploadedFile({
             username,
         } = node;
         const indent = { paddingLeft: depth * 14 };
-        const isStopped = stopSyncPaths.includes(path);
+        const isStopped = stopSyncPaths.some(
+            (p) => path === p || path.startsWith(p + SEP)
+        );
         const Icon = isDirectory
             ? FolderIcon
             : () => <FileExtIcon path={path} size={16} />;

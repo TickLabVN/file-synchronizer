@@ -384,7 +384,9 @@ export async function syncOnLaunch() {
     for (const [src, rec] of Object.entries(mapping)) {
         if (rec.provider !== "google") continue;
         if (rec.username !== driveUsername) continue;
-        if (stopSyncPaths.includes(src)) {
+        if (
+            stopSyncPaths.some((p) => src === p || src.startsWith(p + path.sep))
+        ) {
             console.log(`Skipping sync for ${src} as it is in stopSyncPaths`);
             continue;
         }
@@ -509,7 +511,9 @@ export async function syncBoxOnLaunch() {
     for (const [src, rec] of Object.entries(boxMapping)) {
         if (rec.provider !== "box") continue;
         if (rec.username !== boxUsername) continue;
-        if (stopSyncPaths.includes(src)) {
+        if (
+            stopSyncPaths.some((p) => src === p || src.startsWith(p + path.sep))
+        ) {
             console.log(
                 `Skipping Box sync for ${src} as it is in stopSyncPaths`
             );
