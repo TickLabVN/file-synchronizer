@@ -112,11 +112,24 @@ const Dashboard = ({ auth, provider }) => {
     const handleDeleteTrackedFile = async (file) => {
         toast.info("Deleting tracked file...");
         try {
+            // tìm accountId (login/email) tương ứng
+            const acc = cloudAccounts.find(
+                (a) =>
+                    a.type === file.provider &&
+                    (a.username === file.username || a.id === file.username)
+            );
+            const accountId = acc ? acc.id : file.username; // fallback khi đã truyền đúng id
+
             if (file.provider === "google") {
+                await api.useAccount(accountId); // ← dùng email
                 await api.deleteTrackedFile(file.src);
             } else if (file.provider === "box") {
+                await api.useBoxAccount(accountId); // ← dùng login
                 await api.deleteTrackedFileBox(file.src);
+            } else {
+                throw new Error("Unknown provider");
             }
+
             toast.success("Tracked file deleted successfully!");
             loadTrackedFiles();
         } catch (err) {
@@ -241,11 +254,43 @@ const Dashboard = ({ auth, provider }) => {
 
     const refreshCloudAccounts = useCallback(async () => {
         const drive = await api.listAccounts().catch(() => []);
+        const google = await Promise.all(
+            drive.map(async ({ email }) => {
+                // Lấy profile để biết tên hiển thị
+                try {
+                    await api.useAccount(email);
+                } catch {
+                    console.warn(`Failed to use account ${email}`);
+                    return null; // nếu không dùng được thì bỏ qua
+                }
+                const prof = await api.getProfile(email).catch(() => null);
+                return {
+                    type: "google",
+                    id: email, // khóa tra token
+                    username: prof?.name || email, // tên hiển thị khớp mapping
+                };
+            })
+        );
+
         const box = await api.listBoxAccounts().catch(() => []);
-        setCloudAccounts([
-            ...drive.map(({ email }) => ({ type: "google", id: email })),
-            ...box.map(({ login }) => ({ type: "box", id: login })),
-        ]);
+        const boxAcc = await Promise.all(
+            box.map(async ({ login }) => {
+                try {
+                    await api.useBoxAccount(login);
+                } catch {
+                    console.warn(`Failed to use Box account ${login}`);
+                    return null; // nếu không dùng được thì bỏ qua
+                }
+                const prof = await api.getBoxProfile().catch(() => null);
+                return {
+                    type: "box",
+                    id: login,
+                    username: prof?.name || login,
+                };
+            })
+        );
+
+        setCloudAccounts([...google, ...boxAcc]);
     }, []);
 
     useEffect(() => {

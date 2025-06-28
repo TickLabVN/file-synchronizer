@@ -312,7 +312,13 @@ export default function UploadedFile({
                         />
                     )}
                     <button
-                        onClick={() => onDeleteTrackedFile(path)}
+                        onClick={() =>
+                            onDeleteTrackedFile({
+                                src: path,
+                                provider,
+                                username,
+                            })
+                        }
                         aria-label="Delete"
                         className="ml-2 rounded p-1 hover:bg-red-50 dark:hover:bg-red-900"
                     >
