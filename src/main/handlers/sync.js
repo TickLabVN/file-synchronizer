@@ -13,12 +13,56 @@ import { getBoxClient } from "../utils/getBoxClient";
 import { traverseAndUploadBox } from "../utils/traverseAndUploadBox";
 import traverseCompareBox from "../utils/traverseCompareBox";
 import downloadTreeBox from "../utils/downloadTreeBox";
+import { listGDTokens, listBoxTokens } from "../lib/credentials";
 
 const { store, mapping, boxMapping } = constants;
 function notifyRenderer() {
     BrowserWindow.getAllWindows().forEach((w) =>
         w.webContents.send("tracked-files-updated")
     );
+}
+export async function syncAllOnLaunch() {
+    const { BACKEND_URL } = constants;
+    // 0. Không cần chạy nếu chưa cấu hình thư mục trung tâm
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
+    try {
+        await fs.promises.access(cfgPath);
+    } catch {
+        console.log("Chưa có central-config, bỏ qua syncAllOnLaunch");
+        return;
+    }
+
+    /* --- GOOGLE DRIVE --- */
+    const gdAccounts = await listGDTokens();
+    for (const { email, tokens } of gdAccounts) {
+        try {
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            console.log(`[sync] Google account ${email}`);
+            await syncOnLaunch(); // đã có sẵn trong file này
+        } catch (err) {
+            console.error(`[sync] Drive acc ${email} error:`, err);
+        }
+    }
+
+    /* --- BOX --- */
+    const boxAccounts = await listBoxTokens();
+    for (const { login, tokens } of boxAccounts) {
+        try {
+            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            console.log(`[sync] Box account ${login}`);
+            await syncBoxOnLaunch(); // đã có sẵn trong file này
+        } catch (err) {
+            console.error(`[sync] Box acc ${login} error:`, err);
+        }
+    }
 }
 // Handle syncing files/folders to Google Drive and creating symlinks
 export async function syncFiles(_, { paths, exclude = [] }) {
@@ -259,6 +303,12 @@ export async function syncOnLaunch() {
     }
 
     const drive = await getDriveClient();
+    const {
+        data: { user: driveUser },
+    } = await drive.about.get({ fields: "user" });
+
+    const driveUsername =
+        driveUser.displayName || driveUser.emailAddress || "Unknown";
 
     console.log("Starting auto-delete on launch...");
     const listRes = await drive.files.list({
@@ -332,6 +382,8 @@ export async function syncOnLaunch() {
 
     console.log("Starting auto-update on launch...");
     for (const [src, rec] of Object.entries(mapping)) {
+        if (rec.provider !== "google") continue;
+        if (rec.username !== driveUsername) continue;
         if (stopSyncPaths.includes(src)) {
             console.log(`Skipping sync for ${src} as it is in stopSyncPaths`);
             continue;
@@ -376,6 +428,10 @@ export async function syncBoxOnLaunch() {
     }
 
     const client = await getBoxClient();
+    const me = await client.users.get(client.CURRENT_USER_ID, {
+        fields: "name,login",
+    });
+    const boxUsername = me.name || me.login;
 
     console.log("Starting Box auto-delete on launch...");
     const rootItems = await client.folders.getItems("0", {
@@ -451,6 +507,8 @@ export async function syncBoxOnLaunch() {
     }
     console.log("Starting Box auto-update on launch...");
     for (const [src, rec] of Object.entries(boxMapping)) {
+        if (rec.provider !== "box") continue;
+        if (rec.username !== boxUsername) continue;
         if (stopSyncPaths.includes(src)) {
             console.log(
                 `Skipping Box sync for ${src} as it is in stopSyncPaths`

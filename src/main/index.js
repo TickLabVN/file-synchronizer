@@ -12,7 +12,7 @@ import {
 import pkg from "electron-updater";
 import { is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
-import { syncOnLaunch, syncBoxOnLaunch } from "./handlers/sync";
+import { syncAllOnLaunch } from "./handlers/sync";
 import path from "path";
 import fs from "fs";
 import createCentralFolder from "./utils/centralConfig";
@@ -197,11 +197,7 @@ app.whenReady().then(async () => {
     if (await shouldSync()) {
         console.log("[Background] Starting syncOnLaunch on app ready");
         try {
-            if (activeProvider === "google") {
-                await syncOnLaunch();
-            } else {
-                await syncBoxOnLaunch();
-            }
+            await syncAllOnLaunch();
             console.log("[Background] syncOnLaunch completed");
             broadcast("app:tracked-files-updated");
         } catch (err) {
@@ -213,15 +209,11 @@ app.whenReady().then(async () => {
 });
 
 // Set five minutes interval to sync on launch
-const FIVE_MIN = 5 * 60 * 1000;
+const FIVE_MIN = 10 * 1000;
 setInterval(async () => {
     if (await shouldSync()) {
         try {
-            if (activeProvider === "google") {
-                await syncOnLaunch();
-            } else {
-                await syncBoxOnLaunch();
-            }
+            await syncAllOnLaunch();
             console.log("[Background] syncOnLaunch completed");
             broadcast("app:tracked-files-updated");
         } catch (err) {
