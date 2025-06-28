@@ -138,6 +138,10 @@ app.whenReady().then(async () => {
     }
     mainWindow = createWindow();
 
+    mainWindow.webContents.once("did-finish-load", () => {
+        broadcast("cloud-accounts-updated");
+    });
+
     if (!is.dev) {
         autoUpdater.autoDownload = false;
         autoUpdater.checkForUpdates();
