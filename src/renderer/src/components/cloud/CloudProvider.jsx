@@ -31,6 +31,7 @@ export default function CloudProvider({ onFilterChange }) {
 
     /* ---------- Khôi phục thẻ đã lưu ---------- */
     useEffect(() => {
+        let alive = true;
         const loadAccounts = async () => {
             const list = [];
 
@@ -86,14 +87,16 @@ export default function CloudProvider({ onFilterChange }) {
                 })
             );
 
-            setConnected(list);
+            if (alive) setConnected(list);
         };
 
         // nạp lần đầu + khi có sự kiện bên ngoài
         loadAccounts();
         window.addEventListener("cloud-accounts-updated", loadAccounts);
-        return () =>
+        return () => {
+            alive = false;
             window.removeEventListener("cloud-accounts-updated", loadAccounts);
+        };
     }, []);
 
     /* ---------- Login thành công ---------- */
