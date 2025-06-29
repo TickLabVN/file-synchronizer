@@ -52,15 +52,17 @@ function propagateMeta(node, parentProvider, parentUsername) {
 // --- FIX: aggregateSize giờ sẽ gắn đúng size cho cả file & folder ---------
 function aggregateSize(node) {
     if (node.isDirectory) {
-        let total = 0;
         if (node.children) {
+            let total = 0;
             for (const child of Object.values(node.children)) {
                 total += aggregateSize(child);
             }
+            node.size = total;
+            return total;
         }
-        if (total === 0 && node.size != null) return node.size;
-        node.size = total;
-        return total;
+        // Nếu không có con → trả về 0
+        node.size = 0;
+        return 0;
     }
 
     // File: lấy size từ chính node hoặc từ raw, đảm bảo là number
