@@ -1,5 +1,5 @@
 import { app } from "electron";
-import path from "path";
+import path, { sep as SEP } from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
 const { mapping, store, boxMapping } = constants;
@@ -93,8 +93,11 @@ export async function deleteTrackedFile(_, src) {
         }
     }
     // Remove mapping entries (for file and any children)
+    const normalize = (p) => path.normalize(p).replace(/[/\\]+/g, SEP);
     Object.keys(mapping).forEach((key) => {
-        if (key === src || key.startsWith(src + path.sep)) {
+        const normKey = normalize(key);
+        const normSrc = normalize(src);
+        if (normKey === normSrc || normKey.startsWith(normSrc + SEP)) {
             delete mapping[key];
         }
     });
@@ -140,7 +143,9 @@ export async function deleteTrackedFileBox(_, src) {
     }
 
     Object.keys(boxMapping).forEach((key) => {
-        if (key === src || key.startsWith(src + path.sep)) {
+        const normKey = path.normalize(key).replace(/[/\\]+/g, SEP);
+        const normSrc = path.normalize(src).replace(/[/\\]+/g, SEP);
+        if (normKey === normSrc || normKey.startsWith(normSrc + SEP)) {
             delete boxMapping[key];
         }
     });
