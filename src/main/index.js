@@ -213,7 +213,7 @@ app.whenReady().then(async () => {
 });
 
 // Set five minutes interval to sync on launch
-const FIVE_MIN = 10 * 1000;
+const FIVE_MIN = 5 * 60 * 1000;
 setInterval(async () => {
     if (await shouldSync()) {
         try {

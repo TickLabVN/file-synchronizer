@@ -143,7 +143,7 @@ export async function syncFiles(_, { paths, exclude = [] }) {
                 }
             }
             mapping[p] = {
-                id: mapping[p]?.id || null,
+                ...(mapping[p] || {}),
                 parentId: driveFolderId,
                 lastSync: new Date().toISOString(),
                 provider: "google",
@@ -251,7 +251,7 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
                 }
             }
             boxMapping[p] = {
-                id: boxMapping[p]?.id || null,
+                ...(mapping[p] || {}),
                 parentId: rootFolderId,
                 lastSync: new Date().toISOString(),
                 provider: "box",
