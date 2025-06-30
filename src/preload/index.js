@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-
+ipcRenderer.send("renderer-ready");
 contextBridge.exposeInMainWorld("api", {
     // Google Drive authentication functions
     signIn: () => ipcRenderer.invoke("google-drive:sign-in"),
