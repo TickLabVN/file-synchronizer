@@ -187,6 +187,7 @@ export default function UploadedFile({
     onAddClick,
     filterAccount,
     hasCloud = false,
+    resumeSyncPaths = [],
 }) {
     const [expanded, setExpanded] = useState({});
 
@@ -228,9 +229,11 @@ export default function UploadedFile({
             username,
         } = node;
         const indent = { paddingLeft: depth * 14 };
-        const isStopped = stopSyncPaths.some(
-            (p) => path === p || path.startsWith(p + SEP)
-        );
+        const isStopped =
+            stopSyncPaths.some((p) => path === p || path.startsWith(p + SEP)) &&
+            !resumeSyncPaths.some(
+                (r) => path === r || path.startsWith(r + SEP)
+            );
         const Icon = isDirectory
             ? FolderIcon
             : () => <FileExtIcon path={path} size={16} />;
