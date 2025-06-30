@@ -21,6 +21,14 @@ function notifyRenderer() {
         w.webContents.send("tracked-files-updated")
     );
 }
+
+function isPathStopped(p, stop, resume, SEP) {
+    const blocked = stop.some((s) => p === s || p.startsWith(s + SEP));
+    if (!blocked) return false; // không bị cha chặn
+    const allowed = resume.some((r) => p === r || p.startsWith(r + SEP));
+    return !allowed; // bị chặn - trừ khi whitelist
+}
+
 export async function syncAllOnLaunch() {
     const { BACKEND_URL } = constants;
     // 0. Không cần chạy nếu chưa cấu hình thư mục trung tâm
@@ -284,8 +292,9 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
 export async function syncOnLaunch() {
     const settings = store.get("settings", {
         stopSyncPaths: [],
+        resumeSyncPaths: [],
     });
-    const { stopSyncPaths = [] } = settings;
+    const { stopSyncPaths = [], resumeSyncPaths = [] } = settings;
 
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
@@ -384,10 +393,8 @@ export async function syncOnLaunch() {
     for (const [src, rec] of Object.entries(mapping)) {
         if (rec.provider !== "google") continue;
         if (rec.username !== driveUsername) continue;
-        if (
-            stopSyncPaths.some((p) => src === p || src.startsWith(p + path.sep))
-        ) {
-            console.log(`Skipping sync for ${src} as it is in stopSyncPaths`);
+        if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
+            console.log(`Skipping sync for ${src} due to stop-sync rules`);
             continue;
         }
         try {
@@ -409,8 +416,9 @@ export async function syncOnLaunch() {
 export async function syncBoxOnLaunch() {
     const settings = store.get("settings", {
         stopSyncPaths: [],
+        resumeSyncPaths: [],
     });
-    const { stopSyncPaths = [] } = settings;
+    const { stopSyncPaths = [], resumeSyncPaths = [] } = settings;
 
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
@@ -511,12 +519,8 @@ export async function syncBoxOnLaunch() {
     for (const [src, rec] of Object.entries(boxMapping)) {
         if (rec.provider !== "box") continue;
         if (rec.username !== boxUsername) continue;
-        if (
-            stopSyncPaths.some((p) => src === p || src.startsWith(p + path.sep))
-        ) {
-            console.log(
-                `Skipping Box sync for ${src} as it is in stopSyncPaths`
-            );
+        if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
+            console.log(`Skipping sync for ${src} due to stop-sync rules`);
             continue;
         }
         try {

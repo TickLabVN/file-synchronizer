@@ -25,6 +25,7 @@ const Dashboard = ({ auth, provider }) => {
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
+    const [resumeSyncPaths, setResumeSyncPaths] = useState([]);
     const [trackedFiles, setTrackedFiles] = useState([]);
     const [pulling, setPulling] = useState(false);
     const [showAddPopup, setShowAddPopup] = useState(false);
@@ -77,9 +78,27 @@ const Dashboard = ({ auth, provider }) => {
     };
 
     useEffect(() => {
-        api.getSettings().then(({ stopSyncPaths = [] }) => {
-            setStopSyncPaths(stopSyncPaths);
-        });
+        api.getSettings().then(
+            ({ stopSyncPaths = [], resumeSyncPaths = [] }) => {
+                const compress = (list) => {
+                    const sorted = [...list] // sao chép để không mutate
+                        .filter((p) => !resumeSyncPaths.includes(p))
+                        .sort((a, b) => a.length - b.length); // cha trước con
+                    const res = [];
+                    for (const p of sorted) {
+                        if (!res.some((r) => p.startsWith(r + SEP)))
+                            res.push(p);
+                    }
+                    return res;
+                };
+                const dedupStop = compress(stopSyncPaths);
+                setStopSyncPaths(dedupStop);
+                setResumeSyncPaths(resumeSyncPaths);
+                if (dedupStop.length !== stopSyncPaths.length) {
+                    api.updateSettings({ stopSyncPaths: dedupStop });
+                }
+            }
+        );
     }, []);
 
     const loadTrackedFiles = useCallback(async () => {
@@ -141,26 +160,57 @@ const Dashboard = ({ auth, provider }) => {
         }
     };
 
-    const handleRemoveStopSync = (p) => {
-        const next = stopSyncPaths.filter((x) => x !== p);
-        setStopSyncPaths(next);
-        api.updateSettings({ stopSyncPaths: next });
-        toast.success("Removed stop sync for " + p);
-    };
+    const isWin = navigator?.userAgent.includes("Windows");
+    const SEP = isWin ? "\\" : "/";
 
-    const handleAddStopSync = (p) => {
-        const next = Array.from(new Set([...stopSyncPaths, p]));
-        setStopSyncPaths(next);
-        api.updateSettings({ stopSyncPaths: next });
-        toast.success("Stopped sync for " + p);
-    };
+    const isActuallyStopped = (p) =>
+        stopSyncPaths.some((s) => p === s || p.startsWith(s + SEP)) &&
+        !resumeSyncPaths.some((r) => p === r || p.startsWith(r + SEP));
 
     const handleToggleStopSync = (p) => {
-        if (stopSyncPaths.includes(p)) {
-            handleRemoveStopSync(p);
+        const isExactInStop = stopSyncPaths.includes(p);
+        const isBlockedByAnc = isActuallyStopped(p) && !isExactInStop;
+        const nextStop = [...stopSyncPaths];
+        const nextResume = [...resumeSyncPaths];
+
+        if (isExactInStop) {
+            /* ---- 1. Đang bị chặn trực tiếp → gỡ chặn ---- */
+            // gỡ p khỏi stopSync
+            for (let i = nextStop.length - 1; i >= 0; i--)
+                if (nextStop[i] === p) nextStop.splice(i, 1);
+            // gỡ mọi resume con (không còn cần thiết)
+            for (let i = nextResume.length - 1; i >= 0; i--)
+                if (nextResume[i] === p || nextResume[i].startsWith(p + SEP))
+                    nextResume.splice(i, 1);
+            toast.success("Resumed sync for " + p);
+        } else if (isBlockedByAnc) {
+            /* ---- 2. Bị chặn vì thư mục cha → whitelist p ---- */
+            if (!nextResume.includes(p)) nextResume.push(p);
+            toast.success("Resumed sync for " + p);
         } else {
-            handleAddStopSync(p);
+            /* ---- 3. Hiện đang sync bình thường → thêm vào stopSync ---- */
+            const coveredByParent = nextStop.some(
+                (s) => s !== p && p.startsWith(s + SEP)
+            );
+            if (!coveredByParent) {
+                for (let i = nextStop.length - 1; i >= 0; i--) {
+                    if (nextStop[i].startsWith(p + SEP)) nextStop.splice(i, 1);
+                }
+                nextStop.push(p);
+            }
+
+            for (let i = nextResume.length - 1; i >= 0; i--)
+                if (nextResume[i] === p || nextResume[i].startsWith(p + SEP))
+                    nextResume.splice(i, 1);
+            toast.success("Stopped sync for " + p);
         }
+
+        setStopSyncPaths(nextStop);
+        setResumeSyncPaths(nextResume);
+        api.updateSettings({
+            stopSyncPaths: nextStop,
+            resumeSyncPaths: nextResume,
+        });
     };
 
     const handleChooseFiles = async () => {
@@ -317,6 +367,7 @@ const Dashboard = ({ auth, provider }) => {
                         onAddClick={() => setShowAddPopup(true)}
                         filterAccount={filterAccount}
                         hasCloud={cloudAccounts.length > 0}
+                        resumeSyncPaths={resumeSyncPaths}
                     />
                 </main>
                 <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">
