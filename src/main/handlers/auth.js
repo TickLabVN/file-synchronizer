@@ -89,7 +89,12 @@ export async function handleSignIn() {
 }
 
 export async function listAccounts() {
-    return await listGDTokens(); // [{ email, tokens }]
+    try {
+        return await listGDTokens(); // [{ email, tokens }]
+    } catch (err) {
+        console.error("[GD] listAccounts error", err);
+        return [];
+    }
 }
 
 export async function useAccount(_, email) {
@@ -198,7 +203,12 @@ export async function handleBoxSignIn() {
 
 // --- Multi-account helpers cho renderer ---
 export async function listBoxAccounts() {
-    return await listBoxTokens(); // [{ login, tokens }]
+    try {
+        return await listBoxTokens();
+    } catch (err) {
+        console.error("[Box] listAccounts error", err);
+        return [];
+    }
 }
 
 export async function useBoxAccount(_, login) {
