@@ -1,12 +1,4 @@
-import {
-    app,
-    BrowserWindow,
-    dialog,
-    Tray,
-    Menu,
-    nativeImage,
-    ipcMain,
-} from "electron";
+import { app, BrowserWindow, dialog, Tray, Menu, nativeImage } from "electron";
 import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
@@ -144,8 +136,8 @@ app.whenReady().then(async () => {
     }
     mainWindow = createWindow();
 
-    ipcMain.on("renderer-ready", () => {
-        broadcast("cloud-accounts-updated"); // token đã nạp xong
+    mainWindow.webContents.on("did-finish-load", () => {
+        broadcast("cloud-accounts-updated");
     });
 
     if (!is.dev) {
