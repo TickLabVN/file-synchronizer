@@ -37,15 +37,13 @@ async function shouldSync() {
         if (err.code !== "ENOENT") throw err;
     }
 
-    let tokens = null;
-    if (activeProvider === "google") {
-        const email = store.get("gdActive");
-        if (email) tokens = await getGDTokens(email);
-    } else if (activeProvider === "box") {
-        const login = store.get("boxActive");
-        if (login) tokens = await getBoxTokens(login);
-    }
-    return Boolean(tokens && centralFolderPath);
+    const gd = store.get("gdActive");
+    if (gd && (await getGDTokens(gd))) return !!centralFolderPath;
+
+    const bx = store.get("boxActive");
+    if (bx && (await getBoxTokens(bx))) return !!centralFolderPath;
+
+    return false;
 }
 
 // Prevent multiple instances of the app from running
