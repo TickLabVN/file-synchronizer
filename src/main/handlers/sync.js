@@ -14,8 +14,14 @@ import { traverseAndUploadBox } from "../utils/traverseAndUploadBox";
 import traverseCompareBox from "../utils/traverseCompareBox";
 import downloadTreeBox from "../utils/downloadTreeBox";
 import { listGDTokens, listBoxTokens } from "../lib/credentials";
+import {
+    acquireDriveLock,
+    releaseDriveLock,
+    acquireBoxLock,
+    releaseBoxLock,
+} from "../utils/lock";
 
-const { store, mapping, boxMapping } = constants;
+const { store, mapping, boxMapping, deviceId } = constants;
 function notifyRenderer() {
     BrowserWindow.getAllWindows().forEach((w) =>
         w.webContents.send("tracked-files-updated")
@@ -329,82 +335,105 @@ export async function syncOnLaunch() {
         console.warn("Drive backup folder not found, skipping deletion check");
     } else {
         const driveFolderId = listRes.data.files[0].id;
-
-        // eslint-disable-next-line no-unused-vars
-        for (const [src, _] of Object.entries(mapping)) {
-            try {
-                await fs.promises.stat(src);
-            } catch (err) {
-                if (err.code === "ENOENT") {
-                    const linkPath = path.join(
-                        centralFolderPath,
-                        path.basename(src)
-                    );
-                    try {
-                        await fs.promises.unlink(linkPath);
-                        console.log(`Deleted local link: ${linkPath}`);
-                    } catch (unlinkErr) {
-                        console.error(
-                            `Failed to delete link at ${linkPath}`,
-                            unlinkErr
-                        );
-                    }
-                } else {
-                    throw err;
-                }
-            }
+        const { acquired, lockId } = await acquireDriveLock(
+            drive,
+            driveFolderId,
+            deviceId
+        );
+        if (!acquired) {
+            console.log(
+                "[sync] Skipping sync-on-launch – another device is syncing"
+            );
+            return true;
         }
-
-        for (const [src, rec] of Object.entries(mapping)) {
-            if (rec.parentId === driveFolderId) {
-                const linkPath = path.join(
-                    centralFolderPath,
-                    path.basename(src)
-                );
+        try {
+            // eslint-disable-next-line no-unused-vars
+            for (const [src, _] of Object.entries(mapping)) {
                 try {
-                    await fs.promises.lstat(linkPath);
+                    await fs.promises.stat(src);
                 } catch (err) {
                     if (err.code === "ENOENT") {
+                        const linkPath = path.join(
+                            centralFolderPath,
+                            path.basename(src)
+                        );
                         try {
-                            await drive.files.delete({ fileId: rec.id });
-                            console.log(
-                                `Deleted on Drive: ${rec.id} (src=${src})`
-                            );
-                        } catch (driveErr) {
+                            await fs.promises.unlink(linkPath);
+                            console.log(`Deleted local link: ${linkPath}`);
+                        } catch (unlinkErr) {
                             console.error(
-                                "Failed to delete on Drive:",
-                                driveErr
+                                `Failed to delete link at ${linkPath}`,
+                                unlinkErr
                             );
-                        }
-                        for (const key of Object.keys(mapping)) {
-                            if (key === src || key.startsWith(src + path.sep)) {
-                                delete mapping[key];
-                            }
                         }
                     } else {
                         throw err;
                     }
                 }
             }
-        }
-    }
 
-    console.log("Starting auto-update on launch...");
-    for (const [src, rec] of Object.entries(mapping)) {
-        if (rec.provider !== "google") continue;
-        if (rec.username !== driveUsername) continue;
-        if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
-            console.log(`Skipping sync for ${src} due to stop-sync rules`);
-            continue;
-        }
-        try {
-            const changed = await traverseCompare(src, rec.id, drive);
-            if (changed) {
-                rec.lastSync = new Date().toISOString();
-                console.log(`Updated lastSync for ${src} to ${rec.lastSync}`);
+            for (const [src, rec] of Object.entries(mapping)) {
+                if (rec.parentId === driveFolderId) {
+                    const linkPath = path.join(
+                        centralFolderPath,
+                        path.basename(src)
+                    );
+                    try {
+                        await fs.promises.lstat(linkPath);
+                    } catch (err) {
+                        if (err.code === "ENOENT") {
+                            try {
+                                await drive.files.delete({ fileId: rec.id });
+                                console.log(
+                                    `Deleted on Drive: ${rec.id} (src=${src})`
+                                );
+                            } catch (driveErr) {
+                                console.error(
+                                    "Failed to delete on Drive:",
+                                    driveErr
+                                );
+                            }
+                            for (const key of Object.keys(mapping)) {
+                                if (
+                                    key === src ||
+                                    key.startsWith(src + path.sep)
+                                ) {
+                                    delete mapping[key];
+                                }
+                            }
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
             }
-        } catch (e) {
-            console.error("Error syncing on launch for", src, e);
+
+            console.log("Starting auto-update on launch...");
+            for (const [src, rec] of Object.entries(mapping)) {
+                if (rec.provider !== "google") continue;
+                if (rec.username !== driveUsername) continue;
+                if (
+                    isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)
+                ) {
+                    console.log(
+                        `Skipping sync for ${src} due to stop-sync rules`
+                    );
+                    continue;
+                }
+                try {
+                    const changed = await traverseCompare(src, rec.id, drive);
+                    if (changed) {
+                        rec.lastSync = new Date().toISOString();
+                        console.log(
+                            `Updated lastSync for ${src} to ${rec.lastSync}`
+                        );
+                    }
+                } catch (e) {
+                    console.error("Error syncing on launch for", src, e);
+                }
+            }
+        } finally {
+            await releaseDriveLock(drive, lockId);
         }
     }
 
@@ -460,78 +489,101 @@ export async function syncBoxOnLaunch() {
         return true;
     }
 
-    // eslint-disable-next-line no-unused-vars
-    for (const [src, _] of Object.entries(boxMapping)) {
-        try {
-            await fs.promises.stat(src);
-        } catch (err) {
-            if (err.code === "ENOENT") {
-                const linkPath = path.join(
-                    centralFolderPath,
-                    path.basename(src)
-                );
-                try {
-                    await fs.promises.unlink(linkPath);
-                    console.log(`Deleted local link: ${linkPath}`);
-                } catch (unlinkErr) {
-                    console.error(
-                        `Failed to delete link at ${linkPath}`,
-                        unlinkErr
-                    );
-                }
-            } else {
-                throw err;
-            }
-        }
+    const { acquired, lockId } = await acquireBoxLock(
+        client,
+        rootFolderId,
+        deviceId
+    );
+    if (!acquired) {
+        console.log(
+            "[sync] Skipping Box sync-on-launch – another device is syncing"
+        );
+        return true;
     }
-
-    for (const [src, rec] of Object.entries(boxMapping)) {
-        if (rec.parentId === rootFolderId) {
-            const linkPath = path.join(centralFolderPath, path.basename(src));
+    try {
+        // eslint-disable-next-line no-unused-vars
+        for (const [src, _] of Object.entries(boxMapping)) {
             try {
-                await fs.promises.lstat(linkPath);
+                await fs.promises.stat(src);
             } catch (err) {
                 if (err.code === "ENOENT") {
+                    const linkPath = path.join(
+                        centralFolderPath,
+                        path.basename(src)
+                    );
                     try {
-                        if (rec.isFolder) {
-                            await client.folders.delete(rec.id, {
-                                recursive: true,
-                            });
-                        } else {
-                            await client.files.delete(rec.id);
-                        }
-                        console.log(`Deleted on Box: ${rec.id} (src=${src})`);
-                    } catch (boxErr) {
-                        console.error("Failed to delete on Box:", boxErr);
-                    }
-                    for (const key of Object.keys(boxMapping)) {
-                        if (key === src || key.startsWith(src + path.sep)) {
-                            delete boxMapping[key];
-                        }
+                        await fs.promises.unlink(linkPath);
+                        console.log(`Deleted local link: ${linkPath}`);
+                    } catch (unlinkErr) {
+                        console.error(
+                            `Failed to delete link at ${linkPath}`,
+                            unlinkErr
+                        );
                     }
                 } else {
                     throw err;
                 }
             }
         }
-    }
-    console.log("Starting Box auto-update on launch...");
-    for (const [src, rec] of Object.entries(boxMapping)) {
-        if (rec.provider !== "box") continue;
-        if (rec.username !== boxUsername) continue;
-        if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
-            console.log(`Skipping sync for ${src} due to stop-sync rules`);
-            continue;
-        }
-        try {
-            const changed = await traverseCompareBox(src, rec.id, client);
-            if (changed) {
-                rec.lastSync = new Date().toISOString();
-                console.log(`Updated lastSync for ${src} to ${rec.lastSync}`);
+
+        for (const [src, rec] of Object.entries(boxMapping)) {
+            if (rec.parentId === rootFolderId) {
+                const linkPath = path.join(
+                    centralFolderPath,
+                    path.basename(src)
+                );
+                try {
+                    await fs.promises.lstat(linkPath);
+                } catch (err) {
+                    if (err.code === "ENOENT") {
+                        try {
+                            if (rec.isFolder) {
+                                await client.folders.delete(rec.id, {
+                                    recursive: true,
+                                });
+                            } else {
+                                await client.files.delete(rec.id);
+                            }
+                            console.log(
+                                `Deleted on Box: ${rec.id} (src=${src})`
+                            );
+                        } catch (boxErr) {
+                            console.error("Failed to delete on Box:", boxErr);
+                        }
+                        for (const key of Object.keys(boxMapping)) {
+                            if (key === src || key.startsWith(src + path.sep)) {
+                                delete boxMapping[key];
+                            }
+                        }
+                    } else {
+                        throw err;
+                    }
+                }
             }
-        } catch (e) {
-            console.error("Error syncing on launch for Box", src, e);
         }
+
+        console.log("Starting Box auto-update on launch...");
+        for (const [src, rec] of Object.entries(boxMapping)) {
+            if (rec.provider !== "box") continue;
+            if (rec.username !== boxUsername) continue;
+            if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
+                console.log(`Skipping sync for ${src} due to stop-sync rules`);
+                continue;
+            }
+            try {
+                const changed = await traverseCompareBox(src, rec.id, client);
+                if (changed) {
+                    rec.lastSync = new Date().toISOString();
+                    console.log(
+                        `Updated lastSync for ${src} to ${rec.lastSync}`
+                    );
+                }
+            } catch (e) {
+                console.error("Error syncing on launch for Box", src, e);
+            }
+        }
+    } finally {
+        await releaseBoxLock(client, lockId);
     }
     await store.set("boxMapping", boxMapping);
     return true;
