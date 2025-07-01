@@ -46,14 +46,12 @@ export async function listGDTokens() {
         console.error("[GD] keytar error → fallback", e);
     }
     const cached = store.get("gdAccounts", []);
-    return (
-        await Promise.all(
-            cached.map(async (email) => ({
-                email,
-                tokens: await getGDTokens(email),
-            }))
-        )
-    ).filter((x) => x.tokens);
+    return await Promise.all(
+        cached.map(async (email) => ({
+            email,
+            tokens: await getGDTokens(email),
+        }))
+    );
 }
 
 export async function getGDTokens(email) {
@@ -90,14 +88,12 @@ export async function listBoxTokens() {
         console.error("[BOX] keytar error → fallback", e);
     }
     const cached = store.get("boxAccounts", []);
-    return (
-        await Promise.all(
-            cached.map(async (login) => ({
-                login,
-                tokens: await getBoxTokens(login),
-            }))
-        )
-    ).filter((x) => x.tokens);
+    return await Promise.all(
+        cached.map(async (login) => ({
+            login,
+            tokens: await getBoxTokens(login),
+        }))
+    );
 }
 
 export async function getBoxTokens(login) {
