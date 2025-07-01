@@ -19,6 +19,11 @@ import createCentralFolder from "./utils/centralConfig";
 
 const { BACKEND_URL, store } = constants;
 const { autoUpdater } = pkg;
+const BASE_INTERVAL = 10 * 1000;
+const JITTER_RANGE = 30 * 1000;
+function nextDelay() {
+    return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
+}
 
 // eslint-disable-next-line no-unused-vars
 let isUpdating = false;
@@ -67,6 +72,22 @@ function broadcast(channel, payload) {
     BrowserWindow.getAllWindows().forEach((win) => {
         win.webContents.send(channel, payload);
     });
+}
+
+async function scheduleSync() {
+    const run = async () => {
+        if (await shouldSync()) {
+            try {
+                await syncAllOnLaunch();
+                console.log("[Background] sync completed");
+                broadcast("app:tracked-files-updated");
+            } catch (err) {
+                console.error("[Background] sync error:", err);
+            }
+        }
+        setTimeout(run, nextDelay()); // lên lịch cho lần kế tiếp
+    };
+    run(); // chạy NGAY lập tức khi app khởi động
 }
 
 app.whenReady().then(async () => {
@@ -196,35 +217,8 @@ app.whenReady().then(async () => {
     });
 
     // First sync on launch
-    if (await shouldSync()) {
-        console.log("[Background] Starting syncOnLaunch on app ready");
-        try {
-            await syncAllOnLaunch();
-            console.log("[Background] syncOnLaunch completed");
-            broadcast("app:tracked-files-updated");
-        } catch (err) {
-            console.error("[Background] syncOnLaunch error:", err);
-        }
-    } else {
-        console.log("[Background] No sync needed on launch");
-    }
+    scheduleSync();
 });
-
-// Set five minutes interval to sync on launch
-const FIVE_MIN = 5 * 60 * 1000;
-setInterval(async () => {
-    if (await shouldSync()) {
-        try {
-            await syncAllOnLaunch();
-            console.log("[Background] syncOnLaunch completed");
-            broadcast("app:tracked-files-updated");
-        } catch (err) {
-            console.error("[Background] syncOnLaunch error:", err);
-        }
-    } else {
-        console.log("[Background] No sync needed at this interval");
-    }
-}, FIVE_MIN);
 
 // Handle the case when have new version available
 autoUpdater.on("update-available", (info) => {
