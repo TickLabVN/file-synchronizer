@@ -264,14 +264,13 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
                     throw err;
                 }
             }
-            boxMapping[p] = {
-                ...(mapping[p] || {}),
+            Object.assign(boxMapping[p], {
                 parentId: rootFolderId,
                 lastSync: new Date().toISOString(),
                 provider: "box",
                 username: boxUsername,
                 isDirectory: stats.isDirectory(),
-            };
+            });
 
             // 4d‑iii. Persist updated mapping
             await store.set("boxMapping", boxMapping);

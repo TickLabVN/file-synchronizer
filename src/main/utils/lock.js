@@ -58,17 +58,13 @@ export async function acquireDriveLock(
 
     if (data.files.length) {
         const lock = data.files[0];
+        const sameDevice = lock.appProperties?.deviceId === deviceId;
+
         const age = Date.now() - new Date(lock.createdTime).getTime();
-        if (age < ttlMs) return { acquired: false }; // còn hiệu lực
-        try {
-            await drive.files.delete({ fileId: lock.id });
-        } catch (e) {
-            // Nếu không thể xóa, có thể do quyền hạn hoặc file đã bị xóa
-            if (e.code !== 404) {
-                console.error("Failed to delete old lock file:", e);
-            }
-            return { acquired: false }; // không thể xóa, không thể lấy khóa
-        }
+        if (age < ttlMs && !sameDevice) return { acquired: false };
+
+        // Xoá lock cũ (dù là sameDevice hay hết TTL)
+        await drive.files.delete({ fileId: lock.id }).catch(() => {});
     }
 
     const emptyStream = Readable.from([]);
@@ -92,11 +88,16 @@ export async function releaseDriveLock(drive, lockId) {
     if (lockId) {
         try {
             await drive.files.delete({ fileId: lockId });
-        } catch {
-            // Ignore errors, especially if the file was already deleted
-            // or if the user doesn't have permission to delete it.
-            // This is common in Google Drive where files can be shared.
-            console.warn("Failed to release lock:", lockId);
+            console.log(`[release] Deleted lock ${lockId}`);
+        } catch (err) {
+            const status = err.code || err?.response?.status;
+            if (status !== 404 && status !== 403) {
+                console.warn("Failed to release lock:", lockId, err.message);
+            } else {
+                console.debug(
+                    `[release] Lock ${lockId} already gone (status ${status})`
+                );
+            }
         }
     }
 }
@@ -118,34 +119,44 @@ export async function acquireBoxLock(
     );
 
     if (existing) {
+        const sameDevice = existing.description === deviceId;
         const age = Date.now() - new Date(existing.created_at).getTime();
-        if (age < ttlMs) return { acquired: false };
+        if (age < ttlMs && !sameDevice) return { acquired: false };
+        // Xoá lock cũ (dù là sameDevice hay hết TTL)
         try {
             await client.files.delete(existing.id);
-        } catch {
-            /* ignore */
-            // Nếu không thể xóa, có thể do quyền hạn hoặc file đã bị xóa
-            return { acquired: false }; // không thể xóa, không thể lấy khóa
+        } catch (err) {
+            console.warn("Failed to delete existing lock:", err.message);
         }
     }
 
-    const uploaded = await client.files.uploadFile(
+    const res = await client.files.uploadFile(
         backupFolderId,
         LOCK_NAME,
         Buffer.from("")
     );
-    return { acquired: true, lockId: uploaded.id };
+    const fileEntry = res?.entries?.[0];
+    if (!fileEntry?.id) {
+        throw new Error("Box lock upload succeeded but no file ID returned");
+    }
+    await client.files.update(fileEntry.id, { description: deviceId });
+    return { acquired: true, lockId: fileEntry.id };
 }
 
 export async function releaseBoxLock(client, lockId) {
     if (lockId) {
         try {
             await client.files.delete(lockId);
-        } catch {
-            /* ignore */
-            // Ignore errors, especially if the file was already deleted
-            // or if the user doesn't have permission to delete it.
-            console.warn("Failed to release lock:", lockId);
+            console.log(`[release] Deleted lock ${lockId}`);
+        } catch (err) {
+            const status = err.statusCode || err.response?.status;
+            if (status !== 404 && status !== 403) {
+                console.warn("Failed to release lock:", lockId, err.message);
+            } else {
+                console.debug(
+                    `[release] Lock ${lockId} already gone (status ${status})`
+                );
+            }
         }
     }
 }
