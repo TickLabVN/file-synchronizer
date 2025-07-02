@@ -60,7 +60,16 @@
         "react-hook-form": "^7.57.0",
         "react-router-dom": "^7.6.2",
         "react-toastify": "^11.0.5",
-        "tailwindcss": "^4.1.8"
+        "tailwindcss": "^4.1.8",
+        "@radix-ui/react-dialog": "^1.1.14",
+        "@radix-ui/react-select": "^2.2.5",
+        "@radix-ui/react-slot": "^1.2.3",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "date-fns": "^4.1.0",
+        "lucide-react": "^0.522.0",
+        "react-file-icon": "^1.6.0",
+        "tailwind-merge": "^3.3.1"
     },
     "devDependencies": {
         "@electron-toolkit/eslint-config": "^2.0.0",
