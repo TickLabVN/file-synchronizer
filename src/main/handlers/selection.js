@@ -1,10 +1,24 @@
-import { app, dialog, BrowserWindow } from "electron";
+import { app, dialog, BrowserWindow, shell } from "electron";
 import fs from "fs";
 import path from "path";
 import "dotenv/config";
 import { constants } from "../lib/constants";
+
 const { store, mapping } = constants;
 
+async function getDirSize(dir) {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    let total = 0;
+    for (const e of entries) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) {
+            total += await getDirSize(full);
+        } else {
+            total += (await fs.promises.stat(full)).size;
+        }
+    }
+    return total;
+}
 // Handle selecting multiple files
 export async function selectFiles() {
     const win = BrowserWindow.getFocusedWindow();
@@ -12,7 +26,14 @@ export async function selectFiles() {
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openFile", "multiSelections"],
     });
-    return canceled ? null : filePaths;
+    if (canceled) return null;
+    return Promise.all(
+        filePaths.map(async (p) => ({
+            path: p,
+            size: (await fs.promises.stat(p)).size,
+            isDirectory: false,
+        }))
+    );
 }
 
 // Handle selecting multiple folders
@@ -22,14 +43,21 @@ export async function selectFolders() {
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openDirectory", "multiSelections"],
     });
-    return canceled ? null : filePaths;
+    if (canceled) return null;
+    return Promise.all(
+        filePaths.map(async (p) => ({
+            path: p,
+            size: await getDirSize(p),
+            isDirectory: true,
+        }))
+    );
 }
 
 // Handle selecting files to stop syncing
 export async function selectStopSyncFiles() {
     const win = BrowserWindow.getFocusedWindow();
 
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
@@ -88,4 +116,37 @@ export async function selectStopSyncFiles() {
     const next = Array.from(new Set([...prev, ...matchedSrcs]));
     store.set("settings", { ...settings, stopSyncPaths: next });
     return next;
+}
+
+export async function listDirectory(_, dirPath) {
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    return Promise.all(
+        entries.map(async (e) => {
+            const full = path.join(dirPath, e.name);
+            return {
+                path: full,
+                isDirectory: e.isDirectory(),
+                size: e.isDirectory()
+                    ? null
+                    : (await fs.promises.stat(full)).size,
+            };
+        })
+    );
+}
+
+export async function openInExplorer(_, fullPath) {
+    try {
+        if (!fs.existsSync(fullPath)) return false;
+        const st = fs.statSync(fullPath);
+        // Folder ⇒ mở thư mục; File ⇒ highlight trong Explorer/Finder
+        if (st.isDirectory()) {
+            await shell.openPath(fullPath);
+        } else {
+            await shell.showItemInFolder(fullPath);
+        }
+        return true;
+    } catch (e) {
+        console.error("Open path failed:", e);
+        return false;
+    }
 }

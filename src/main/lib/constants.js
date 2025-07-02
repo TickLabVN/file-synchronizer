@@ -1,5 +1,6 @@
 import Store from "electron-store";
 import { is } from "@electron-toolkit/utils";
+import { randomUUID } from "crypto";
 
 const BACKEND_URL = is.dev
     ? "http://localhost:3000"
@@ -7,10 +8,18 @@ const BACKEND_URL = is.dev
 const store = new Store();
 const mapping = store.get("driveMapping", {});
 const boxMapping = store.get("boxMapping", {});
+const deviceId =
+    store.get("deviceId") ||
+    (() => {
+        const id = randomUUID();
+        store.set("deviceId", id);
+        return id;
+    })();
 
 export const constants = {
     BACKEND_URL,
     store,
     mapping,
     boxMapping,
+    deviceId,
 };

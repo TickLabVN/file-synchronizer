@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, BrowserWindow } from "electron";
 import path from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
@@ -13,18 +13,85 @@ import { getBoxClient } from "../utils/getBoxClient";
 import { traverseAndUploadBox } from "../utils/traverseAndUploadBox";
 import traverseCompareBox from "../utils/traverseCompareBox";
 import downloadTreeBox from "../utils/downloadTreeBox";
+import { listGDTokens, listBoxTokens } from "../lib/credentials";
+import {
+    acquireDriveLock,
+    releaseDriveLock,
+    acquireBoxLock,
+    releaseBoxLock,
+} from "../utils/lock";
 
-const { store, mapping, boxMapping } = constants;
+const { store, mapping, boxMapping, deviceId } = constants;
+function notifyRenderer() {
+    BrowserWindow.getAllWindows().forEach((w) =>
+        w.webContents.send("tracked-files-updated")
+    );
+}
 
+function isPathStopped(p, stop, resume, SEP) {
+    const blocked = stop.some((s) => p === s || p.startsWith(s + SEP));
+    if (!blocked) return false; // không bị cha chặn
+    const allowed = resume.some((r) => p === r || p.startsWith(r + SEP));
+    return !allowed; // bị chặn - trừ khi whitelist
+}
+
+export async function syncAllOnLaunch() {
+    const { BACKEND_URL } = constants;
+    // 0. Không cần chạy nếu chưa cấu hình thư mục trung tâm
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
+    try {
+        await fs.promises.access(cfgPath);
+    } catch {
+        console.log("Chưa có central-config, bỏ qua syncAllOnLaunch");
+        return;
+    }
+
+    /* --- GOOGLE DRIVE --- */
+    const gdAccounts = await listGDTokens();
+    for (const { email, tokens } of gdAccounts) {
+        try {
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            console.log(`[sync] Google account ${email}`);
+            await syncOnLaunch(); // đã có sẵn trong file này
+        } catch (err) {
+            console.error(`[sync] Drive acc ${email} error:`, err);
+        }
+    }
+
+    /* --- BOX --- */
+    const boxAccounts = await listBoxTokens();
+    for (const { login, tokens } of boxAccounts) {
+        try {
+            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            console.log(`[sync] Box account ${login}`);
+            await syncBoxOnLaunch(); // đã có sẵn trong file này
+        } catch (err) {
+            console.error(`[sync] Box acc ${login} error:`, err);
+        }
+    }
+}
 // Handle syncing files/folders to Google Drive and creating symlinks
-export async function syncFiles(_, paths) {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+export async function syncFiles(_, { paths, exclude = [] }) {
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
 
     const drive = await getDriveClient();
     const folderName = "__ticklabfs_backup";
+    const {
+        data: { user: driveUser },
+    } = await drive.about.get({ fields: "user" });
+    const driveUsername =
+        driveUser?.displayName || driveUser?.emailAddress || "Unknown";
 
     // find or create central Drive folder
     const listRes = await drive.files.list({
@@ -47,8 +114,20 @@ export async function syncFiles(_, paths) {
     }
     const failed = [];
     for (const p of paths) {
+        // Skip excluded paths
+        if (exclude.includes(p)) {
+            console.log(`Skipping excluded path: ${p}`);
+            continue;
+        }
         try {
-            await traverseAndUpload(p, driveFolderId, drive);
+            await traverseAndUpload(
+                p,
+                driveFolderId,
+                drive,
+                exclude,
+                "google",
+                driveUsername
+            );
             // create or replace symlink in central folder
             const linkPath = path.join(centralFolderPath, path.basename(p));
             try {
@@ -77,7 +156,16 @@ export async function syncFiles(_, paths) {
                     throw err;
                 }
             }
+            mapping[p] = {
+                ...(mapping[p] || {}),
+                parentId: driveFolderId,
+                lastSync: new Date().toISOString(),
+                provider: "google",
+                username: driveUsername,
+                isDirectory: stats.isDirectory(),
+            };
             await store.set("driveMapping", mapping);
+            notifyRenderer();
         } catch (err) {
             if (err.code === "ENOENT") {
                 console.warn(
@@ -97,15 +185,19 @@ export async function syncFiles(_, paths) {
     };
 }
 
-export async function syncBoxFiles(_, paths) {
+export async function syncBoxFiles(_, { paths, exclude = [] }) {
     // 4a. Locate the user’s “central folder” (where we create symlinks)
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const rawCfg = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(rawCfg);
     if (!centralFolderPath) throw new Error("Central folder not set");
 
     // 4b. Prepare Box client
     const client = await getBoxClient();
+    const me = await client.users.get(client.CURRENT_USER_ID, {
+        fields: "name,login",
+    });
+    const boxUsername = me.name || me.login;
 
     // 4c. Find or create the dedicated backup folder at the Box root
     const folderName = "__ticklabfs_backup";
@@ -127,9 +219,21 @@ export async function syncBoxFiles(_, paths) {
     // 4d. Iterate over each requested local path
     const failed = [];
     for (const p of paths) {
+        // 4d‑a. Skip excluded paths
+        if (exclude.includes(p)) {
+            console.log(`Skipping excluded path: ${p}`);
+            continue;
+        }
         try {
             // 4d‑i. Mirror the local tree on Box
-            await traverseAndUploadBox(p, rootFolderId, client);
+            await traverseAndUploadBox(
+                p,
+                rootFolderId,
+                client,
+                exclude,
+                "box",
+                boxUsername
+            );
 
             // 4d‑ii. Ensure a symlink (or copy fallback) exists in central folder
             const linkPath = path.join(centralFolderPath, path.basename(p));
@@ -160,9 +264,17 @@ export async function syncBoxFiles(_, paths) {
                     throw err;
                 }
             }
+            Object.assign(boxMapping[p], {
+                parentId: rootFolderId,
+                lastSync: new Date().toISOString(),
+                provider: "box",
+                username: boxUsername,
+                isDirectory: stats.isDirectory(),
+            });
 
             // 4d‑iii. Persist updated mapping
             await store.set("boxMapping", boxMapping);
+            notifyRenderer();
         } catch (err) {
             // 4d‑iv. Handle a path that disappeared locally
             if (err.code === "ENOENT") {
@@ -185,10 +297,11 @@ export async function syncBoxFiles(_, paths) {
 export async function syncOnLaunch() {
     const settings = store.get("settings", {
         stopSyncPaths: [],
+        resumeSyncPaths: [],
     });
-    const { stopSyncPaths = [] } = settings;
+    const { stopSyncPaths = [], resumeSyncPaths = [] } = settings;
 
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
@@ -204,6 +317,12 @@ export async function syncOnLaunch() {
     }
 
     const drive = await getDriveClient();
+    const {
+        data: { user: driveUser },
+    } = await drive.about.get({ fields: "user" });
+
+    const driveUsername =
+        driveUser.displayName || driveUser.emailAddress || "Unknown";
 
     console.log("Starting auto-delete on launch...");
     const listRes = await drive.files.list({
@@ -215,9 +334,174 @@ export async function syncOnLaunch() {
         console.warn("Drive backup folder not found, skipping deletion check");
     } else {
         const driveFolderId = listRes.data.files[0].id;
+        const { acquired, lockId } = await acquireDriveLock(
+            drive,
+            driveFolderId,
+            deviceId
+        );
+        if (!acquired) {
+            console.log(
+                "[sync] Skipping sync-on-launch – another device is syncing"
+            );
+            return true;
+        }
+        try {
+            // eslint-disable-next-line no-unused-vars
+            for (const [src, _] of Object.entries(mapping)) {
+                try {
+                    await fs.promises.stat(src);
+                } catch (err) {
+                    if (err.code === "ENOENT") {
+                        const linkPath = path.join(
+                            centralFolderPath,
+                            path.basename(src)
+                        );
+                        try {
+                            await fs.promises.unlink(linkPath);
+                            console.log(`Deleted local link: ${linkPath}`);
+                        } catch (unlinkErr) {
+                            console.error(
+                                `Failed to delete link at ${linkPath}`,
+                                unlinkErr
+                            );
+                        }
+                    } else {
+                        throw err;
+                    }
+                }
+            }
 
+            for (const [src, rec] of Object.entries(mapping)) {
+                if (rec.parentId === driveFolderId) {
+                    const linkPath = path.join(
+                        centralFolderPath,
+                        path.basename(src)
+                    );
+                    try {
+                        await fs.promises.lstat(linkPath);
+                    } catch (err) {
+                        if (err.code === "ENOENT") {
+                            try {
+                                await drive.files.delete({ fileId: rec.id });
+                                console.log(
+                                    `Deleted on Drive: ${rec.id} (src=${src})`
+                                );
+                            } catch (driveErr) {
+                                console.error(
+                                    "Failed to delete on Drive:",
+                                    driveErr
+                                );
+                            }
+                            for (const key of Object.keys(mapping)) {
+                                if (
+                                    key === src ||
+                                    key.startsWith(src + path.sep)
+                                ) {
+                                    delete mapping[key];
+                                }
+                            }
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
+            }
+
+            console.log("Starting auto-update on launch...");
+            for (const [src, rec] of Object.entries(mapping)) {
+                if (rec.provider !== "google") continue;
+                if (rec.username !== driveUsername) continue;
+                if (
+                    isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)
+                ) {
+                    console.log(
+                        `Skipping sync for ${src} due to stop-sync rules`
+                    );
+                    continue;
+                }
+                try {
+                    const changed = await traverseCompare(src, rec.id, drive);
+                    if (changed) {
+                        rec.lastSync = new Date().toISOString();
+                        console.log(
+                            `Updated lastSync for ${src} to ${rec.lastSync}`
+                        );
+                    }
+                } catch (e) {
+                    console.error("Error syncing on launch for", src, e);
+                }
+            }
+        } finally {
+            await releaseDriveLock(drive, lockId);
+        }
+    }
+
+    await store.set("driveMapping", mapping);
+    return true;
+}
+
+// Handle syncing on app launch for Box
+export async function syncBoxOnLaunch() {
+    const settings = store.get("settings", {
+        stopSyncPaths: [],
+        resumeSyncPaths: [],
+    });
+    const { stopSyncPaths = [], resumeSyncPaths = [] } = settings;
+
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
+    let centralFolderPath;
+    try {
+        const raw = await fs.promises.readFile(cfgPath, "utf-8");
+        centralFolderPath = JSON.parse(raw).centralFolderPath;
+    } catch {
+        console.log(
+            "No central folder config found, skipping Box sync-on-launch"
+        );
+        return true;
+    }
+
+    if (Object.keys(boxMapping).length === 0) {
+        console.log("Skip Box sync-on-launch: no files mapped yet");
+        return true;
+    }
+
+    const client = await getBoxClient();
+    const me = await client.users.get(client.CURRENT_USER_ID, {
+        fields: "name,login",
+    });
+    const boxUsername = me.name || me.login;
+
+    console.log("Starting Box auto-delete on launch...");
+    const rootItems = await client.folders.getItems("0", {
+        fields: "id,type,name",
+        limit: 1000,
+    });
+    const folderName = "__ticklabfs_backup";
+    let rootFolderId;
+    const existing = rootItems.entries.find(
+        (it) => it.type === "folder" && it.name === folderName
+    );
+    if (existing) {
+        rootFolderId = existing.id;
+    } else {
+        console.warn("Box backup folder not found, skipping deletion check");
+        return true;
+    }
+
+    const { acquired, lockId } = await acquireBoxLock(
+        client,
+        rootFolderId,
+        deviceId
+    );
+    if (!acquired) {
+        console.log(
+            "[sync] Skipping Box sync-on-launch – another device is syncing"
+        );
+        return true;
+    }
+    try {
         // eslint-disable-next-line no-unused-vars
-        for (const [src, _] of Object.entries(mapping)) {
+        for (const [src, _] of Object.entries(boxMapping)) {
             try {
                 await fs.promises.stat(src);
             } catch (err) {
@@ -241,8 +525,8 @@ export async function syncOnLaunch() {
             }
         }
 
-        for (const [src, rec] of Object.entries(mapping)) {
-            if (rec.parentId === driveFolderId) {
+        for (const [src, rec] of Object.entries(boxMapping)) {
+            if (rec.parentId === rootFolderId) {
                 const linkPath = path.join(
                     centralFolderPath,
                     path.basename(src)
@@ -252,19 +536,22 @@ export async function syncOnLaunch() {
                 } catch (err) {
                     if (err.code === "ENOENT") {
                         try {
-                            await drive.files.delete({ fileId: rec.id });
+                            if (rec.isFolder) {
+                                await client.folders.delete(rec.id, {
+                                    recursive: true,
+                                });
+                            } else {
+                                await client.files.delete(rec.id);
+                            }
                             console.log(
-                                `Deleted on Drive: ${rec.id} (src=${src})`
+                                `Deleted on Box: ${rec.id} (src=${src})`
                             );
-                        } catch (driveErr) {
-                            console.error(
-                                "Failed to delete on Drive:",
-                                driveErr
-                            );
+                        } catch (boxErr) {
+                            console.error("Failed to delete on Box:", boxErr);
                         }
-                        for (const key of Object.keys(mapping)) {
+                        for (const key of Object.keys(boxMapping)) {
                             if (key === src || key.startsWith(src + path.sep)) {
-                                delete mapping[key];
+                                delete boxMapping[key];
                             }
                         }
                     } else {
@@ -273,144 +560,29 @@ export async function syncOnLaunch() {
                 }
             }
         }
-    }
 
-    console.log("Starting auto-update on launch...");
-    for (const [src, rec] of Object.entries(mapping)) {
-        if (stopSyncPaths.includes(src)) {
-            console.log(`Skipping sync for ${src} as it is in stopSyncPaths`);
-            continue;
-        }
-        try {
-            const changed = await traverseCompare(src, rec.id, drive);
-            if (changed) {
-                rec.lastSync = new Date().toISOString();
-                console.log(`Updated lastSync for ${src} to ${rec.lastSync}`);
+        console.log("Starting Box auto-update on launch...");
+        for (const [src, rec] of Object.entries(boxMapping)) {
+            if (rec.provider !== "box") continue;
+            if (rec.username !== boxUsername) continue;
+            if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
+                console.log(`Skipping sync for ${src} due to stop-sync rules`);
+                continue;
             }
-        } catch (e) {
-            console.error("Error syncing on launch for", src, e);
-        }
-    }
-
-    await store.set("driveMapping", mapping);
-    return true;
-}
-
-// Handle syncing on app launch for Box
-export async function syncBoxOnLaunch() {
-    const settings = store.get("settings", {
-        stopSyncPaths: [],
-    });
-    const { stopSyncPaths = [] } = settings;
-
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
-    let centralFolderPath;
-    try {
-        const raw = await fs.promises.readFile(cfgPath, "utf-8");
-        centralFolderPath = JSON.parse(raw).centralFolderPath;
-    } catch {
-        console.log(
-            "No central folder config found, skipping Box sync-on-launch"
-        );
-        return true;
-    }
-
-    if (Object.keys(boxMapping).length === 0) {
-        console.log("Skip Box sync-on-launch: no files mapped yet");
-        return true;
-    }
-
-    const client = await getBoxClient();
-
-    console.log("Starting Box auto-delete on launch...");
-    const rootItems = await client.folders.getItems("0", {
-        fields: "id,type,name",
-        limit: 1000,
-    });
-    const folderName = "__ticklabfs_backup";
-    let rootFolderId;
-    const existing = rootItems.entries.find(
-        (it) => it.type === "folder" && it.name === folderName
-    );
-    if (existing) {
-        rootFolderId = existing.id;
-    } else {
-        console.warn("Box backup folder not found, skipping deletion check");
-        return true;
-    }
-
-    // eslint-disable-next-line no-unused-vars
-    for (const [src, _] of Object.entries(boxMapping)) {
-        try {
-            await fs.promises.stat(src);
-        } catch (err) {
-            if (err.code === "ENOENT") {
-                const linkPath = path.join(
-                    centralFolderPath,
-                    path.basename(src)
-                );
-                try {
-                    await fs.promises.unlink(linkPath);
-                    console.log(`Deleted local link: ${linkPath}`);
-                } catch (unlinkErr) {
-                    console.error(
-                        `Failed to delete link at ${linkPath}`,
-                        unlinkErr
+            try {
+                const changed = await traverseCompareBox(src, rec.id, client);
+                if (changed) {
+                    rec.lastSync = new Date().toISOString();
+                    console.log(
+                        `Updated lastSync for ${src} to ${rec.lastSync}`
                     );
                 }
-            } else {
-                throw err;
+            } catch (e) {
+                console.error("Error syncing on launch for Box", src, e);
             }
         }
-    }
-
-    for (const [src, rec] of Object.entries(boxMapping)) {
-        if (rec.parentId === rootFolderId) {
-            const linkPath = path.join(centralFolderPath, path.basename(src));
-            try {
-                await fs.promises.lstat(linkPath);
-            } catch (err) {
-                if (err.code === "ENOENT") {
-                    try {
-                        if (rec.isFolder) {
-                            await client.folders.delete(rec.id, {
-                                recursive: true,
-                            });
-                        } else {
-                            await client.files.delete(rec.id);
-                        }
-                        console.log(`Deleted on Box: ${rec.id} (src=${src})`);
-                    } catch (boxErr) {
-                        console.error("Failed to delete on Box:", boxErr);
-                    }
-                    for (const key of Object.keys(boxMapping)) {
-                        if (key === src || key.startsWith(src + path.sep)) {
-                            delete boxMapping[key];
-                        }
-                    }
-                } else {
-                    throw err;
-                }
-            }
-        }
-    }
-    console.log("Starting Box auto-update on launch...");
-    for (const [src, rec] of Object.entries(boxMapping)) {
-        if (stopSyncPaths.includes(src)) {
-            console.log(
-                `Skipping Box sync for ${src} as it is in stopSyncPaths`
-            );
-            continue;
-        }
-        try {
-            const changed = await traverseCompareBox(src, rec.id, client);
-            if (changed) {
-                rec.lastSync = new Date().toISOString();
-                console.log(`Updated lastSync for ${src} to ${rec.lastSync}`);
-            }
-        } catch (e) {
-            console.error("Error syncing on launch for Box", src, e);
-        }
+    } finally {
+        await releaseBoxLock(client, lockId);
     }
     await store.set("boxMapping", boxMapping);
     return true;
@@ -418,13 +590,18 @@ export async function syncBoxOnLaunch() {
 
 // Handle pulling data from Google Drive to the central folder
 export async function pullFromDrive() {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
     );
     if (!centralFolderPath) throw new Error("Central folder not set");
 
     const drive = await getDriveClient();
+    const {
+        data: { user: driveUser },
+    } = await drive.about.get({ fields: "user" });
+    const driveUsername =
+        driveUser?.displayName || driveUser?.emailAddress || "Unknown";
     const {
         data: { files: root },
     } = await drive.files.list({
@@ -435,7 +612,14 @@ export async function pullFromDrive() {
     if (!root.length) throw new Error("Drive backup folder not found");
     const rootId = root[0].id;
 
-    const pulledEntries = await downloadTree(rootId, centralFolderPath, drive);
+    const pulledEntries = await downloadTree(
+        rootId,
+        centralFolderPath,
+        drive,
+        [],
+        "google",
+        driveUsername
+    );
     await store.set("driveMapping", mapping);
 
     const rootEntries = pulledEntries.filter(
@@ -478,17 +662,23 @@ export async function pullFromDrive() {
         }
     }
 
+    notifyRenderer();
+    console.log("Pull from Drive completed successfully");
     return true;
 }
 
 // Handle pulling data from Box to the central folder
 export async function pullFromBox() {
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
     );
     if (!centralFolderPath) throw new Error("Central folder not set");
     const client = await getBoxClient();
+    const me = await client.users.get(client.CURRENT_USER_ID, {
+        fields: "name,login",
+    });
+    const boxUsername = me.name || me.login;
     const rootItems = await client.folders.getItems("0", {
         fields: "id,type,name",
         limit: 1000,
@@ -507,7 +697,10 @@ export async function pullFromBox() {
     const pulledEntries = await downloadTreeBox(
         rootFolderId,
         centralFolderPath,
-        client
+        client,
+        [],
+        "box",
+        boxUsername
     );
     await store.set("boxMapping", boxMapping);
     const rootEntries = pulledEntries.filter(
@@ -548,5 +741,8 @@ export async function pullFromBox() {
             }
         }
     }
+
+    notifyRenderer();
+    console.log("Pull from Box completed successfully");
     return true;
 }

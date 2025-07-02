@@ -1,87 +1,127 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-    faRepeat,
-    faFile,
-    faFolder,
-    faTrash,
-    faGear,
-    faPause,
-    faPlay,
-    faBox,
-} from "@fortawesome/free-solid-svg-icons";
-import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import * as api from "../api";
-import ModalConfirmLogout from "@components/ModalConfirmLogout";
-import SettingPopup from "@components/SettingPopup";
 import Loading from "@components/Loading";
-import Login from "./Login";
-import ChooseCentralFolder from "./ChooseCentralFolder";
-import ggdrive from "@assets/ggdrive.svg";
-import box from "@assets/box.svg";
-
-const Dashboard = ({
-    username,
-    savedCentralFolderPath,
-    handleLogout,
-    handleChangeCentralFolder,
-    auth,
-    handleSelectFolder,
-    handleContinue,
-    handleLoginSuccess,
-    centralFolderPath,
-    provider,
-}) => {
-    const [showLogoutModal, setShowLogoutModal] = useState(false);
+import Header from "./Header";
+import CloudProvider from "./cloud/CloudProvider";
+import UploadedFile from "./uploaded/UploadedFile";
+import AddFilesPopup from "./uploaded/AddFilesPopup";
+function mergeUnique(prev, next) {
+    const existed = new Set(prev.map((it) => it.path));
+    return [...prev, ...next.filter((it) => !existed.has(it.path))];
+}
+function pruneExcluded(prevExcluded, newItems) {
+    if (!newItems?.length) return prevExcluded;
+    return prevExcluded.filter((ex) => {
+        return !newItems.some(
+            (it) =>
+                ex === it.path ||
+                ex.startsWith(it.path + "/") ||
+                ex.startsWith(it.path + "\\")
+        );
+    });
+}
+const Dashboard = ({ auth, provider }) => {
     const [syncing, setSyncing] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
-    const [showSettings, setShowSettings] = useState(false);
     const [stopSyncPaths, setStopSyncPaths] = useState([]);
-    const [showLoginModal, setShowLoginModal] = useState(false);
-    const [showChooseModal, setShowChooseModal] = useState(false);
+    const [resumeSyncPaths, setResumeSyncPaths] = useState([]);
     const [trackedFiles, setTrackedFiles] = useState([]);
+    const [pulling, setPulling] = useState(false);
+    const [showAddPopup, setShowAddPopup] = useState(false);
+    const providerType = provider?.type;
+    const [excludedPaths, setExcludedPaths] = useState([]);
+    const [filterAccount, setFilterAccount] = useState(null);
+    const [removedAccounts, setRemovedAccounts] = useState([]);
+    const [cloudAccounts, setCloudAccounts] = useState([]);
+
+    // lọc trước khi render
+    const displayedFiles = trackedFiles.filter(
+        (f) =>
+            !removedAccounts.some(
+                (a) => a.type === f.provider && a.username === f.username
+            )
+    );
+
+    const handleExclude = useCallback(
+        (p) =>
+            setExcludedPaths((prev) =>
+                prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+            ),
+        []
+    );
+
+    const handlePullDown = async () => {
+        if (cloudAccounts.length === 0) {
+            toast.error("No cloud account connected.");
+            return;
+        }
+        setPulling(true);
+        try {
+            for (const acc of cloudAccounts) {
+                if (acc.type === "google") {
+                    await api.useAccount(acc.id);
+                    await api.pullFromDrive();
+                } else if (acc.type === "box") {
+                    await api.useBoxAccount(acc.id);
+                    await api.pullFromBox();
+                }
+            }
+            await loadTrackedFiles();
+            toast.success("Pull down successful!");
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to pull: " + (err.message || "Unknown error"));
+        } finally {
+            setPulling(false);
+        }
+    };
 
     useEffect(() => {
-        api.getSettings().then(({ stopSyncPaths = [] }) => {
-            setStopSyncPaths(stopSyncPaths);
-        });
+        api.getSettings().then(
+            ({ stopSyncPaths = [], resumeSyncPaths = [] }) => {
+                const compress = (list) => {
+                    const sorted = [...list] // sao chép để không mutate
+                        .filter((p) => !resumeSyncPaths.includes(p))
+                        .sort((a, b) => a.length - b.length); // cha trước con
+                    const res = [];
+                    for (const p of sorted) {
+                        if (!res.some((r) => p.startsWith(r + SEP)))
+                            res.push(p);
+                    }
+                    return res;
+                };
+                const dedupStop = compress(stopSyncPaths);
+                setStopSyncPaths(dedupStop);
+                setResumeSyncPaths(resumeSyncPaths);
+                if (dedupStop.length !== stopSyncPaths.length) {
+                    api.updateSettings({ stopSyncPaths: dedupStop });
+                }
+            }
+        );
+    }, []);
+
+    const loadTrackedFiles = useCallback(async () => {
+        try {
+            const [drive, box] = await Promise.all([
+                api.getTrackedFiles().catch(() => []), // ← tránh gãy cả cụm
+                api.getTrackedFilesBox().catch(() => []),
+            ]);
+            setTrackedFiles([...drive, ...box]);
+        } catch (err) {
+            console.error("Failed to load tracked files", err);
+            toast.error(
+                "Failed to load tracked files: " +
+                    (err.message || "Unknown error")
+            );
+        }
     }, []);
 
     useEffect(() => {
         if (auth) {
-            setShowLoginModal(false);
-            setShowChooseModal(true);
-        }
-    }, [auth]);
-
-    useEffect(() => {
-        if (savedCentralFolderPath) {
-            setShowChooseModal(false);
-        }
-    }, [savedCentralFolderPath]);
-
-    const loadTrackedFiles = useCallback(() => {
-        const fetchTrackedFiles =
-            provider === "google"
-                ? api.getTrackedFiles
-                : api.getTrackedFilesBox;
-        fetchTrackedFiles()
-            .then((files) => setTrackedFiles(files))
-            .catch((err) => {
-                console.error("Failed to load tracked files", err);
-                toast.error(
-                    "Failed to load tracked files: " +
-                        (err.message || "Unknown error")
-                );
-            });
-    }, [provider]);
-
-    useEffect(() => {
-        if (auth && savedCentralFolderPath) {
             loadTrackedFiles();
         }
-    }, [loadTrackedFiles, auth, savedCentralFolderPath]);
+    }, [loadTrackedFiles, auth]);
 
     useEffect(() => {
         const handler = () => loadTrackedFiles();
@@ -91,11 +131,24 @@ const Dashboard = ({
     const handleDeleteTrackedFile = async (file) => {
         toast.info("Deleting tracked file...");
         try {
-            if (provider === "google") {
-                await api.deleteTrackedFile(file);
+            // tìm accountId (login/email) tương ứng
+            const acc = cloudAccounts.find(
+                (a) =>
+                    a.type === file.provider &&
+                    (a.username === file.username || a.id === file.username)
+            );
+            const accountId = acc ? acc.id : file.username; // fallback khi đã truyền đúng id
+
+            if (file.provider === "google") {
+                await api.useAccount(accountId); // ← dùng email
+                await api.deleteTrackedFile(file.src);
+            } else if (file.provider === "box") {
+                await api.useBoxAccount(accountId); // ← dùng login
+                await api.deleteTrackedFileBox(file.src);
             } else {
-                await api.deleteTrackedFileBox(file);
+                throw new Error("Unknown provider");
             }
+
             toast.success("Tracked file deleted successfully!");
             loadTrackedFiles();
         } catch (err) {
@@ -107,75 +160,104 @@ const Dashboard = ({
         }
     };
 
-    const handleRemoveStopSync = (p) => {
-        const next = stopSyncPaths.filter((x) => x !== p);
-        setStopSyncPaths(next);
-        api.updateSettings({ stopSyncPaths: next });
-        toast.success("Removed stop sync for " + p);
-    };
+    const isWin = navigator?.userAgent.includes("Windows");
+    const SEP = isWin ? "\\" : "/";
 
-    const handleAddStopSync = (p) => {
-        const next = Array.from(new Set([...stopSyncPaths, p]));
-        setStopSyncPaths(next);
-        api.updateSettings({ stopSyncPaths: next });
-        toast.success("Stopped sync for " + p);
-    };
+    const isActuallyStopped = (p) =>
+        stopSyncPaths.some((s) => p === s || p.startsWith(s + SEP)) &&
+        !resumeSyncPaths.some((r) => p === r || p.startsWith(r + SEP));
 
     const handleToggleStopSync = (p) => {
-        if (stopSyncPaths.includes(p)) {
-            handleRemoveStopSync(p);
+        const isExactInStop = stopSyncPaths.includes(p);
+        const isBlockedByAnc = isActuallyStopped(p) && !isExactInStop;
+        const nextStop = [...stopSyncPaths];
+        const nextResume = [...resumeSyncPaths];
+
+        if (isExactInStop) {
+            /* ---- 1. Đang bị chặn trực tiếp → gỡ chặn ---- */
+            // gỡ p khỏi stopSync
+            for (let i = nextStop.length - 1; i >= 0; i--)
+                if (nextStop[i] === p) nextStop.splice(i, 1);
+            // gỡ mọi resume con (không còn cần thiết)
+            for (let i = nextResume.length - 1; i >= 0; i--)
+                if (nextResume[i] === p || nextResume[i].startsWith(p + SEP))
+                    nextResume.splice(i, 1);
+            toast.success("Resumed sync for " + p);
+        } else if (isBlockedByAnc) {
+            /* ---- 2. Bị chặn vì thư mục cha → whitelist p ---- */
+            if (!nextResume.includes(p)) nextResume.push(p);
+            toast.success("Resumed sync for " + p);
         } else {
-            handleAddStopSync(p);
+            /* ---- 3. Hiện đang sync bình thường → thêm vào stopSync ---- */
+            const coveredByParent = nextStop.some(
+                (s) => s !== p && p.startsWith(s + SEP)
+            );
+            if (!coveredByParent) {
+                for (let i = nextStop.length - 1; i >= 0; i--) {
+                    if (nextStop[i].startsWith(p + SEP)) nextStop.splice(i, 1);
+                }
+                nextStop.push(p);
+            }
+
+            for (let i = nextResume.length - 1; i >= 0; i--)
+                if (nextResume[i] === p || nextResume[i].startsWith(p + SEP))
+                    nextResume.splice(i, 1);
+            toast.success("Stopped sync for " + p);
         }
+
+        setStopSyncPaths(nextStop);
+        setResumeSyncPaths(nextResume);
+        api.updateSettings({
+            stopSyncPaths: nextStop,
+            resumeSyncPaths: nextResume,
+        });
     };
 
     const handleChooseFiles = async () => {
-        const paths = await api.selectFiles();
-        if (paths) {
-            setSelectedItems((prev) => [
-                ...prev,
-                ...paths.map((p) => ({ path: p, isDirectory: false })),
-            ]);
+        const items = await api.selectFiles(); // [{ path, size, isDirectory }]
+        if (items) {
+            setSelectedItems((prev) => mergeUnique(prev, items));
+            setExcludedPaths((prev) => pruneExcluded(prev, items));
         }
     };
 
     const handleChooseFolders = async () => {
-        const paths = await api.selectFolders();
-        if (paths) {
-            setSelectedItems((prev) => [
-                ...prev,
-                ...paths.map((p) => ({ path: p, isDirectory: true })),
-            ]);
-        }
+        const items = await api.selectFolders();
+        if (items) setSelectedItems((prev) => mergeUnique(prev, items));
     };
 
-    const handleRemove = (p) =>
+    const handleRemove = (p) => {
         setSelectedItems((prev) => prev.filter((item) => item.path !== p));
+        setExcludedPaths((prev) => prev.filter((x) => !x.startsWith(p)));
+    };
 
-    const handleSync = async () => {
-        if (!auth) {
-            setShowLoginModal(true);
-            return;
-        }
-        if (!savedCentralFolderPath) {
-            setShowChooseModal(true);
-            return;
-        }
+    const handleSync = async (target) => {
         if (!selectedItems.length) {
             toast.error("Please select files or folders to sync.");
             return;
         }
+        if (!target) {
+            toast.error("Please select a target account to sync.");
+            return;
+        }
         setSyncing(true);
         try {
-            const paths = selectedItems.map((item) => item.path);
+            if (target.type === "google") await api.useAccount(target.id);
+            else await api.useBoxAccount(target.id);
+
+            // B2: upload
+            const payload = {
+                paths: selectedItems.map((it) => it.path),
+                exclude: excludedPaths,
+            };
             const result =
-                provider === "google"
-                    ? await api.syncFiles(paths)
-                    : await api.syncBoxFiles(paths);
-            loadTrackedFiles();
+                target.type === "google"
+                    ? await api.syncFiles(payload)
+                    : await api.syncBoxFiles(payload);
             if (result.success) {
                 toast.success("All files synced successfully!");
                 setSelectedItems([]);
+                setExcludedPaths([]);
             } else {
                 const failedPaths = result.failed.map((f) => f.path);
                 toast.error(
@@ -185,6 +267,7 @@ const Dashboard = ({
                     prev.filter((item) => failedPaths.includes(item.path))
                 );
             }
+            loadTrackedFiles();
         } catch (err) {
             console.error(err);
             toast.error("Sync failed: " + (err.message || "Unknown error"));
@@ -193,263 +276,118 @@ const Dashboard = ({
         }
     };
 
-    const onLogoutClick = () => setShowLogoutModal(true);
+    useEffect(() => {
+        const onRemoved = (e) => {
+            const { type, username } = e.detail || {};
+            setRemovedAccounts((prev) => [...prev, { type, username }]);
+            loadTrackedFiles(); // reload để ẩn ngay
+        };
 
-    const confirmLogout = () => {
-        setShowLogoutModal(false);
-        handleLogout();
-    };
+        const onAdded = (e) => {
+            const { type, username } = e.detail || {};
+            // huỷ cờ “đã xoá” nếu người dùng login lại
+            setRemovedAccounts((prev) =>
+                prev.filter(
+                    (x) => !(x.type === type && x.username === username)
+                )
+            );
+            loadTrackedFiles(); // reload để hiện lại đúng item
+        };
 
-    const cancelLogout = () => setShowLogoutModal(false);
+        window.addEventListener("cloud-account-removed", onRemoved);
+        window.addEventListener("cloud-account-added", onAdded);
+        return () => {
+            window.removeEventListener("cloud-account-removed", onRemoved);
+            window.removeEventListener("cloud-account-added", onAdded);
+        };
+    }, [loadTrackedFiles]);
 
-    const handleSettingsClose = () => {
-        setShowSettings(false);
-    };
+    const refreshCloudAccounts = useCallback(async () => {
+        const drive = await api.listAccounts().catch(() => []);
+        const google = await Promise.all(
+            drive.map(async ({ email }) => {
+                // Lấy profile để biết tên hiển thị
+                try {
+                    await api.useAccount(email);
+                } catch {
+                    console.warn(`Failed to use account ${email}`);
+                    return null; // nếu không dùng được thì bỏ qua
+                }
+                const prof = await api.getProfile(email).catch(() => null);
+                return {
+                    type: "google",
+                    id: email, // khóa tra token
+                    username: prof?.name || email, // tên hiển thị khớp mapping
+                };
+            })
+        );
+
+        const box = await api.listBoxAccounts().catch(() => []);
+        const boxAcc = await Promise.all(
+            box.map(async ({ login }) => {
+                try {
+                    await api.useBoxAccount(login);
+                } catch {
+                    console.warn(`Failed to use Box account ${login}`);
+                    return null; // nếu không dùng được thì bỏ qua
+                }
+                const prof = await api.getBoxProfile().catch(() => null);
+                return {
+                    type: "box",
+                    id: login,
+                    username: prof?.name || login,
+                };
+            })
+        );
+
+        setCloudAccounts([...google, ...boxAcc]);
+    }, []);
+
+    useEffect(() => {
+        refreshCloudAccounts(); // nạp lần đầu
+        window.addEventListener("cloud-accounts-updated", refreshCloudAccounts);
+        return () =>
+            window.removeEventListener(
+                "cloud-accounts-updated",
+                refreshCloudAccounts
+            );
+    }, [refreshCloudAccounts]);
 
     return (
-        <div className="flex h-full">
-            {auth && savedCentralFolderPath && (
-                <aside className="flex flex-1 flex-col justify-between border-r bg-gray-100 pt-12 dark:border-r-gray-700 dark:bg-gray-800">
-                    <div>
-                        <div className="border-b px-4 py-2 font-bold dark:border-gray-700 dark:text-gray-400">
-                            USER
-                        </div>
-                        <ul>
-                            <li className="border-radius mt-6 mr-1 ml-1 rounded-2xl bg-gray-400 px-4 py-2 dark:bg-gray-700 dark:text-gray-200">
-                                {provider === "google" ? (
-                                    <FontAwesomeIcon
-                                        icon={faGoogleDrive}
-                                        className="mr-2"
-                                    />
-                                ) : (
-                                    <FontAwesomeIcon
-                                        icon={faBox}
-                                        className="mr-2"
-                                    />
-                                )}{" "}
-                                {username}
-                            </li>
-                        </ul>
-                    </div>
-                    <button
-                        className="m-4 cursor-pointer rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 dark:bg-violet-800 dark:text-gray-200 dark:hover:bg-violet-700"
-                        onClick={onLogoutClick}
-                    >
-                        Logout
-                    </button>
-                </aside>
-            )}
-
-            {showLogoutModal && (
-                <ModalConfirmLogout
-                    confirmLogout={confirmLogout}
-                    cancelLogout={cancelLogout}
-                />
-            )}
-
-            <div className="scrollbar flex h-full flex-[4] flex-col overflow-auto pt-12">
-                <header className="flex items-center justify-between border-b bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-                    <h1 className="font-bold dark:text-gray-400">DASHBOARD</h1>
-                </header>
-
-                <main className="flex-1 bg-white p-6 dark:bg-gray-900">
-                    {auth && savedCentralFolderPath && (
-                        <div className="mb-6 flex items-center justify-between rounded border px-4 py-2 dark:border-gray-700">
-                            <span className="overflow-hidden font-medium text-ellipsis dark:text-gray-400">
-                                Central path: {savedCentralFolderPath}
-                            </span>
-                            <button
-                                className="cursor-pointer text-xl text-yellow-500 hover:text-yellow-600"
-                                onClick={handleChangeCentralFolder}
-                            >
-                                <FontAwesomeIcon icon={faRepeat} />
-                            </button>
-                        </div>
-                    )}
-
-                    <h2 className="mb-4 text-center text-lg dark:text-gray-400">
-                        Choose file or folder that you need to backup
-                    </h2>
-
-                    {selectedItems.length > 0 && (
-                        <ul className="scrollbar mb-4 max-h-48 space-y-2 overflow-auto">
-                            {selectedItems.map(({ path, isDirectory }) => (
-                                <li
-                                    key={path}
-                                    className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
-                                >
-                                    <span className="truncate">
-                                        <FontAwesomeIcon
-                                            icon={
-                                                isDirectory ? faFolder : faFile
-                                            }
-                                            className="mr-2 text-yellow-500"
-                                        />{" "}
-                                        {path}
-                                    </span>
-                                    <button
-                                        onClick={() => handleRemove(path)}
-                                        className="cursor-pointer text-red-500 hover:text-red-600"
-                                    >
-                                        <FontAwesomeIcon icon={faTrash} />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    {selectedItems.length == 0 && (
-                        <div className="mb-6 flex items-center justify-center">
-                            <input
-                                type="text"
-                                readOnly
-                                placeholder="No file or folder selected"
-                                className="w-2/3 rounded border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                            />
-                        </div>
-                    )}
-
-                    <div className="flex flex-col items-center space-y-4">
-                        <div className="flex space-x-4">
-                            <button
-                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
-                                onClick={handleChooseFiles}
-                            >
-                                Choose file <FontAwesomeIcon icon={faFile} />
-                            </button>
-                            <button
-                                className="w-40 cursor-pointer rounded bg-blue-500 py-2 text-white hover:bg-blue-600 dark:bg-blue-700 dark:text-gray-200 dark:hover:bg-blue-800"
-                                onClick={handleChooseFolders}
-                            >
-                                Choose folder{" "}
-                                <FontAwesomeIcon icon={faFolder} />
-                            </button>
-                        </div>
-                        <button
-                            className="w-40 cursor-pointer rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:text-gray-200 dark:hover:bg-green-900"
-                            onClick={handleSync}
-                        >
-                            Upload
-                        </button>
-                    </div>
-                    {auth && savedCentralFolderPath && (
-                        <button
-                            className="fixed right-4 bottom-4 cursor-pointer rounded-full bg-gray-200 p-3 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                            onClick={() => setShowSettings(true)}
-                        >
-                            <FontAwesomeIcon icon={faGear} size="lg" />
-                        </button>
-                    )}
-
-                    {trackedFiles.length > 0 && (
-                        <div className="mt-6">
-                            <h2 className="mb-2 text-center text-lg dark:text-gray-400">
-                                Tracked Files
-                            </h2>
-                            <ul className="scrollbar max-h-48 space-y-2 overflow-auto">
-                                {trackedFiles.map(
-                                    ({ src, lastSync, isDirectory }) => (
-                                        <li
-                                            key={src}
-                                            className="flex items-center justify-between rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400"
-                                        >
-                                            <span className="flex-1 truncate">
-                                                <FontAwesomeIcon
-                                                    icon={
-                                                        isDirectory
-                                                            ? faFolder
-                                                            : faFile
-                                                    }
-                                                    className="mr-2 text-yellow-500"
-                                                />
-                                                {src}
-                                            </span>
-                                            <span className="mr-4 ml-4 text-sm text-gray-500 dark:text-gray-400">
-                                                {lastSync
-                                                    ? new Date(
-                                                          lastSync
-                                                      ).toLocaleString(
-                                                          "en-US",
-                                                          {
-                                                              hour12: false,
-                                                          }
-                                                      )
-                                                    : "No sync yet"}
-                                            </span>
-
-                                            <button
-                                                onClick={() =>
-                                                    handleToggleStopSync(src)
-                                                }
-                                                className="mr-2 cursor-pointer text-yellow-500 hover:text-yellow-600"
-                                            >
-                                                <FontAwesomeIcon
-                                                    icon={
-                                                        stopSyncPaths.includes(
-                                                            src
-                                                        )
-                                                            ? faPause
-                                                            : faPlay
-                                                    }
-                                                />
-                                            </button>
-
-                                            <button
-                                                onClick={() =>
-                                                    handleDeleteTrackedFile(src)
-                                                }
-                                                className="cursor-pointer text-red-500 hover:text-red-600"
-                                            >
-                                                <FontAwesomeIcon
-                                                    icon={faTrash}
-                                                />
-                                            </button>
-                                        </li>
-                                    )
-                                )}
-                            </ul>
-                        </div>
-                    )}
+        <div className="flex h-full flex-col">
+            <Header />
+            <div className="flex flex-1 bg-white dark:bg-gray-900">
+                <main className="flex-1 overflow-auto p-6">
+                    <UploadedFile
+                        handlePullDown={handlePullDown}
+                        trackedFiles={displayedFiles}
+                        stopSyncPaths={stopSyncPaths}
+                        onToggleStopSync={handleToggleStopSync}
+                        onDeleteTrackedFile={handleDeleteTrackedFile}
+                        onAddClick={() => setShowAddPopup(true)}
+                        filterAccount={filterAccount}
+                        hasCloud={cloudAccounts.length > 0}
+                        resumeSyncPaths={resumeSyncPaths}
+                    />
                 </main>
+                <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">
+                    <CloudProvider onFilterChange={setFilterAccount} />
+                </aside>
             </div>
+            {pulling && <Loading syncing={true} />}
             {syncing && <Loading syncing={syncing} />}
-            {showSettings && (
-                <SettingPopup
-                    onClose={handleSettingsClose}
-                    provider={provider}
-                    loadTrackedFiles={loadTrackedFiles}
-                />
-            )}
-            {showLoginModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <Login
-                        providerList={[
-                            {
-                                id: "google",
-                                label: "Google Drive",
-                                icon: ggdrive,
-                            },
-                            {
-                                id: "box",
-                                label: "Box",
-                                icon: box,
-                            },
-                        ]}
-                        onSuccess={handleLoginSuccess}
-                    />
-                </div>
-            )}
-
-            {showChooseModal && !savedCentralFolderPath && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 bg-white">
-                    <ChooseCentralFolder
-                        username={username}
-                        centralFolderPath={centralFolderPath}
-                        handleSelectFolder={handleSelectFolder}
-                        handleContinue={handleContinue}
-                    />
-                </div>
-            )}
+            <AddFilesPopup
+                open={showAddPopup}
+                onOpenChange={setShowAddPopup}
+                providerType={providerType}
+                chooseFiles={handleChooseFiles}
+                chooseFolder={handleChooseFolders}
+                handleUpload={(targetAcc) => handleSync(targetAcc)}
+                selectedItems={selectedItems}
+                handleRemove={handleRemove}
+                excludedPaths={excludedPaths}
+                handleExclude={handleExclude}
+            />
         </div>
     );
 };

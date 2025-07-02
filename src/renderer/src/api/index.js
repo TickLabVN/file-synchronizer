@@ -1,24 +1,22 @@
-// API for connect with Drive
+// API for authentication
 export const signIn = () => window.api.signIn();
-export const getTokens = () => window.api.getTokens();
-export const getGDUserName = () => window.api.getGDUserName();
-export const signOut = () => window.api.signOut();
+export const listAccounts = () => window.api.listAccounts();
+export const useAccount = (email) => window.api.useAccount(email);
+export const getProfile = (email) => window.api.getProfile(email);
+export const signOut = (email) => window.api.signOut(email);
 // API for Box authentication
 export const boxSignIn = () => window.api.boxSignIn();
-export const getBoxTokens = () => window.api.getBoxTokens();
-export const getBoxUserName = () => window.api.getBoxUserName();
-export const boxSignOut = () => window.api.boxSignOut();
-
-// API for central folder management
-export const selectCentralFolder = () => window.api.selectCentralFolder();
-export const getCentralFolderConfig = () => window.api.getCentralFolderConfig();
-export const saveCentralFolderConfig = (path) =>
-    window.api.saveCentralFolderConfig(path);
+export const listBoxAccounts = () => window.api.listBoxAccounts();
+export const useBoxAccount = (login) => window.api.useBoxAccount(login);
+export const getBoxProfile = (login) => window.api.getBoxProfile(login);
+export const boxSignOut = (login) => window.api.boxSignOut(login);
 
 // API for file and folder selection
 export const selectFiles = () => window.api.selectFiles();
 export const selectFolders = () => window.api.selectFolders();
 export const selectStopSyncFiles = () => window.api.selectStopSyncFiles();
+export const listDirectory = (path) => window.api.listDirectory(path);
+export const openInExplorer = (path) => window.api.openInExplorer(path);
 
 // API for settings management
 export const getSettings = () => window.api.getSettings();

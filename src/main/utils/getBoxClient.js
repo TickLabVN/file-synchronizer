@@ -2,12 +2,17 @@ import axios from "axios";
 import { constants } from "../lib/constants";
 import "dotenv/config";
 import BoxSDK from "box-node-sdk";
-import { getBoxTokenKeytar, setBoxTokenKeytar } from "../lib/credentials";
-const { BACKEND_URL } = constants;
+import { getBoxTokens, addBoxTokens } from "../lib/credentials"; // <── helpers đa-tài-khoản
+
+const { BACKEND_URL, store } = constants;
+
 export async function getBoxClient() {
-    const stored = await getBoxTokenKeytar();
+    const login = store.get("boxActive");
+    if (!login) throw new Error("No active Box account selected");
+
+    let stored = await getBoxTokens(login);
     if (!stored?.refresh_token) {
-        throw new Error("No Box refresh token available");
+        throw new Error(`No refresh token for Box account ${login}`);
     }
 
     const { data: tokens } = await axios.post(
@@ -15,7 +20,7 @@ export async function getBoxClient() {
         { refresh_token: stored.refresh_token }
     );
 
-    await setBoxTokenKeytar(tokens);
+    await addBoxTokens(tokens, login);
 
     await axios.post(`${BACKEND_URL}/auth/box/set-tokens`, tokens);
 
