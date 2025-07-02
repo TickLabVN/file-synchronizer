@@ -20,7 +20,9 @@ export default async function downloadTreeBox(
     parentId,
     localDir,
     client,
-    entries = []
+    entries = [],
+    provider = "box",
+    username = "default"
 ) {
     // Bảo đảm thư mục đích tồn tại
     await fs.promises.mkdir(localDir, { recursive: true });
@@ -78,6 +80,8 @@ export default async function downloadTreeBox(
                     parentId,
                     isFolder,
                     lastSync: new Date().toISOString(),
+                    provider,
+                    username,
                 };
             }
             // Ghi nhận để pullFromBox dùng tạo symlink về sau
@@ -86,11 +90,20 @@ export default async function downloadTreeBox(
                 id: item.id,
                 parentId,
                 origOS,
+                provider,
+                username,
             });
 
             if (isFolder) {
                 // Đệ quy cho thư mục con
-                await downloadTreeBox(item.id, targetPath, client, entries);
+                await downloadTreeBox(
+                    item.id,
+                    targetPath,
+                    client,
+                    entries,
+                    provider,
+                    username
+                );
             } else {
                 // ----- TẢI FILE -----
                 await fs.promises.mkdir(path.dirname(targetPath), {

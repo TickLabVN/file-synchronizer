@@ -4,7 +4,19 @@ import "dotenv/config";
 import { constants } from "../lib/constants";
 const { boxMapping } = constants;
 
-export async function traverseAndUploadBox(srcPath, parentId, client) {
+export async function traverseAndUploadBox(
+    srcPath,
+    parentId,
+    client,
+    exclude = [],
+    provider = null,
+    username = null
+) {
+    // Skip excluded paths
+    if (exclude.includes(srcPath)) {
+        console.log(`Skipping excluded path: ${srcPath}`);
+        return;
+    }
     const stats = await fs.promises.stat(srcPath);
     const key = srcPath;
     const rec = boxMapping[key];
@@ -38,11 +50,20 @@ export async function traverseAndUploadBox(srcPath, parentId, client) {
                 parentId,
                 isFolder: true,
                 lastSync: new Date().toISOString(),
+                provider,
+                username,
             };
         }
         const entries = await fs.promises.readdir(srcPath);
         for (const e of entries) {
-            await traverseAndUploadBox(path.join(srcPath, e), folderId, client);
+            await traverseAndUploadBox(
+                path.join(srcPath, e),
+                folderId,
+                client,
+                exclude,
+                provider,
+                username
+            );
         }
     } else {
         // ---------------- FILE ----------------
@@ -80,6 +101,8 @@ export async function traverseAndUploadBox(srcPath, parentId, client) {
                 parentId,
                 isFolder: false,
                 lastSync: new Date().toISOString(),
+                provider,
+                username,
             };
         }
     }

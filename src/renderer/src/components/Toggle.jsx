@@ -1,7 +1,6 @@
-const Toggle = ({ label, checked, onChange }) => {
+const Toggle = ({ checked, onChange }) => {
     return (
         <div className="flex items-center justify-between">
-            <span className="text-gray-800 dark:text-gray-200">{label}</span>
             <label className="relative inline-flex cursor-pointer items-center">
                 <input
                     type="checkbox"

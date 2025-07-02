@@ -2,16 +2,18 @@ import { BrowserWindow } from "electron";
 import fetch from "node-fetch";
 import { constants } from "../lib/constants";
 import {
-    setTokenKeytar,
-    getTokenKeytar,
-    deleteTokenKeytar,
-    getBoxTokenKeytar,
-    setBoxTokenKeytar,
-    deleteBoxTokenKeytar,
+    addGDTokens,
+    listGDTokens,
+    getGDTokens,
+    deleteGDTokens,
+    addBoxTokens,
+    listBoxTokens,
+    getBoxTokens,
+    deleteBoxTokens,
 } from "../lib/credentials";
 import icon from "../../../resources/icon.png?asset";
 
-const { BACKEND_URL } = constants;
+const { BACKEND_URL, store } = constants;
 
 export async function handleSignIn() {
     const authUrl = `${BACKEND_URL}/auth/google`;
@@ -49,13 +51,20 @@ export async function handleSignIn() {
                         return res.json();
                     })
                     .then(async (tokens) => {
-                        await setTokenKeytar(tokens);
+                        const payload = JSON.parse(
+                            Buffer.from(
+                                tokens.id_token.split(".")[1],
+                                "base64"
+                            ).toString()
+                        );
+                        const email = await addGDTokens(tokens);
+                        store.set("gdActive", email);
                         await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(tokens),
                         });
-                        resolve(tokens);
+                        resolve({ email, name: payload.name, tokens });
                     })
                     .catch((err) => reject(err))
                     .finally(() => authWin.close());
@@ -79,21 +88,43 @@ export async function handleSignIn() {
     });
 }
 
-export async function getTokens() {
-    return await getTokenKeytar();
+export async function listAccounts() {
+    try {
+        return await listGDTokens(); // [{ email, tokens }]
+    } catch (err) {
+        console.error("[GD] listAccounts error", err);
+        return [];
+    }
 }
 
-export async function getUserName() {
-    const tokens = await getTokens();
-    if (!tokens?.id_token) return null;
-    const payload = tokens.id_token.split(".")[1];
-    const decoded = JSON.parse(Buffer.from(payload, "base64").toString());
-    return decoded.name;
-}
-
-export async function handleSignOut() {
-    await deleteTokenKeytar();
+export async function useAccount(_, email) {
+    const tokens = await getGDTokens(email);
+    if (!tokens) throw new Error("No saved Google Drive tokens for " + email);
+    await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tokens),
+    });
+    store.set("gdActive", email);
     return true;
+}
+
+export async function handleSignOut(_, email) {
+    await deleteGDTokens(email);
+    if (store.get("gdActive") === email) {
+        store.delete("gdActive");
+    }
+    return true;
+}
+
+export async function getGoogleProfile(_, email) {
+    const tokens = await getGDTokens(email);
+    if (!tokens?.id_token) return null;
+
+    const payload = JSON.parse(
+        Buffer.from(tokens.id_token.split(".")[1], "base64").toString()
+    );
+    return { name: payload.name || payload.email, email: payload.email };
 }
 
 export async function handleBoxSignIn() {
@@ -112,6 +143,7 @@ export async function handleBoxSignIn() {
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: false,
+                partition: `box-auth-${Date.now()}`, // Unique partition for Box auth
             },
         });
 
@@ -132,13 +164,20 @@ export async function handleBoxSignIn() {
                         return res.json();
                     })
                     .then(async (tokens) => {
-                        await setBoxTokenKeytar(tokens);
                         await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(tokens),
                         });
-                        resolve(tokens);
+                        const res = await fetch(`${BACKEND_URL}/auth/box/me`);
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const data = await res.json();
+                        const login = data.login;
+
+                        await addBoxTokens(tokens, login);
+                        store.set("boxActive", login);
+
+                        resolve({ login, name: data.name, tokens });
                     })
                     .catch((err) => reject(err))
                     .finally(() => authWin.close());
@@ -162,18 +201,39 @@ export async function handleBoxSignIn() {
     });
 }
 
-export async function getBoxUserName() {
+// --- Multi-account helpers cho renderer ---
+export async function listBoxAccounts() {
+    try {
+        return await listBoxTokens();
+    } catch (err) {
+        console.error("[Box] listAccounts error", err);
+        return [];
+    }
+}
+
+export async function useBoxAccount(_, login) {
+    const tokens = await getBoxTokens(login);
+    if (!tokens) throw new Error("No saved Box tokens for " + login);
+    await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tokens),
+    });
+    store.set("boxActive", login);
+    return true;
+}
+
+export async function handleBoxSignOut(_, login) {
+    await deleteBoxTokens(login);
+    if (store.get("boxActive") === login) {
+        store.delete("boxActive");
+    }
+    return true;
+}
+
+export async function getBoxProfile() {
+    // Backend đã biết “active tokens” ⇒ chỉ cần /me
     const res = await fetch(`${BACKEND_URL}/auth/box/me`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data.name || data.login;
-}
-
-export async function getBoxTokens() {
-    return await getBoxTokenKeytar();
-}
-
-export async function handleBoxSignOut() {
-    await deleteBoxTokenKeytar();
-    return true;
+    return await res.json(); // { name, login, ... }
 }

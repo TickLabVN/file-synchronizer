@@ -3,26 +3,92 @@ import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
-const { BACKEND_URL, store } = constants;
-import { getTokenKeytar, getBoxTokenKeytar } from "./lib/credentials";
+import {
+    listGDTokens,
+    getGDTokens,
+    listBoxTokens,
+    getBoxTokens,
+} from "./lib/credentials";
 import pkg from "electron-updater";
-const { autoUpdater } = pkg;
 import { is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
-import { syncOnLaunch, syncBoxOnLaunch } from "./handlers/sync";
+import { syncAllOnLaunch } from "./handlers/sync";
 import path from "path";
 import fs from "fs";
+import createCentralFolder from "./utils/centralConfig";
+import getDriveClient from "./utils/getDriveClient.js";
+import { getBoxClient } from "./utils/getBoxClient.js";
+import { cleanupDriveLockOnExit, cleanupBoxLockOnExit } from "./utils/lock.js";
 
-// eslint-disable-next-line no-unused-vars
+const { BACKEND_URL, store } = constants;
+const { autoUpdater } = pkg;
+const BASE_INTERVAL = 5 * 60 * 1000;
+const JITTER_RANGE = 30 * 1000;
+function nextDelay() {
+    return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
+}
+
 let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
-let isDrive = false;
+let activeProvider = null; // "google" | "box"
+let hasCleanedLocks = false;
+
+async function cleanupAllLocks() {
+    /* ----- GOOGLE DRIVE ----- */
+    const gdAccounts = await listGDTokens();
+    for (const { email, tokens } of gdAccounts) {
+        try {
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            const drive = await getDriveClient();
+            const {
+                data: { files },
+            } = await drive.files.list({
+                q: "name='__ticklabfs_backup' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+                fields: "files(id)",
+                spaces: "drive",
+            });
+            if (files.length) {
+                await cleanupDriveLockOnExit(drive, files[0].id);
+            }
+        } catch (err) {
+            console.error(`[exit] Drive ${email}:`, err);
+        }
+    }
+
+    /* ----- BOX ----- */
+    const boxAccounts = await listBoxTokens();
+    for (const { login, tokens } of boxAccounts) {
+        try {
+            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            const client = await getBoxClient();
+            const rootItems = await client.folders.getItems("0", {
+                fields: "id,type,name",
+                limit: 1000,
+            });
+            const backup = rootItems.entries.find(
+                (it) => it.type === "folder" && it.name === "__ticklabfs_backup"
+            );
+            if (backup) {
+                await cleanupBoxLockOnExit(client, backup.id);
+            }
+        } catch (err) {
+            console.error(`[exit] Box ${login}:`, err);
+        }
+    }
+}
 
 async function shouldSync() {
-    const tokens = (await getTokenKeytar()) || (await getBoxTokenKeytar());
-    const cfgPath = path.join(app.getPath("userData"), "central_folder.json");
+    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath = null;
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
@@ -30,7 +96,14 @@ async function shouldSync() {
     } catch (err) {
         if (err.code !== "ENOENT") throw err;
     }
-    return Boolean(tokens && centralFolderPath);
+
+    const gd = store.get("gdActive");
+    if (gd && (await getGDTokens(gd))) return !!centralFolderPath;
+
+    const bx = store.get("boxActive");
+    if (bx && (await getBoxTokens(bx))) return !!centralFolderPath;
+
+    return false;
 }
 
 // Prevent multiple instances of the app from running
@@ -56,30 +129,92 @@ function broadcast(channel, payload) {
     });
 }
 
+async function scheduleSync() {
+    const run = async () => {
+        if (await shouldSync()) {
+            try {
+                await syncAllOnLaunch();
+                console.log("[Background] sync completed");
+                broadcast("app:tracked-files-updated");
+            } catch (err) {
+                console.error("[Background] sync error:", err);
+            }
+        }
+        setTimeout(run, nextDelay()); // lên lịch cho lần kế tiếp
+    };
+    run(); // chạy NGAY lập tức khi app khởi động
+}
+
 app.whenReady().then(async () => {
-    // Check if the Google Drive tokens are saved
-    const saved = await getTokenKeytar();
-    if (saved) {
-        fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(saved),
-        }).catch(console.error);
-        isDrive = true;
+    // Create the central folder automatically
+    try {
+        await createCentralFolder();
+    } catch (err) {
+        console.error("Error creating central folder:", err);
+        dialog.showErrorBox(
+            "Central Folder Error",
+            "Failed to create the central folder. Please check your permissions."
+        );
+        app.quit();
+        return;
     }
 
-    // Check if the Box tokens are saved
-    const boxSaved = await getBoxTokenKeytar();
-    if (boxSaved) {
-        fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(boxSaved),
-        }).catch(console.error);
-        isDrive = false;
+    const gdActive = store.get("gdActive");
+    const boxActive = store.get("boxActive");
+
+    if (gdActive) {
+        const tk = await getGDTokens(gdActive);
+        if (tk) {
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tk),
+            });
+            activeProvider = "google";
+        }
+    } else if (boxActive) {
+        const tk = await getBoxTokens(boxActive);
+        if (tk) {
+            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tk),
+            });
+            activeProvider = "box";
+        }
     }
 
+    /* Nếu chưa có “active” ⇒ chọn account đầu tiên tìm thấy */
+    if (!activeProvider) {
+        const gd = await listGDTokens();
+        if (gd.length) {
+            const { email, tokens } = gd[0];
+            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tokens),
+            });
+            store.set("gdActive", email);
+            activeProvider = "google";
+        } else {
+            const bx = await listBoxTokens();
+            if (bx.length) {
+                const { login, tokens } = bx[0];
+                await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(tokens),
+                });
+                store.set("boxActive", login);
+                activeProvider = "box";
+            }
+        }
+    }
     mainWindow = createWindow();
+
+    mainWindow.webContents.on("did-finish-load", () => {
+        broadcast("cloud-accounts-updated");
+    });
 
     if (!is.dev) {
         autoUpdater.autoDownload = false;
@@ -106,6 +241,19 @@ app.whenReady().then(async () => {
             mainWindow.focus();
         } else {
             mainWindow = createWindow();
+        }
+    });
+
+    app.once("before-quit", async (e) => {
+        if (hasCleanedLocks || isUpdating) return;
+        e.preventDefault();
+        hasCleanedLocks = true;
+        try {
+            await cleanupAllLocks();
+        } catch (err) {
+            console.error("[exit] cleanupAllLocks:", err);
+        } finally {
+            app.quit(); // graceful
         }
     });
 
@@ -137,43 +285,8 @@ app.whenReady().then(async () => {
     });
 
     // First sync on launch
-    if (await shouldSync()) {
-        console.log("[Background] Starting syncOnLaunch on app ready");
-        try {
-            if (isDrive) {
-                await syncOnLaunch();
-            } else {
-                await syncBoxOnLaunch();
-            }
-            console.log("[Background] syncOnLaunch completed");
-            broadcast("app:tracked-files-updated");
-        } catch (err) {
-            console.error("[Background] syncOnLaunch error:", err);
-        }
-    } else {
-        console.log("[Background] No sync needed on launch");
-    }
+    scheduleSync();
 });
-
-// Set five minutes interval to sync on launch
-const FIVE_MIN = 5 * 60 * 1000;
-setInterval(async () => {
-    if (await shouldSync()) {
-        try {
-            if (isDrive) {
-                await syncOnLaunch();
-            } else {
-                await syncBoxOnLaunch();
-            }
-            console.log("[Background] syncOnLaunch completed");
-            broadcast("app:tracked-files-updated");
-        } catch (err) {
-            console.error("[Background] syncOnLaunch error:", err);
-        }
-    } else {
-        console.log("[Background] No sync needed at this interval");
-    }
-}, FIVE_MIN);
 
 // Handle the case when have new version available
 autoUpdater.on("update-available", (info) => {
