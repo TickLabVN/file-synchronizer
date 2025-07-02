@@ -103,8 +103,13 @@ export async function deleteTrackedFile(_, src) {
     });
     // Persist updated
     await store.set("driveMapping", mapping);
-    const settings = store.get("settings", { stopSyncPaths: [] });
-    settings.stopSyncPaths = settings.stopSyncPaths.filter((p) => p !== src);
+
+    const settings = store.get("settings", {}) || {};
+    const current = Array.isArray(settings.stopSyncPaths)
+        ? settings.stopSyncPaths
+        : [];
+    settings.stopSyncPaths = current.filter((p) => p !== src);
+
     await store.set("settings", settings);
     return true;
 }
@@ -152,8 +157,12 @@ export async function deleteTrackedFileBox(_, src) {
 
     await store.set("boxMapping", boxMapping);
 
-    const settings = store.get("settings", { stopSyncPaths: [] });
-    settings.stopSyncPaths = settings.stopSyncPaths.filter((p) => p !== src);
+    const settings = store.get("settings", {}) || {};
+    const current = Array.isArray(settings.stopSyncPaths)
+        ? settings.stopSyncPaths
+        : [];
+    settings.stopSyncPaths = current.filter((p) => p !== src);
+
     await store.set("settings", settings);
 
     return true;
