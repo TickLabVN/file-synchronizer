@@ -65,3 +65,12 @@ contextBridge.exposeInMainWorld("windowControls", {
     close: () => ipcRenderer.send("window-close"),
     isMaximized: () => ipcRenderer.invoke("window-isMaximized"),
 });
+
+contextBridge.exposeInMainWorld("electron", {
+    ipcRenderer: {
+        send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+        on: (channel, listener) => ipcRenderer.on(channel, listener),
+        removeListener: (channel, listener) =>
+            ipcRenderer.removeListener(channel, listener),
+    },
+});

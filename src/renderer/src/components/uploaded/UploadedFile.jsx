@@ -8,7 +8,7 @@ import {
     ChevronDown,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ggdrive from "@assets/ggdrive.svg";
 import box from "@assets/box.svg";
 import FileExtIcon from "../FileExtIcon";
@@ -81,9 +81,12 @@ const SEP = isWin ? "\\" : "/";
 function buildTree(list) {
     const root = {};
     for (const item of list) {
-        const parts = item.src.split(/[/\\]/);
+        const isWin = navigator?.userAgent.includes("Windows");
+        const SEP = isWin ? "\\" : "/";
+        const hasLeadingSep = !isWin && item.src.startsWith(SEP);
+        const parts = item.src.split(/[/\\]/).filter(Boolean);
         let cur = root;
-        let acc = ""; // path tích luỹ
+        let acc = hasLeadingSep ? SEP : "";
         parts.forEach((seg, idx) => {
             acc += (acc ? SEP : "") + seg;
             cur.children ??= {};
@@ -190,6 +193,11 @@ export default function UploadedFile({
     resumeSyncPaths = [],
 }) {
     const [expanded, setExpanded] = useState({});
+    const [, forceRerender] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => forceRerender((n) => n + 1), 30_000);
+        return () => clearInterval(id);
+    }, []);
 
     /* --------------------- Chuẩn hoá dữ liệu để render --------------------- */
     const tree = useMemo(() => {
