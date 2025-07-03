@@ -27,6 +27,11 @@ function notifyRenderer() {
         w.webContents.send("tracked-files-updated")
     );
 }
+function toastAll(message) {
+    BrowserWindow.getAllWindows().forEach((w) =>
+        w.webContents.send("app:toast", message)
+    );
+}
 
 function isPathStopped(p, stop, resume, SEP) {
     const blocked = stop.some((s) => p === s || p.startsWith(s + SEP));
@@ -343,6 +348,9 @@ export async function syncOnLaunch() {
             console.log(
                 "[sync] Skipping sync-on-launch – another device is syncing"
             );
+            toastAll(
+                "Skipped sync: another device is currently syncing to Google Drive"
+            );
             return true;
         }
         try {
@@ -495,8 +503,9 @@ export async function syncBoxOnLaunch() {
     );
     if (!acquired) {
         console.log(
-            "[sync] Skipping Box sync-on-launch – another device is syncing"
+            "[sync] Skipping sync-on-launch – another device is syncing"
         );
+        toastAll("Skipped sync: another device is currently syncing to Box");
         return true;
     }
     try {

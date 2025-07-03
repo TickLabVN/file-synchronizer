@@ -67,6 +67,14 @@ const App = () => {
 
     useEffect(() => {
         if (!window?.electron?.ipcRenderer) return;
+        const onToast = (_, msg) => toast.info(msg, { toastId: msg });
+        window.electron.ipcRenderer.on("app:toast", onToast);
+        return () =>
+            window.electron.ipcRenderer.removeListener("app:toast", onToast);
+    }, []);
+
+    useEffect(() => {
+        if (!window?.electron?.ipcRenderer) return;
         const handler = (_, data) => {
             setProvider(data); // {type, accountId} | null
             if (!data) return setUsername("");
