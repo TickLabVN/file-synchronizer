@@ -81,14 +81,13 @@ const SEP = isWin ? "\\" : "/";
 function buildTree(list) {
     const root = {};
     for (const item of list) {
-        const isWin = navigator?.userAgent.includes("Windows");
-        const SEP = isWin ? "\\" : "/";
         const hasLeadingSep = !isWin && item.src.startsWith(SEP);
         const parts = item.src.split(/[/\\]/).filter(Boolean);
         let cur = root;
-        let acc = hasLeadingSep ? SEP : "";
+        let acc = "";
         parts.forEach((seg, idx) => {
-            acc += (acc ? SEP : "") + seg;
+            const prefix = idx === 0 && hasLeadingSep ? SEP : acc ? SEP : "";
+            acc += prefix + seg;
             cur.children ??= {};
             if (!cur.children[seg]) {
                 cur.children[seg] = {
