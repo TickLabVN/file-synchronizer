@@ -22,7 +22,7 @@ import { cleanupDriveLockOnExit, cleanupBoxLockOnExit } from "./utils/lock.js";
 
 const { BACKEND_URL, store } = constants;
 const { autoUpdater } = pkg;
-const BASE_INTERVAL = 10 * 1000;
+const BASE_INTERVAL = 5 * 60 * 1000;
 const JITTER_RANGE = 30 * 1000;
 function nextDelay() {
     return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
