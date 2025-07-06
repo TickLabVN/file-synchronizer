@@ -1,8 +1,9 @@
-import express from "express";
-import driveRoutes from "./routes/driveRoutes.js";
-import boxRoutes from "./routes/boxRoutes.js";
+import express, { Request, Response } from "express";
+import driveRoutes from "./routes/driveRoutes";
+import boxRoutes from "./routes/boxRoutes";
 import path from "path";
 import { fileURLToPath } from "url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -12,7 +13,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 
 app.use("/auth/google", driveRoutes);
 app.use("/auth/box", boxRoutes);
-app.get("/", (req, res) => {
+app.get("/", (req: Request, res: Response) => {
     res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 

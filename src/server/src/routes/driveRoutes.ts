@@ -5,9 +5,9 @@ import {
     getToken,
     setTokens,
     refreshTokens,
-} from "../controllers/driveControllers.js";
+} from "../controllers/driveControllers";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/", auth);
 router.get("/callback", callback);

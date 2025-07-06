@@ -6,9 +6,9 @@ import {
     setTokens,
     refreshTokens,
     me,
-} from "../controllers/boxControllers.js";
+} from "../controllers/boxControllers";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/", auth);
 router.get("/callback", callback);
