@@ -36,7 +36,7 @@
         "build:mac": "npm run build && electron-builder --mac",
         "build:linux": "npm run build && electron-builder --linux",
         "prepare": "husky",
-        "server": "nodemon backend/src/index.js"
+        "server": "nodemon src/server/src/index.js"
     },
     "dependencies": {
         "@electron-toolkit/preload": "^3.0.1",
@@ -79,6 +79,7 @@
         "@electron-toolkit/eslint-config-prettier": "^3.0.0",
         "@electron-toolkit/eslint-config-ts": "^3.0.0",
         "@electron-toolkit/tsconfig": "^1.0.1",
+        "@types/express": "^5.0.3",
         "@types/node": "^22.14.1",
         "@types/react": "^19.1.1",
         "@types/react-dom": "^19.1.2",

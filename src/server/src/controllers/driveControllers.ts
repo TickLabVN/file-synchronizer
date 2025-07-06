@@ -1,32 +1,37 @@
-import { oauth2Client, SCOPES } from "../config/driveAuth.js";
+import { oauth2Client, SCOPES } from "../config/driveAuth";
+import { Request, Response } from "express";
 
 // Redirects user to Google's consent page
-export const auth = (req, res) => {
+export const auth = (req: Request, res: Response): void => {
     const url = oauth2Client.generateAuthUrl({
         access_type: "offline",
         scope: SCOPES,
         prompt: "consent",
-        state: req.query.state || "",
+        state: typeof req.query.state === "string" ? req.query.state : "",
     });
     res.redirect(url);
 };
 
 // Handles OAuth callback and returns code to client app
-export const callback = (req, res) => {
-    const code = req.query.code;
-    if (!code) {
-        console.error("No code in callback");
+export const callback = (req: Request, res: Response): Response | void => {
+    const code = Array.isArray(req.query.code)
+        ? req.query.code[0]
+        : req.query.code;
+    if (typeof code !== "string" || !code)
         return res.status(400).send("Missing code");
-    }
     res.redirect(`myapp://oauth?code=${encodeURIComponent(code)}`);
 };
 
 // Exchanges authorization code for tokens
-export const getToken = async (req, res) => {
-    const code = req.query.code;
-    if (!code) {
-        return res.status(400).json({ error: "Missing code" });
-    }
+export const getToken = async (
+    req: Request,
+    res: Response
+): Promise<Response | void> => {
+    const code = Array.isArray(req.query.code)
+        ? req.query.code[0]
+        : req.query.code;
+    if (typeof code !== "string" || !code)
+        return res.status(400).send("Missing code");
     try {
         const { tokens } = await oauth2Client.getToken(code);
         res.json(tokens);
@@ -37,7 +42,7 @@ export const getToken = async (req, res) => {
 };
 
 // Sets tokens on the OAuth2 client (from stored credentials)
-export const setTokens = (req, res) => {
+export const setTokens = (req: Request, res: Response): Response | void => {
     const tokens = req.body;
     if (!tokens) {
         return res.status(400).json({ error: "Missing tokens" });
@@ -47,7 +52,10 @@ export const setTokens = (req, res) => {
 };
 
 // Refreshes access token using refresh token
-export const refreshTokens = async (req, res) => {
+export const refreshTokens = async (
+    req: Request,
+    res: Response
+): Promise<Response | void> => {
     try {
         const { credentials } = await oauth2Client.refreshAccessToken();
         res.json(credentials);
