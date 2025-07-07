@@ -1,7 +1,19 @@
 import path from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
-const { mapping } = constants;
+const { mapping } = constants as {
+    mapping: Record<
+        string,
+        {
+            id: string;
+            parentId: string;
+            lastSync: string;
+            provider: string;
+            username: string;
+            isDirectory: boolean;
+        }
+    >;
+};
 
 // * This function downloads a tree structure from Google Drive to a local directory.
 /**
@@ -13,21 +25,38 @@ const { mapping } = constants;
  * @param {object} drive - The authenticated Google Drive API client.
  */
 export default async function downloadTree(
-    parentId,
-    localDir,
-    drive,
-    entries = [],
-    provider = "google",
-    username = "default"
-) {
+    parentId: string,
+    localDir: string,
+    drive: import("googleapis").drive_v3.Drive,
+    entries: {
+        path: string;
+        id: string;
+        parentId: string;
+        origOS?: string;
+        provider: string;
+        username: string;
+    }[] = [],
+    provider: string = "google",
+    username: string = "default"
+): Promise<
+    Array<{
+        path: string;
+        id: string;
+        parentId: string;
+        origOS?: string;
+        provider: string;
+        username: string;
+    }>
+> {
     await fs.promises.mkdir(localDir, { recursive: true });
-    let pageToken = null;
+    let pageToken: string | undefined = undefined;
     do {
-        const { data } = await drive.files.list({
+        const response = await drive.files.list({
             q: `'${parentId}' in parents and trashed=false`,
             fields: "nextPageToken, files(id, name, mimeType, appProperties)",
             pageToken,
         });
+        const { data } = response;
 
         for (const file of data.files) {
             const orig = file.appProperties?.originalPath;

@@ -2,7 +2,18 @@
 import path from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
-const { boxMapping } = constants;
+interface BoxMappingValue {
+    id: string;
+    parentId: string;
+    isFolder: boolean;
+    lastSync: string;
+    provider: string;
+    username: string;
+}
+
+const { boxMapping } = constants as {
+    boxMapping: Record<string, BoxMappingValue>;
+};
 
 /**
  * Tải toàn bộ cây thư mục trên Box về máy cục bộ.
@@ -16,14 +27,52 @@ const { boxMapping } = constants;
  * @param {Array<object>} [entries]  Mảng dùng đệ quy để trả về danh sách đã tải
  * @returns {Promise<Array<object>>} Danh sách tất cả item đã xử lý
  */
+interface DownloadEntry {
+    path: string;
+    id: string;
+    parentId: string;
+    origOS: string | undefined;
+    provider: string;
+    username: string;
+}
+
 export default async function downloadTreeBox(
-    parentId,
-    localDir,
-    client,
-    entries = [],
-    provider = "box",
-    username = "default"
-) {
+    parentId: string,
+    localDir: string,
+    client: {
+        folders: {
+            getItems: (
+                id: string,
+                options?: { fields?: string; limit?: number; offset?: number }
+            ) => Promise<{
+                entries: Array<{ id: string; type: string; name: string }>;
+            }>;
+            getMetadata: (
+                id: string,
+                scope: string,
+                templateKey: string
+            ) => Promise<Record<string, unknown>>;
+        };
+        files: {
+            getMetadata: (
+                id: string,
+                scope: string,
+                templateKey: string
+            ) => Promise<Record<string, unknown>>;
+            getReadStream: (
+                id: string,
+                options?: unknown,
+                callback?: (
+                    err: Error | null,
+                    stream?: NodeJS.ReadableStream
+                ) => void
+            ) => NodeJS.ReadableStream;
+        };
+    },
+    entries: DownloadEntry[] = [],
+    provider: string = "box",
+    username: string = "default"
+): Promise<DownloadEntry[]> {
     // Bảo đảm thư mục đích tồn tại
     await fs.promises.mkdir(localDir, { recursive: true });
 
@@ -41,20 +90,25 @@ export default async function downloadTreeBox(
 
         for (const item of items) {
             // ----- LẤY METADATA originalPath & os -----
-            let meta = {};
+            interface MetaData {
+                originalPath?: string;
+                os?: string;
+                [key: string]: unknown;
+            }
+            let meta: MetaData = {};
             try {
                 if (item.type === "file") {
-                    meta = await client.files.getMetadata(
+                    meta = (await client.files.getMetadata(
                         item.id,
                         "global",
                         "properties"
-                    );
+                    )) as MetaData;
                 } else if (item.type === "folder") {
-                    meta = await client.folders.getMetadata(
+                    meta = (await client.folders.getMetadata(
                         item.id,
                         "global",
                         "properties"
-                    );
+                    )) as MetaData;
                 }
             } catch (err) {
                 // 404 = chưa có metadata → bỏ qua
@@ -124,6 +178,8 @@ export default async function downloadTreeBox(
                 await new Promise((resolve, reject) => {
                     client.files.getReadStream(item.id, null, (err, stream) => {
                         if (err) return reject(err);
+                        if (!stream)
+                            return reject(new Error("Stream is undefined"));
                         stream
                             .on("error", reject)
                             .on("end", resolve)

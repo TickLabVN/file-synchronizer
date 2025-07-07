@@ -1,7 +1,13 @@
 import path from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
-const { boxMapping, store } = constants;
+const { boxMapping, store } = constants as unknown as {
+    boxMapping: Record<
+        string,
+        { id: string; isFolder?: boolean; lastSync?: string }
+    >;
+    store: { set: (key: string, value: unknown) => Promise<void> };
+};
 
 /**
  * Duyệt cây thư mục cục bộ rồi so sánh/đồng bộ với Box.
@@ -13,7 +19,11 @@ const { boxMapping, store } = constants;
  * @param {import("box-node-sdk").BoxClient} client  Box SDK client
  * @returns {Promise<boolean>} true nếu có thay đổi ở xa
  */
-export default async function traverseCompareBox(srcPath, itemId, client) {
+export default async function traverseCompareBox(
+    srcPath: string,
+    itemId: string,
+    client
+): Promise<boolean> {
     let hasChanged = false;
     const rec = boxMapping[srcPath]; // luôn có vì được map sẵn
 
