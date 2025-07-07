@@ -36,7 +36,7 @@
         "build:mac": "npm run build && electron-builder --mac",
         "build:linux": "npm run build && electron-builder --linux",
         "prepare": "husky",
-        "dev:server": "tsx watch src/server/src/index.ts"
+        "server": "tsx watch src/server/src/index.ts"
     },
     "dependencies": {
         "@electron-toolkit/preload": "^3.0.1",
