@@ -2,7 +2,17 @@ import path from "path";
 import fs from "fs";
 import "dotenv/config";
 import { constants } from "../lib/constants";
-const { mapping } = constants;
+import { drive_v3 } from "googleapis";
+type MappingRecord = {
+    id: string;
+    parentId: string;
+    lastSync: string;
+    provider: string | null;
+    username: unknown;
+    isDirectory: boolean;
+};
+
+const { mapping } = constants as { mapping: Record<string, MappingRecord> };
 
 // * Traverse a directory structure and upload files to Google Drive
 /**
@@ -14,13 +24,13 @@ const { mapping } = constants;
  * @param {object} drive - The authenticated Google Drive API client.
  */
 export default async function traverseAndUpload(
-    srcPath,
-    parentId,
-    drive,
-    exclude = [],
-    provider = null,
-    username = null
-) {
+    srcPath: string,
+    parentId: string,
+    drive: drive_v3.Drive,
+    exclude: string[] = [],
+    provider: string | null = null,
+    username: unknown = null
+): Promise<void> {
     // Check if the path is excluded
     if (exclude.includes(srcPath)) {
         console.log(`Skipping excluded path: ${srcPath}`);
@@ -28,7 +38,9 @@ export default async function traverseAndUpload(
     }
     const stats = await fs.promises.stat(srcPath);
     const key = srcPath;
-    const record = mapping[key];
+    const record = (mapping as Record<string, MappingRecord>)[key] as
+        | MappingRecord
+        | undefined;
 
     if (stats.isDirectory()) {
         const existingFolder = record && record.parentId === parentId;
@@ -46,7 +58,12 @@ export default async function traverseAndUpload(
                 },
                 fields: "id",
             });
-            folderId = folderRes.data.id;
+            folderId = folderRes.data.id ?? null;
+            if (!folderId) {
+                throw new Error(
+                    `Failed to create or retrieve folder ID for path: ${srcPath}`
+                );
+            }
             mapping[key] = {
                 id: folderId,
                 parentId,
@@ -92,6 +109,11 @@ export default async function traverseAndUpload(
                 },
                 media: { body: fs.createReadStream(srcPath) },
             });
+            if (!fileRes.data.id) {
+                throw new Error(
+                    `Failed to create or retrieve file ID for path: ${srcPath}`
+                );
+            }
             mapping[key] = {
                 id: fileRes.data.id,
                 parentId,

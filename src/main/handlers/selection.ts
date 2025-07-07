@@ -6,7 +6,7 @@ import { constants } from "../lib/constants";
 
 const { store, mapping } = constants;
 
-async function getDirSize(dir) {
+async function getDirSize(dir): Promise<number> {
     const entries = await fs.promises.readdir(dir, { withFileTypes: true });
     let total = 0;
     for (const e of entries) {
@@ -19,9 +19,15 @@ async function getDirSize(dir) {
     }
     return total;
 }
+
 // Handle selecting multiple files
-export async function selectFiles() {
+export async function selectFiles(): Promise<
+    { path: string; size: number; isDirectory: boolean }[] | null
+> {
     const win = BrowserWindow.getFocusedWindow();
+    if (!win) {
+        throw new Error("No focused window to show dialog");
+    }
 
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openFile", "multiSelections"],
@@ -37,8 +43,13 @@ export async function selectFiles() {
 }
 
 // Handle selecting multiple folders
-export async function selectFolders() {
+export async function selectFolders(): Promise<
+    { path: string; size: number; isDirectory: boolean }[] | null
+> {
     const win = BrowserWindow.getFocusedWindow();
+    if (!win) {
+        throw new Error("No focused window to show dialog");
+    }
 
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
         properties: ["openDirectory", "multiSelections"],
@@ -54,8 +65,11 @@ export async function selectFolders() {
 }
 
 // Handle selecting files to stop syncing
-export async function selectStopSyncFiles() {
+export async function selectStopSyncFiles(): Promise<string[] | null> {
     const win = BrowserWindow.getFocusedWindow();
+    if (!win) {
+        throw new Error("No focused window to show dialog");
+    }
 
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath;
@@ -94,9 +108,8 @@ export async function selectStopSyncFiles() {
         })
     );
 
-    const matchedSrcs = [];
-    // eslint-disable-next-line no-unused-vars
-    for (const [src, _] of Object.entries(mapping)) {
+    const matchedSrcs: string[] = [];
+    for (const src of Object.keys(mapping as Record<string, unknown>)) {
         let st;
         try {
             st = await fs.promises.stat(src);
@@ -111,14 +124,17 @@ export async function selectStopSyncFiles() {
         }
     }
 
-    const settings = store.get("settings", {});
+    const settings = store.get("settings", {}) as { stopSyncPaths?: string[] };
     const prev = settings.stopSyncPaths || [];
     const next = Array.from(new Set([...prev, ...matchedSrcs]));
     store.set("settings", { ...settings, stopSyncPaths: next });
     return next;
 }
 
-export async function listDirectory(_, dirPath) {
+export async function listDirectory(
+    _: unknown,
+    dirPath: string
+): Promise<{ path: string; isDirectory: boolean; size: number | null }[]> {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
     return Promise.all(
         entries.map(async (e) => {
@@ -134,7 +150,10 @@ export async function listDirectory(_, dirPath) {
     );
 }
 
-export async function openInExplorer(_, fullPath) {
+export async function openInExplorer(
+    _: unknown,
+    fullPath: string
+): Promise<boolean> {
     try {
         if (!fs.existsSync(fullPath)) return false;
         const st = fs.statSync(fullPath);
