@@ -65,7 +65,7 @@ export default async function traverseCompareBox(
         }
     } catch (err) {
         // File/folder đã bị xoá cục bộ → xoá trên Box
-        if (err.code === "ENOENT") {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
             try {
                 if (rec?.isFolder) {
                     await client.folders.delete(itemId, { recursive: true });

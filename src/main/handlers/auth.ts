@@ -76,10 +76,10 @@ export async function handleSignIn(): Promise<{
             }
         }
 
-        authWin.webContents.on("will-redirect", (event, url) => {
+        authWin.webContents.on("will-redirect", (_, url) => {
             handleRedirect(url);
         });
-        authWin.webContents.on("will-navigate", (event, url) => {
+        authWin.webContents.on("will-navigate", (_, url) => {
             handleRedirect(url);
         });
 
@@ -204,10 +204,10 @@ export async function handleBoxSignIn(): Promise<{
             }
         }
 
-        authWin.webContents.on("will-redirect", (event, url) => {
+        authWin.webContents.on("will-redirect", (_, url) => {
             handleRedirect(url);
         });
-        authWin.webContents.on("will-navigate", (event, url) => {
+        authWin.webContents.on("will-navigate", (_, url) => {
             handleRedirect(url);
         });
 

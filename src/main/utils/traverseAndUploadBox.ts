@@ -48,6 +48,18 @@ const { boxMapping } = constants as {
     boxMapping: Record<string, BoxMappingEntry>;
 };
 
+interface HasStatusCode {
+    statusCode: number;
+}
+
+function hasStatusCode(e: unknown): e is HasStatusCode {
+    return (
+        typeof e === "object" &&
+        e !== null &&
+        "statusCode" in e &&
+        typeof (e as HasStatusCode).statusCode === "number"
+    );
+}
 export async function traverseAndUploadBox(
     srcPath: string,
     parentId: string,
@@ -86,9 +98,11 @@ export async function traverseAndUploadBox(
                     { originalPath: srcPath, os: process.platform }
                 );
             } catch (err) {
-                // 409 = metadata already exists – safe to ignore
-                if (err.statusCode !== 409)
+                if (hasStatusCode(err) && err.statusCode !== 409) {
                     console.warn("Metadata folder", err);
+                } else {
+                    throw err; // đừng nuốt lỗi khác
+                }
             }
 
             boxMapping[key] = {
@@ -143,7 +157,11 @@ export async function traverseAndUploadBox(
                     { originalPath: srcPath, os: process.platform }
                 );
             } catch (err) {
-                if (err.statusCode !== 409) console.warn("Metadata file", err);
+                if (hasStatusCode(err) && err.statusCode !== 409) {
+                    console.warn("Metadata folder", err);
+                } else {
+                    throw err; // đừng nuốt lỗi khác
+                }
             }
 
             boxMapping[key] = {

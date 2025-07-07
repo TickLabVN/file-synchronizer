@@ -124,7 +124,7 @@ export async function deleteTrackedFile(_, src): Promise<boolean> {
     try {
         await fs.promises.unlink(linkPath);
     } catch (err) {
-        if (err.code !== "ENOENT") {
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
             console.error("Local unlink error:", err);
         }
     }
@@ -195,7 +195,7 @@ export async function deleteTrackedFileBox(_, src): Promise<boolean> {
     try {
         await fs.promises.unlink(linkPath);
     } catch (err) {
-        if (err.code !== "ENOENT") {
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
             console.error("Local unlink error:", err);
         }
     }

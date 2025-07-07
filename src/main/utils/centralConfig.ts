@@ -20,7 +20,9 @@ export default async function createCentralFolder(): Promise<string> {
             return centralFolderPath;
         }
     } catch (err) {
-        if (err.code !== "ENOENT") throw err; // If it's not a "file not found" error, rethrow
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+            console.error("Error reading central config:", err);
+        }
     }
 
     // Create the central folder in the user data directory

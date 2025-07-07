@@ -115,8 +115,8 @@ export async function syncFiles(
         spaces: "drive",
     });
     let driveFolderId;
-    if (listRes.data.files.length) {
-        driveFolderId = listRes.data.files[0].id;
+    if ((listRes.data.files ?? []).length) {
+        driveFolderId = (listRes.data.files ?? [])[0].id;
     } else {
         const createRes = await drive.files.create({
             requestBody: {
@@ -155,8 +155,14 @@ export async function syncFiles(
             const linkType = stats.isDirectory() ? "junction" : "file";
             try {
                 await fs.promises.symlink(p, linkPath, linkType);
-            } catch (err) {
-                if (process.platform === "win32" && err.code === "EPERM") {
+            } catch (err: unknown) {
+                if (
+                    process.platform === "win32" &&
+                    typeof err === "object" &&
+                    err !== null &&
+                    "code" in err &&
+                    (err as { code?: string }).code === "EPERM"
+                ) {
                     // Windows symlink not permitted: fallback to copy
                     if (stats.isDirectory()) {
                         await fs.promises.cp(p, linkPath, { recursive: true });
@@ -184,13 +190,15 @@ export async function syncFiles(
             await store.set("driveMapping", mapping);
             notifyRenderer();
         } catch (err) {
-            if (err.code === "ENOENT") {
+            if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                 console.warn(
                     `Path "${p}" not found locally, cleaning up on Drive...`
                 );
                 await cleanupDrive(p, drive);
                 await store.set("driveMapping", mapping);
-                failed.push({ path: p, message: err.message });
+                const message =
+                    err instanceof Error ? err.message : String(err);
+                failed.push({ path: p, message });
                 continue;
             }
             throw err;
@@ -268,9 +276,14 @@ export async function syncBoxFiles(
 
             try {
                 await fs.promises.symlink(p, linkPath, linkType);
-            } catch (err) {
-                // On Windows the user may lack the SeCreateSymbolicLink privilege
-                if (process.platform === "win32" && err.code === "EPERM") {
+            } catch (err: unknown) {
+                if (
+                    process.platform === "win32" &&
+                    typeof err === "object" &&
+                    err !== null &&
+                    "code" in err &&
+                    (err as { code?: string }).code === "EPERM"
+                ) {
                     if (stats.isDirectory()) {
                         await fs.promises.cp(p, linkPath, { recursive: true });
                     } else {
@@ -298,13 +311,15 @@ export async function syncBoxFiles(
             notifyRenderer();
         } catch (err) {
             // 4d‑iv. Handle a path that disappeared locally
-            if (err.code === "ENOENT") {
+            if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                 console.warn(
                     `Path "${p}" not found locally, cleaning up on Box…`
                 );
                 await cleanupBox(p, client);
                 await store.set("boxMapping", boxMapping);
-                failed.push({ path: p, message: err.message });
+                const message =
+                    err instanceof Error ? err.message : String(err);
+                failed.push({ path: p, message });
                 continue;
             }
             throw err;
@@ -343,7 +358,7 @@ export async function syncOnLaunch(): Promise<boolean> {
     } = await drive.about.get({ fields: "user" });
 
     const driveUsername =
-        driveUser.displayName || driveUser.emailAddress || "Unknown";
+        driveUser?.displayName || driveUser?.emailAddress || "Unknown";
 
     console.log("Starting auto-delete on launch...");
     const listRes = await drive.files.list({
@@ -351,14 +366,26 @@ export async function syncOnLaunch(): Promise<boolean> {
         fields: "files(id)",
         spaces: "drive",
     });
-    if (!listRes.data.files.length) {
+    if (!listRes.data.files || !listRes.data.files.length) {
         console.warn("Drive backup folder not found, skipping deletion check");
     } else {
         const driveFolderId = listRes.data.files[0].id;
+        if (!driveFolderId) {
+            console.warn(
+                "Drive backup folder ID not found, skipping deletion check"
+            );
+            return true;
+        }
         const { acquired, lockId } = await acquireDriveLock(
             drive,
             driveFolderId,
-            deviceId
+            typeof deviceId === "string"
+                ? deviceId
+                : typeof deviceId === "object" &&
+                    deviceId !== null &&
+                    "id" in deviceId
+                  ? (deviceId as { id: string }).id
+                  : ""
         );
         if (!acquired) {
             console.log(
@@ -376,7 +403,7 @@ export async function syncOnLaunch(): Promise<boolean> {
                 try {
                     await fs.promises.stat(src);
                 } catch (err) {
-                    if (err.code === "ENOENT") {
+                    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                         const linkPath = path.join(
                             centralFolderPath,
                             path.basename(src)
@@ -408,7 +435,7 @@ export async function syncOnLaunch(): Promise<boolean> {
                     try {
                         await fs.promises.lstat(linkPath);
                     } catch (err) {
-                        if (err.code === "ENOENT") {
+                        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                             try {
                                 await drive.files.delete({ fileId: record.id });
                                 console.log(
@@ -541,7 +568,13 @@ export async function syncBoxOnLaunch(): Promise<boolean> {
     const { acquired, lockId } = await acquireBoxLock(
         client,
         rootFolderId,
-        deviceId
+        typeof deviceId === "string"
+            ? deviceId
+            : typeof deviceId === "object" &&
+                deviceId !== null &&
+                "id" in deviceId
+              ? (deviceId as { id: string }).id
+              : ""
     );
     if (!acquired) {
         console.log(
@@ -555,7 +588,7 @@ export async function syncBoxOnLaunch(): Promise<boolean> {
             try {
                 await fs.promises.stat(src);
             } catch (err) {
-                if (err.code === "ENOENT") {
+                if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                     const linkPath = path.join(
                         centralFolderPath,
                         path.basename(src)
@@ -591,7 +624,7 @@ export async function syncBoxOnLaunch(): Promise<boolean> {
                 try {
                     await fs.promises.lstat(linkPath);
                 } catch (err) {
-                    if (err.code === "ENOENT") {
+                    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                         try {
                             if (record.isFolder) {
                                 if (typeof record.id === "string") {
@@ -698,8 +731,9 @@ export async function pullFromDrive(): Promise<boolean> {
         fields: "files(id)",
         spaces: "drive",
     });
-    if (!root.length) throw new Error("Drive backup folder not found");
-    const rootId = root[0].id;
+    if (!root || !root.length || !root[0].id)
+        throw new Error("Drive backup folder not found");
+    const rootId: string = root[0].id;
 
     const pulledEntries = await downloadTree(
         rootId,
@@ -734,8 +768,14 @@ export async function pullFromDrive(): Promise<boolean> {
         const type = stats.isDirectory() ? "junction" : "file";
         try {
             await fs.promises.symlink(src, destLink, type);
-        } catch (err) {
-            if (process.platform === "win32" && err.code === "EPERM") {
+        } catch (err: unknown) {
+            if (
+                process.platform === "win32" &&
+                typeof err === "object" &&
+                err !== null &&
+                "code" in err &&
+                (err as { code?: string }).code === "EPERM"
+            ) {
                 if (stats.isDirectory()) {
                     await fs.promises.cp(src, destLink, { recursive: true });
                 } else {
@@ -814,8 +854,14 @@ export async function pullFromBox(): Promise<boolean> {
         const type = stats.isDirectory() ? "junction" : "file";
         try {
             await fs.promises.symlink(src, destLink, type);
-        } catch (err) {
-            if (process.platform === "win32" && err.code === "EPERM") {
+        } catch (err: unknown) {
+            if (
+                process.platform === "win32" &&
+                typeof err === "object" &&
+                err !== null &&
+                "code" in err &&
+                (err as { code?: string }).code === "EPERM"
+            ) {
                 if (stats.isDirectory()) {
                     await fs.promises.cp(src, destLink, { recursive: true });
                 } else {
