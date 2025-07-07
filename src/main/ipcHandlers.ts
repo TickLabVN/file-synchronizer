@@ -5,7 +5,7 @@ import * as settings from "./handlers/settings";
 import * as sync from "./handlers/sync";
 import * as trackedFiles from "./handlers/trackedFiles";
 
-export default function registerIpcHandlers() {
+export default function registerIpcHandlers(): void {
     // GOOGLE DRIVE
     ipcMain.handle("google-drive:sign-in", auth.handleSignIn);
     ipcMain.handle("google-drive:list-accounts", auth.listAccounts);

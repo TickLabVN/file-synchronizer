@@ -1,24 +1,29 @@
 import { BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
+//@ts-ignore: Ignore import error
 import icon from "../../resources/icon.png?asset";
 import "dotenv/config";
 import { is } from "@electron-toolkit/utils";
 
 const fileURL = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURL);
-let win;
+let win: BrowserWindow | null = null;
 
 // Handle window controls for custom title bar
-ipcMain.on("window-minimize", () => win.minimize());
-ipcMain.on("window-maximize", () => {
-    if (win.isMaximized()) win.unmaximize();
-    else win.maximize();
+ipcMain.on("window-minimize", () => {
+    if (win) win.minimize();
 });
-ipcMain.on("window-close", () => win.close());
-ipcMain.handle("window-isMaximized", () => win.isMaximized());
+ipcMain.on("window-maximize", () => {
+    if (win && win.isMaximized()) win.unmaximize();
+    else if (win) win.maximize();
+});
+ipcMain.on("window-close", () => {
+    if (win) win.close();
+});
+ipcMain.handle("window-isMaximized", () => (win ? win.isMaximized() : false));
 
-export default function createWindow() {
+export default function createWindow(): BrowserWindow {
     win = new BrowserWindow({
         width: 800,
         height: 600,
