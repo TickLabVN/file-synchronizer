@@ -7,7 +7,10 @@ export const LOCK_NAME = "__ticklabfs_sync.lock";
  * Xoá ngay file khoá khi thoát app.
  * KHÔNG kiểm tra TTL, cứ gặp là xoá.
  */
-export async function cleanupDriveLockOnExit(drive, backupFolderId) {
+export async function cleanupDriveLockOnExit(
+    drive,
+    backupFolderId
+): Promise<void> {
     const { data } = await drive.files.list({
         q: `'${backupFolderId}' in parents and name='${LOCK_NAME}' and trashed=false`,
         fields: "files(id)",
@@ -26,7 +29,10 @@ export async function cleanupDriveLockOnExit(drive, backupFolderId) {
     }
 }
 
-export async function cleanupBoxLockOnExit(client, backupFolderId) {
+export async function cleanupBoxLockOnExit(
+    client,
+    backupFolderId
+): Promise<void> {
     const { entries } = await client.folders.getItems(backupFolderId, {
         fields: "id,name",
         limit: 1000,
@@ -45,10 +51,10 @@ export async function cleanupBoxLockOnExit(client, backupFolderId) {
 /** ---------------- GOOGLE DRIVE ---------------- */
 export async function acquireDriveLock(
     drive,
-    backupFolderId,
-    deviceId,
-    ttlMs = 10 * 60 * 1e3
-) {
+    backupFolderId: string,
+    deviceId: string,
+    ttlMs: number = 10 * 60 * 1e3
+): Promise<{ acquired: boolean; lockId?: string }> {
     const LOCK_NAME = "__ticklabfs_sync.lock";
     const { data } = await drive.files.list({
         q: `'${backupFolderId}' in parents and name='${LOCK_NAME}' and trashed=false`,
@@ -84,7 +90,7 @@ export async function acquireDriveLock(
     return { acquired: true, lockId: res.data.id };
 }
 
-export async function releaseDriveLock(drive, lockId) {
+export async function releaseDriveLock(drive, lockId): Promise<void> {
     if (lockId) {
         try {
             await drive.files.delete({ fileId: lockId });
@@ -105,10 +111,10 @@ export async function releaseDriveLock(drive, lockId) {
 /** ---------------- BOX ---------------- */
 export async function acquireBoxLock(
     client,
-    backupFolderId,
-    deviceId,
-    ttlMs = 10 * 60 * 1e3
-) {
+    backupFolderId: string,
+    deviceId: string,
+    ttlMs: number = 10 * 60 * 1e3
+): Promise<{ acquired: boolean; lockId?: string }> {
     const LOCK_NAME = "__ticklabfs_sync.lock";
     const { entries } = await client.folders.getItems(backupFolderId, {
         fields: "id,name,created_at",
@@ -143,7 +149,7 @@ export async function acquireBoxLock(
     return { acquired: true, lockId: fileEntry.id };
 }
 
-export async function releaseBoxLock(client, lockId) {
+export async function releaseBoxLock(client, lockId): Promise<void> {
     if (lockId) {
         try {
             await client.files.delete(lockId);

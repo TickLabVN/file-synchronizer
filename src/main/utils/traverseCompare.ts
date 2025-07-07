@@ -2,7 +2,16 @@ import path from "path";
 import fs from "fs";
 import "dotenv/config";
 import { constants } from "../lib/constants";
-const { mapping, store } = constants;
+import { drive_v3 } from "googleapis";
+const { mapping, store } = constants as {
+    mapping: Record<string, { id: string; lastSync?: string }>;
+    store: {
+        get: (
+            key: string,
+            defaultValue: Record<string, unknown>
+        ) => { stopSyncPaths?: string[] };
+    };
+};
 
 // * Traverse a directory structure and compare local files with Google Drive.
 /**
@@ -14,8 +23,12 @@ const { mapping, store } = constants;
  * @param {string} fileId - The ID of the file or folder in Google Drive.
  * @param {object} drive - The authenticated Google Drive API client.
  */
-export default async function traverseCompare(srcPath, fileId, drive) {
-    const settings = store.get("settings", {});
+export default async function traverseCompare(
+    srcPath: string,
+    fileId: string,
+    drive: drive_v3.Drive
+): Promise<boolean> {
+    const settings = store.get("settings", {}) as { stopSyncPaths?: string[] };
     const stopSyncPaths = settings.stopSyncPaths || [];
     if (stopSyncPaths.includes(srcPath)) {
         return false;
@@ -43,7 +56,9 @@ export default async function traverseCompare(srcPath, fileId, drive) {
                 fileId,
                 fields: "modifiedTime",
             });
-            const remoteTime = new Date(meta.data.modifiedTime);
+            const remoteTime = meta.data.modifiedTime
+                ? new Date(meta.data.modifiedTime)
+                : new Date(0);
             const localTime = stats.mtime;
             if (localTime > remoteTime) {
                 await drive.files.update({

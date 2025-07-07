@@ -9,7 +9,7 @@ const DEFAULT_FOLDER_NAME = "__ticklabfs_central";
 const cfgPath = path.join(app.getPath("userData"), "central-config.json");
 
 // Create the central folder automatically
-export default async function createCentralFolder() {
+export default async function createCentralFolder(): Promise<string> {
     try {
         // Read the existing config file
         const raw = await fs.promises.readFile(cfgPath, "utf-8");

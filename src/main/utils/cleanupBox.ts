@@ -2,12 +2,29 @@ import path from "path";
 import { constants } from "../lib/constants";
 const { boxMapping } = constants;
 
-export default async function cleanupBox(srcPath, client) {
-    const toRemove = Object.keys(boxMapping).filter(
+interface BoxMappingRecord {
+    id: string;
+    isFolder: boolean;
+    // add other properties if needed
+}
+
+export default async function cleanupBox(
+    srcPath: string,
+    client: {
+        folders: {
+            delete: (
+                id: string,
+                options: { recursive: boolean }
+            ) => Promise<void>;
+        };
+        files: { delete: (id: string) => Promise<void> };
+    }
+): Promise<void> {
+    const toRemove = Object.keys(boxMapping as object).filter(
         (p) => p === srcPath || p.startsWith(srcPath + path.sep)
     );
     for (const p of toRemove) {
-        const rec = boxMapping[p];
+        const rec = (boxMapping as Record<string, BoxMappingRecord>)[p];
         if (rec) {
             try {
                 if (rec.isFolder) {
@@ -20,6 +37,6 @@ export default async function cleanupBox(srcPath, client) {
                 console.error(`Failed to delete ${p} on Drive:`, err);
             }
         }
-        delete boxMapping[p];
+        delete (boxMapping as Record<string, BoxMappingRecord>)[p];
     }
 }
