@@ -2,16 +2,60 @@ import path from "path";
 import fs from "fs";
 import "dotenv/config";
 import { constants } from "../lib/constants";
-const { boxMapping } = constants;
+// Define the type for boxMapping entries
+type BoxMappingEntry = {
+    id: string;
+    parentId: string;
+    isFolder: boolean;
+    lastSync: string;
+    provider?: string | null;
+    username?: string | null;
+};
+
+// Define the BoxClient interface based on the methods used in this file
+interface BoxClient {
+    folders: {
+        create(parentId: string, name: string): Promise<{ id: string }>;
+        addMetadata(
+            folderId: string,
+            scope: string,
+            template: string,
+            data: object
+        ): Promise<void>;
+    };
+    files: {
+        uploadNewFileVersion(
+            fileId: string,
+            stream: fs.ReadStream
+        ): Promise<void>;
+        uploadFile(
+            parentId: string,
+            name: string,
+            stream: fs.ReadStream
+        ): Promise<{ id: string } | { entries: { id: string }[] }>;
+        client: BoxClient;
+        addMetadata(
+            fileId: string,
+            scope: string,
+            template: string,
+            data: object
+        ): Promise<void>;
+    };
+}
+
+// Assert boxMapping as a Record<string, BoxMappingEntry>
+const { boxMapping } = constants as {
+    boxMapping: Record<string, BoxMappingEntry>;
+};
 
 export async function traverseAndUploadBox(
-    srcPath,
-    parentId,
-    client,
-    exclude = [],
-    provider = null,
-    username = null
-) {
+    srcPath: string,
+    parentId: string,
+    client: BoxClient,
+    exclude: string[] = [],
+    provider: string | null = null,
+    username: string | null = null
+): Promise<void> {
     // Skip excluded paths
     if (exclude.includes(srcPath)) {
         console.log(`Skipping excluded path: ${srcPath}`);
@@ -23,8 +67,10 @@ export async function traverseAndUploadBox(
 
     if (stats.isDirectory()) {
         // ---------------- FOLDER ----------------
-        let folderId = rec && rec.parentId === parentId ? rec.id : null;
-        if (!folderId) {
+        let folderId: string;
+        if (rec && rec.parentId === parentId) {
+            folderId = rec.id;
+        } else {
             const folder = await client.folders.create(
                 parentId,
                 path.basename(srcPath)
@@ -80,9 +126,13 @@ export async function traverseAndUploadBox(
                 path.basename(srcPath),
                 fs.createReadStream(srcPath)
             );
-            const uploaded = Array.isArray(uploadRes.entries)
-                ? uploadRes.entries[0]
-                : uploadRes;
+            const uploaded =
+                (uploadRes as { entries?: { id: string }[] }).entries &&
+                Array.isArray(
+                    (uploadRes as { entries?: { id: string }[] }).entries
+                )
+                    ? (uploadRes as { entries: { id: string }[] }).entries[0]
+                    : (uploadRes as { id: string });
 
             // Attach metadata
             try {

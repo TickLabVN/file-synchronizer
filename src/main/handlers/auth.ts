@@ -11,11 +11,16 @@ import {
     getBoxTokens,
     deleteBoxTokens,
 } from "../lib/credentials";
+// @ts-ignore: importing icon as an asset
 import icon from "../../../resources/icon.png?asset";
 
 const { BACKEND_URL, store } = constants;
 
-export async function handleSignIn() {
+export async function handleSignIn(): Promise<{
+    email: string;
+    name: string;
+    tokens: unknown;
+}> {
     const authUrl = `${BACKEND_URL}/auth/google`;
 
     return new Promise((resolve, reject) => {
@@ -25,7 +30,7 @@ export async function handleSignIn() {
             modal: true,
             title: "Sign in to Google Drive",
             icon: icon,
-            parent: BrowserWindow.getFocusedWindow(),
+            parent: BrowserWindow.getFocusedWindow() || undefined,
             autoHideMenuBar: true,
             webPreferences: {
                 nodeIntegration: false,
@@ -36,7 +41,7 @@ export async function handleSignIn() {
 
         let handled = false;
 
-        function handleRedirect(url) {
+        function handleRedirect(url: string): void {
             if (url.startsWith("myapp://oauth")) {
                 handled = true;
                 const code = new URL(url).searchParams.get("code");
@@ -88,7 +93,7 @@ export async function handleSignIn() {
     });
 }
 
-export async function listAccounts() {
+export async function listAccounts(): Promise<unknown[]> {
     try {
         return await listGDTokens(); // [{ email, tokens }]
     } catch (err) {
@@ -97,7 +102,7 @@ export async function listAccounts() {
     }
 }
 
-export async function useAccount(_, email) {
+export async function useAccount(_: unknown, email: string): Promise<boolean> {
     const tokens = await getGDTokens(email);
     if (!tokens) throw new Error("No saved Google Drive tokens for " + email);
     await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
@@ -109,7 +114,10 @@ export async function useAccount(_, email) {
     return true;
 }
 
-export async function handleSignOut(_, email) {
+export async function handleSignOut(
+    _: unknown,
+    email: string
+): Promise<boolean> {
     await deleteGDTokens(email);
     if (store.get("gdActive") === email) {
         store.delete("gdActive");
@@ -117,8 +125,16 @@ export async function handleSignOut(_, email) {
     return true;
 }
 
-export async function getGoogleProfile(_, email) {
-    const tokens = await getGDTokens(email);
+interface GoogleTokens {
+    id_token: string;
+    [key: string]: unknown; // Allow other properties
+}
+
+export async function getGoogleProfile(
+    _: unknown,
+    email: string
+): Promise<{ name: string; email: string } | null> {
+    const tokens = (await getGDTokens(email)) as GoogleTokens;
     if (!tokens?.id_token) return null;
 
     const payload = JSON.parse(
@@ -127,7 +143,11 @@ export async function getGoogleProfile(_, email) {
     return { name: payload.name || payload.email, email: payload.email };
 }
 
-export async function handleBoxSignIn() {
+export async function handleBoxSignIn(): Promise<{
+    login: string;
+    name: string;
+    tokens: unknown;
+}> {
     const authUrl = `${BACKEND_URL}/auth/box`;
 
     return new Promise((resolve, reject) => {
@@ -137,7 +157,7 @@ export async function handleBoxSignIn() {
             modal: true,
             title: "Sign in to Box",
             icon: icon,
-            parent: BrowserWindow.getFocusedWindow(),
+            parent: BrowserWindow.getFocusedWindow() || undefined,
             autoHideMenuBar: true,
             webPreferences: {
                 nodeIntegration: false,
@@ -149,7 +169,7 @@ export async function handleBoxSignIn() {
 
         let handled = false;
 
-        function handleRedirect(url) {
+        function handleRedirect(url: string): void {
             if (url.startsWith("myapp://oauth")) {
                 handled = true;
                 const code = new URL(url).searchParams.get("code");
@@ -202,7 +222,7 @@ export async function handleBoxSignIn() {
 }
 
 // --- Multi-account helpers cho renderer ---
-export async function listBoxAccounts() {
+export async function listBoxAccounts(): Promise<unknown[]> {
     try {
         return await listBoxTokens();
     } catch (err) {
@@ -211,7 +231,10 @@ export async function listBoxAccounts() {
     }
 }
 
-export async function useBoxAccount(_, login) {
+export async function useBoxAccount(
+    _: unknown,
+    login: string
+): Promise<boolean> {
     const tokens = await getBoxTokens(login);
     if (!tokens) throw new Error("No saved Box tokens for " + login);
     await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
@@ -223,7 +246,10 @@ export async function useBoxAccount(_, login) {
     return true;
 }
 
-export async function handleBoxSignOut(_, login) {
+export async function handleBoxSignOut(
+    _: unknown,
+    login: string
+): Promise<boolean> {
     await deleteBoxTokens(login);
     if (store.get("boxActive") === login) {
         store.delete("boxActive");
@@ -231,7 +257,11 @@ export async function handleBoxSignOut(_, login) {
     return true;
 }
 
-export async function getBoxProfile() {
+export async function getBoxProfile(): Promise<{
+    name: string;
+    login: string;
+    [key: string]: unknown;
+}> {
     // Backend đã biết “active tokens” ⇒ chỉ cần /me
     const res = await fetch(`${BACKEND_URL}/auth/box/me`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

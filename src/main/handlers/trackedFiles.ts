@@ -7,20 +7,34 @@ import getDriveClient from "../utils/getDriveClient";
 import { getBoxClient } from "../utils/getBoxClient";
 
 // Handler to get all tracked files with their last sync timestamp
-export async function getTrackedFiles() {
+export async function getTrackedFiles(): Promise<
+    Array<{
+        src: string;
+        lastSync: number | null;
+        isDirectory: boolean;
+        size: number | null;
+        provider: string;
+        username: string | null;
+    }>
+> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
 
     return Promise.all(
-        Object.entries(mapping).map(async ([src, rec]) => {
+        Object.entries(
+            mapping as Record<
+                string,
+                { lastSync?: number; provider?: string; username?: string }
+            >
+        ).map(async ([src, rec]) => {
             let isDirectory = false;
-            let size = null;
+            let size: number | null = null; // Declare size as number | null
             try {
                 const stats = await fs.promises.stat(src);
                 isDirectory = stats.isDirectory();
-                size = isDirectory ? await getDirSize(src) : stats.size;
+                size = isDirectory ? await getDirSize(src) : stats.size; // Assign number or null to size
             } catch (err) {
                 console.warn(`Cannot stat ${src}:`, err);
             }
@@ -37,16 +51,37 @@ export async function getTrackedFiles() {
 }
 
 // Handler to get all tracked files with their Box metadata
-export async function getTrackedFilesBox() {
+export async function getTrackedFilesBox(): Promise<
+    Array<{
+        src: string;
+        lastSync: number | null;
+        isDirectory: boolean;
+        size: number | null;
+        boxId: string | null;
+        provider: string;
+        username: string | null;
+    }>
+> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
     if (!centralFolderPath) throw new Error("Central folder not set");
 
     return Promise.all(
-        Object.entries(boxMapping).map(async ([src, rec]) => {
+        Object.entries(
+            boxMapping as Record<
+                string,
+                {
+                    lastSync?: number;
+                    id?: string;
+                    provider?: string;
+                    username?: string;
+                    isFolder?: boolean;
+                }
+            >
+        ).map(async ([src, rec]) => {
             let isDirectory = false;
-            let size = null;
+            let size: number | null = null;
             try {
                 const stats = await fs.promises.stat(src);
                 isDirectory = stats.isDirectory();
@@ -68,14 +103,15 @@ export async function getTrackedFilesBox() {
 }
 
 // Handler to delete a tracked file (both local link and Drive entry)
-export async function deleteTrackedFile(_, src) {
-    if (!mapping[src]) {
+export async function deleteTrackedFile(_, src): Promise<boolean> {
+    if (!(mapping as Record<string, { id?: string }>)[src]) {
         throw new Error(`File not tracked: ${src}`);
     }
     // Delete on Drive
     const drive = await getDriveClient();
     try {
-        await drive.files.delete({ fileId: mapping[src].id });
+        const typedMapping = mapping as Record<string, { id?: string }>;
+        await drive.files.delete({ fileId: typedMapping[src].id });
     } catch (err) {
         console.error("Drive delete error:", err);
     }
@@ -93,18 +129,23 @@ export async function deleteTrackedFile(_, src) {
         }
     }
     // Remove mapping entries (for file and any children)
-    const normalize = (p) => path.normalize(p).replace(/[/\\]+/g, SEP);
-    Object.keys(mapping).forEach((key) => {
+    const normalize = (p: string): string =>
+        path.normalize(p).replace(/[/\\]+/g, SEP);
+    Object.keys(mapping as Record<string, unknown>).forEach((key) => {
         const normKey = normalize(key);
         const normSrc = normalize(src);
         if (normKey === normSrc || normKey.startsWith(normSrc + SEP)) {
-            delete mapping[key];
+            delete (mapping as Record<string, unknown>)[key];
         }
     });
     // Persist updated
     await store.set("driveMapping", mapping);
 
-    const settings = store.get("settings", {}) || {};
+    interface Settings {
+        stopSyncPaths?: string[];
+    }
+
+    const settings: Settings = store.get("settings", {}) || {};
     const current = Array.isArray(settings.stopSyncPaths)
         ? settings.stopSyncPaths
         : [];
@@ -115,18 +156,30 @@ export async function deleteTrackedFile(_, src) {
 }
 
 // Handler to delete a tracked file (both local link and Box entry)
-export async function deleteTrackedFileBox(_, src) {
-    if (!boxMapping[src]) {
+export async function deleteTrackedFileBox(_, src): Promise<boolean> {
+    if (
+        !(boxMapping as Record<string, { id?: string; isFolder?: boolean }>)[
+            src
+        ]
+    ) {
         throw new Error(`File not tracked in Box: ${src}`);
     }
 
     const client = await getBoxClient();
-    const { id, isFolder } = boxMapping[src];
+    const { id, isFolder } = (
+        boxMapping as Record<string, { id?: string; isFolder?: boolean }>
+    )[src];
 
     try {
         if (isFolder) {
+            if (!id) {
+                throw new Error("Folder ID is undefined");
+            }
             await client.folders.delete(id, { recursive: true });
         } else {
+            if (!id) {
+                throw new Error("File ID is undefined");
+            }
             await client.files.delete(id);
         }
     } catch (err) {
@@ -147,17 +200,20 @@ export async function deleteTrackedFileBox(_, src) {
         }
     }
 
-    Object.keys(boxMapping).forEach((key) => {
+    Object.keys(boxMapping as Record<string, unknown>).forEach((key) => {
         const normKey = path.normalize(key).replace(/[/\\]+/g, SEP);
         const normSrc = path.normalize(src).replace(/[/\\]+/g, SEP);
         if (normKey === normSrc || normKey.startsWith(normSrc + SEP)) {
-            delete boxMapping[key];
+            delete (boxMapping as Record<string, unknown>)[key];
         }
     });
 
     await store.set("boxMapping", boxMapping);
 
-    const settings = store.get("settings", {}) || {};
+    interface Settings {
+        stopSyncPaths?: string[];
+    }
+    const settings: Settings = store.get("settings", {}) || {};
     const current = Array.isArray(settings.stopSyncPaths)
         ? settings.stopSyncPaths
         : [];
@@ -168,7 +224,7 @@ export async function deleteTrackedFileBox(_, src) {
     return true;
 }
 
-async function getDirSize(dir) {
+async function getDirSize(dir): Promise<number> {
     const entries = await fs.promises.readdir(dir, { withFileTypes: true });
     let total = 0;
     for (const e of entries) {

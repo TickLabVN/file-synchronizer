@@ -22,25 +22,31 @@ import {
 } from "../utils/lock";
 
 const { store, mapping, boxMapping, deviceId } = constants;
-function notifyRenderer() {
+
+function notifyRenderer(): void {
     BrowserWindow.getAllWindows().forEach((w) =>
         w.webContents.send("tracked-files-updated")
     );
 }
-function toastAll(message) {
+function toastAll(message: string): void {
     BrowserWindow.getAllWindows().forEach((w) =>
         w.webContents.send("app:toast", message)
     );
 }
 
-function isPathStopped(p, stop, resume, SEP) {
+function isPathStopped(
+    p: string,
+    stop: string[],
+    resume: string[],
+    SEP: string
+): boolean {
     const blocked = stop.some((s) => p === s || p.startsWith(s + SEP));
     if (!blocked) return false; // không bị cha chặn
     const allowed = resume.some((r) => p === r || p.startsWith(r + SEP));
     return !allowed; // bị chặn - trừ khi whitelist
 }
 
-export async function syncAllOnLaunch() {
+export async function syncAllOnLaunch(): Promise<void> {
     const { BACKEND_URL } = constants;
     // 0. Không cần chạy nếu chưa cấu hình thư mục trung tâm
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
@@ -83,8 +89,12 @@ export async function syncAllOnLaunch() {
         }
     }
 }
+
 // Handle syncing files/folders to Google Drive and creating symlinks
-export async function syncFiles(_, { paths, exclude = [] }) {
+export async function syncFiles(
+    _,
+    { paths, exclude = [] }: { paths: string[]; exclude?: string[] }
+): Promise<{ success: boolean; failed: { path: string; message: string }[] }> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const raw = await fs.promises.readFile(cfgPath, "utf-8");
     const { centralFolderPath } = JSON.parse(raw);
@@ -117,7 +127,7 @@ export async function syncFiles(_, { paths, exclude = [] }) {
         });
         driveFolderId = createRes.data.id;
     }
-    const failed = [];
+    const failed: { path: string; message: string }[] = [];
     for (const p of paths) {
         // Skip excluded paths
         if (exclude.includes(p)) {
@@ -161,7 +171,9 @@ export async function syncFiles(_, { paths, exclude = [] }) {
                     throw err;
                 }
             }
+            //@ts-ignore: mapping is defined in constants
             mapping[p] = {
+                //@ts-ignore: mapping is defined in constants
                 ...(mapping[p] || {}),
                 parentId: driveFolderId,
                 lastSync: new Date().toISOString(),
@@ -190,7 +202,10 @@ export async function syncFiles(_, { paths, exclude = [] }) {
     };
 }
 
-export async function syncBoxFiles(_, { paths, exclude = [] }) {
+export async function syncBoxFiles(
+    _,
+    { paths, exclude = [] }: { paths: string[]; exclude?: string[] }
+): Promise<{ success: boolean; failed: { path: string; message: string }[] }> {
     // 4a. Locate the user’s “central folder” (where we create symlinks)
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const rawCfg = await fs.promises.readFile(cfgPath, "utf-8");
@@ -222,7 +237,7 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
     }
 
     // 4d. Iterate over each requested local path
-    const failed = [];
+    const failed: { path: string; message: string }[] = [];
     for (const p of paths) {
         // 4d‑a. Skip excluded paths
         if (exclude.includes(p)) {
@@ -269,6 +284,7 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
                     throw err;
                 }
             }
+            //@ts-ignore: mapping is defined in constants
             Object.assign(boxMapping[p], {
                 parentId: rootFolderId,
                 lastSync: new Date().toISOString(),
@@ -299,11 +315,11 @@ export async function syncBoxFiles(_, { paths, exclude = [] }) {
 }
 
 // Handle syncing on app launch
-export async function syncOnLaunch() {
+export async function syncOnLaunch(): Promise<boolean> {
     const settings = store.get("settings", {
         stopSyncPaths: [],
         resumeSyncPaths: [],
-    });
+    }) as { stopSyncPaths?: string[]; resumeSyncPaths?: string[] };
     const { stopSyncPaths = [], resumeSyncPaths = [] } = settings;
 
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
@@ -316,7 +332,7 @@ export async function syncOnLaunch() {
         return true;
     }
 
-    if (Object.keys(mapping).length === 0) {
+    if (Object.keys(mapping as object).length === 0) {
         console.log("Skip sync-on-launch: no files mapped yet");
         return true;
     }
@@ -354,8 +370,9 @@ export async function syncOnLaunch() {
             return true;
         }
         try {
-            // eslint-disable-next-line no-unused-vars
-            for (const [src, _] of Object.entries(mapping)) {
+            for (const [src] of Object.entries(
+                mapping as Record<string, unknown>
+            )) {
                 try {
                     await fs.promises.stat(src);
                 } catch (err) {
@@ -379,8 +396,11 @@ export async function syncOnLaunch() {
                 }
             }
 
-            for (const [src, rec] of Object.entries(mapping)) {
-                if (rec.parentId === driveFolderId) {
+            for (const [src, rec] of Object.entries(
+                mapping as Record<string, unknown>
+            )) {
+                const record = rec as { parentId?: string; id?: string };
+                if (record.parentId === driveFolderId) {
                     const linkPath = path.join(
                         centralFolderPath,
                         path.basename(src)
@@ -390,9 +410,9 @@ export async function syncOnLaunch() {
                     } catch (err) {
                         if (err.code === "ENOENT") {
                             try {
-                                await drive.files.delete({ fileId: rec.id });
+                                await drive.files.delete({ fileId: record.id });
                                 console.log(
-                                    `Deleted on Drive: ${rec.id} (src=${src})`
+                                    `Deleted on Drive: ${record.id} (src=${src})`
                                 );
                             } catch (driveErr) {
                                 console.error(
@@ -400,12 +420,16 @@ export async function syncOnLaunch() {
                                     driveErr
                                 );
                             }
-                            for (const key of Object.keys(mapping)) {
+                            const mappingObj = mapping as Record<
+                                string,
+                                unknown
+                            >;
+                            for (const key of Object.keys(mappingObj)) {
                                 if (
                                     key === src ||
                                     key.startsWith(src + path.sep)
                                 ) {
-                                    delete mapping[key];
+                                    delete mappingObj[key];
                                 }
                             }
                         } else {
@@ -416,9 +440,17 @@ export async function syncOnLaunch() {
             }
 
             console.log("Starting auto-update on launch...");
-            for (const [src, rec] of Object.entries(mapping)) {
-                if (rec.provider !== "google") continue;
-                if (rec.username !== driveUsername) continue;
+            for (const [src, rec] of Object.entries(
+                mapping as Record<string, unknown>
+            )) {
+                const record = rec as {
+                    provider?: string;
+                    username?: string;
+                    id?: string;
+                    lastSync?: string;
+                };
+                if (record.provider !== "google") continue;
+                if (record.username !== driveUsername) continue;
                 if (
                     isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)
                 ) {
@@ -427,16 +459,26 @@ export async function syncOnLaunch() {
                     );
                     continue;
                 }
-                try {
-                    const changed = await traverseCompare(src, rec.id, drive);
-                    if (changed) {
-                        rec.lastSync = new Date().toISOString();
-                        console.log(
-                            `Updated lastSync for ${src} to ${rec.lastSync}`
+                if (typeof record.id === "string") {
+                    try {
+                        const changed = await traverseCompare(
+                            src,
+                            record.id,
+                            drive
                         );
+                        if (changed) {
+                            record.lastSync = new Date().toISOString();
+                            console.log(
+                                `Updated lastSync for ${src} to ${record.lastSync}`
+                            );
+                        }
+                    } catch (e) {
+                        console.error("Error syncing on launch for", src, e);
                     }
-                } catch (e) {
-                    console.error("Error syncing on launch for", src, e);
+                } else {
+                    console.warn(
+                        `Skipping ${src} because record.id is undefined`
+                    );
                 }
             }
         } finally {
@@ -449,11 +491,11 @@ export async function syncOnLaunch() {
 }
 
 // Handle syncing on app launch for Box
-export async function syncBoxOnLaunch() {
+export async function syncBoxOnLaunch(): Promise<boolean> {
     const settings = store.get("settings", {
         stopSyncPaths: [],
         resumeSyncPaths: [],
-    });
+    }) as { stopSyncPaths?: string[]; resumeSyncPaths?: string[] };
     const { stopSyncPaths = [], resumeSyncPaths = [] } = settings;
 
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
@@ -468,7 +510,7 @@ export async function syncBoxOnLaunch() {
         return true;
     }
 
-    if (Object.keys(boxMapping).length === 0) {
+    if (Object.keys(boxMapping as object).length === 0) {
         console.log("Skip Box sync-on-launch: no files mapped yet");
         return true;
     }
@@ -509,8 +551,7 @@ export async function syncBoxOnLaunch() {
         return true;
     }
     try {
-        // eslint-disable-next-line no-unused-vars
-        for (const [src, _] of Object.entries(boxMapping)) {
+        for (const src of Object.keys(boxMapping as Record<string, unknown>)) {
             try {
                 await fs.promises.stat(src);
             } catch (err) {
@@ -534,8 +575,15 @@ export async function syncBoxOnLaunch() {
             }
         }
 
-        for (const [src, rec] of Object.entries(boxMapping)) {
-            if (rec.parentId === rootFolderId) {
+        for (const [src, rec] of Object.entries(
+            boxMapping as Record<string, unknown>
+        )) {
+            const record = rec as {
+                parentId?: string;
+                id?: string;
+                isFolder?: boolean;
+            };
+            if (record.parentId === rootFolderId) {
                 const linkPath = path.join(
                     centralFolderPath,
                     path.basename(src)
@@ -545,22 +593,38 @@ export async function syncBoxOnLaunch() {
                 } catch (err) {
                     if (err.code === "ENOENT") {
                         try {
-                            if (rec.isFolder) {
-                                await client.folders.delete(rec.id, {
-                                    recursive: true,
-                                });
+                            if (record.isFolder) {
+                                if (typeof record.id === "string") {
+                                    await client.folders.delete(record.id, {
+                                        recursive: true,
+                                    });
+                                } else {
+                                    console.warn(
+                                        `Cannot delete Box folder: record.id is undefined for src=${src}`
+                                    );
+                                }
                             } else {
-                                await client.files.delete(rec.id);
+                                if (typeof record.id === "string") {
+                                    await client.files.delete(record.id);
+                                } else {
+                                    console.warn(
+                                        `Cannot delete Box file: record.id is undefined for src=${src}`
+                                    );
+                                }
                             }
                             console.log(
-                                `Deleted on Box: ${rec.id} (src=${src})`
+                                `Deleted on Box: ${record.id} (src=${src})`
                             );
                         } catch (boxErr) {
                             console.error("Failed to delete on Box:", boxErr);
                         }
-                        for (const key of Object.keys(boxMapping)) {
+                        const boxMappingObj = boxMapping as Record<
+                            string,
+                            unknown
+                        >;
+                        for (const key of Object.keys(boxMappingObj)) {
                             if (key === src || key.startsWith(src + path.sep)) {
-                                delete boxMapping[key];
+                                delete boxMappingObj[key];
                             }
                         }
                     } else {
@@ -571,23 +635,39 @@ export async function syncBoxOnLaunch() {
         }
 
         console.log("Starting Box auto-update on launch...");
-        for (const [src, rec] of Object.entries(boxMapping)) {
-            if (rec.provider !== "box") continue;
-            if (rec.username !== boxUsername) continue;
+        for (const [src, rec] of Object.entries(
+            boxMapping as Record<string, unknown>
+        )) {
+            const record = rec as {
+                provider?: string;
+                username?: string;
+                id?: string;
+                lastSync?: string;
+            };
+            if (record.provider !== "box") continue;
+            if (record.username !== boxUsername) continue;
             if (isPathStopped(src, stopSyncPaths, resumeSyncPaths, path.sep)) {
                 console.log(`Skipping sync for ${src} due to stop-sync rules`);
                 continue;
             }
-            try {
-                const changed = await traverseCompareBox(src, rec.id, client);
-                if (changed) {
-                    rec.lastSync = new Date().toISOString();
-                    console.log(
-                        `Updated lastSync for ${src} to ${rec.lastSync}`
+            if (typeof record.id === "string") {
+                try {
+                    const changed = await traverseCompareBox(
+                        src,
+                        record.id,
+                        client
                     );
+                    if (changed) {
+                        record.lastSync = new Date().toISOString();
+                        console.log(
+                            `Updated lastSync for ${src} to ${record.lastSync}`
+                        );
+                    }
+                } catch (e) {
+                    console.error("Error syncing on launch for Box", src, e);
                 }
-            } catch (e) {
-                console.error("Error syncing on launch for Box", src, e);
+            } else {
+                console.warn(`Skipping ${src} because record.id is undefined`);
             }
         }
     } finally {
@@ -598,7 +678,7 @@ export async function syncBoxOnLaunch() {
 }
 
 // Handle pulling data from Google Drive to the central folder
-export async function pullFromDrive() {
+export async function pullFromDrive(): Promise<boolean> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
@@ -677,7 +757,7 @@ export async function pullFromDrive() {
 }
 
 // Handle pulling data from Box to the central folder
-export async function pullFromBox() {
+export async function pullFromBox(): Promise<boolean> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     const { centralFolderPath } = JSON.parse(
         await fs.promises.readFile(cfgPath, "utf-8")
