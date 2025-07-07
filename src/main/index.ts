@@ -11,20 +11,21 @@ import {
 } from "./lib/credentials";
 import pkg from "electron-updater";
 import { is } from "@electron-toolkit/utils";
+//@ts-ignore: Ignore import error
 import icon from "../../resources/icon.png?asset";
 import { syncAllOnLaunch } from "./handlers/sync";
 import path from "path";
 import fs from "fs";
 import createCentralFolder from "./utils/centralConfig";
-import getDriveClient from "./utils/getDriveClient.js";
-import { getBoxClient } from "./utils/getBoxClient.js";
-import { cleanupDriveLockOnExit, cleanupBoxLockOnExit } from "./utils/lock.js";
+import getDriveClient from "./utils/getDriveClient";
+import { getBoxClient } from "./utils/getBoxClient";
+import { cleanupDriveLockOnExit, cleanupBoxLockOnExit } from "./utils/lock";
 
 const { BACKEND_URL, store } = constants;
 const { autoUpdater } = pkg;
 const BASE_INTERVAL = 5 * 60 * 1000;
 const JITTER_RANGE = 30 * 1000;
-function nextDelay() {
+function nextDelay(): number {
     return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
 }
 
@@ -32,10 +33,10 @@ let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
-let activeProvider = null; // "google" | "box"
+let activeProvider: "google" | "box" | null = null; // "google" | "box"
 let hasCleanedLocks = false;
 
-async function cleanupAllLocks() {
+async function cleanupAllLocks(): Promise<void> {
     /* ----- GOOGLE DRIVE ----- */
     const gdAccounts = await listGDTokens();
     for (const { email, tokens } of gdAccounts) {
@@ -87,7 +88,7 @@ async function cleanupAllLocks() {
     }
 }
 
-async function shouldSync() {
+async function shouldSync(): Promise<boolean> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath = null;
     try {
@@ -123,19 +124,19 @@ if (!gotLock) {
 // Register IPC handlers for various functionalities
 registerIpcHandlers();
 
-function broadcast(channel, payload) {
+function broadcast(channel: string, payload?: unknown): void {
     BrowserWindow.getAllWindows().forEach((win) => {
         win.webContents.send(channel, payload);
     });
 }
 
-async function scheduleSync() {
-    const run = async () => {
+async function scheduleSync(): Promise<void> {
+    const run = async (): Promise<void> => {
         if (await shouldSync()) {
             try {
                 await syncAllOnLaunch();
                 console.log("[Background] sync completed");
-                broadcast("app:tracked-files-updated");
+                broadcast("app:tracked-files-updated", null);
             } catch (err) {
                 console.error("[Background] sync error:", err);
             }
@@ -224,7 +225,9 @@ app.whenReady().then(async () => {
     }
 
     // Notify successful update
-    const pending = store.get("pendingUpdate");
+    const pending = store.get("pendingUpdate") as
+        | { version?: string }
+        | undefined;
     if (pending && pending.version) {
         dialog.showMessageBox({
             type: "info",
@@ -292,7 +295,7 @@ app.whenReady().then(async () => {
 autoUpdater.on("update-available", (info) => {
     const win = BrowserWindow.getFocusedWindow();
     dialog
-        .showMessageBox(win, {
+        .showMessageBox(win || BrowserWindow.getAllWindows()[0], {
             type: "info",
             title: "Have a new version",
             message: `A new version ${info.version} is available. Downloading now...`,
@@ -316,7 +319,7 @@ autoUpdater.on("update-downloaded", (info) => {
     isUpdating = false;
     broadcast("app:update-downloaded", info);
     dialog
-        .showMessageBox(win, {
+        .showMessageBox(win || BrowserWindow.getAllWindows()[0], {
             type: "info",
             title: "Update Downloaded",
             message:
@@ -337,7 +340,7 @@ autoUpdater.on("error", (err) => {
     console.error("Error when update:", err);
     const win = BrowserWindow.getFocusedWindow();
     isUpdating = false;
-    dialog.showMessageBox(win, {
+    dialog.showMessageBox(win || BrowserWindow.getAllWindows()[0], {
         type: "error",
         title: "Update Error",
         message: "An error occurred while checking for updates.",
