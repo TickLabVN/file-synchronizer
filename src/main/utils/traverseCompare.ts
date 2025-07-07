@@ -71,7 +71,7 @@ export default async function traverseCompare(
             }
         }
     } catch (err) {
-        if (err.code === "ENOENT") {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
             try {
                 await drive.files.delete({ fileId });
             } catch (driveErr) {

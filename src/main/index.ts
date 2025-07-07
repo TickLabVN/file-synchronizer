@@ -54,7 +54,7 @@ async function cleanupAllLocks(): Promise<void> {
                 fields: "files(id)",
                 spaces: "drive",
             });
-            if (files.length) {
+            if (files && files.length) {
                 await cleanupDriveLockOnExit(drive, files[0].id);
             }
         } catch (err) {
@@ -95,7 +95,9 @@ async function shouldSync(): Promise<boolean> {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
         ({ centralFolderPath } = JSON.parse(raw));
     } catch (err) {
-        if (err.code !== "ENOENT") throw err;
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+            throw err;
+        }
     }
 
     const gd = store.get("gdActive");

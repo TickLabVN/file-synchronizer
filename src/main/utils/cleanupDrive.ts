@@ -1,18 +1,13 @@
 import path from "path";
 import { constants } from "../lib/constants";
+import { drive_v3 } from "googleapis";
 const { mapping } = constants;
 
 type MappingType = { [key: string]: { id: string } }; // Adjust the value type as needed
 
-interface DriveType {
-    files: {
-        delete: (options: { fileId: string }) => Promise<void>;
-    };
-}
-
 export async function cleanupDrive(
     srcPath: string,
-    drive: DriveType
+    drive: drive_v3.Drive
 ): Promise<void> {
     const typedMapping = mapping as MappingType;
     const toRemove = Object.keys(typedMapping).filter(

@@ -36,39 +36,23 @@ interface DownloadEntry {
     username: string;
 }
 
+interface HasStatusCode {
+    statusCode: number;
+}
+
+function hasStatusCode(e: unknown): e is HasStatusCode {
+    return (
+        typeof e === "object" &&
+        e !== null &&
+        "statusCode" in e &&
+        typeof (e as HasStatusCode).statusCode === "number"
+    );
+}
+
 export default async function downloadTreeBox(
     parentId: string,
     localDir: string,
-    client: {
-        folders: {
-            getItems: (
-                id: string,
-                options?: { fields?: string; limit?: number; offset?: number }
-            ) => Promise<{
-                entries: Array<{ id: string; type: string; name: string }>;
-            }>;
-            getMetadata: (
-                id: string,
-                scope: string,
-                templateKey: string
-            ) => Promise<Record<string, unknown>>;
-        };
-        files: {
-            getMetadata: (
-                id: string,
-                scope: string,
-                templateKey: string
-            ) => Promise<Record<string, unknown>>;
-            getReadStream: (
-                id: string,
-                options?: unknown,
-                callback?: (
-                    err: Error | null,
-                    stream?: NodeJS.ReadableStream
-                ) => void
-            ) => NodeJS.ReadableStream;
-        };
-    },
+    client,
     entries: DownloadEntry[] = [],
     provider: string = "box",
     username: string = "default"
@@ -111,8 +95,11 @@ export default async function downloadTreeBox(
                     )) as MetaData;
                 }
             } catch (err) {
-                // 404 = chưa có metadata → bỏ qua
-                if (err.statusCode !== 404) throw err;
+                if (hasStatusCode(err) && err.statusCode !== 404) {
+                    console.warn("Metadata folder", err);
+                } else {
+                    throw err; // đừng nuốt lỗi khác
+                }
             }
 
             const origPath = meta.originalPath;

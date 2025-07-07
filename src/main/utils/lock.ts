@@ -96,9 +96,15 @@ export async function releaseDriveLock(drive, lockId): Promise<void> {
             await drive.files.delete({ fileId: lockId });
             console.log(`[release] Deleted lock ${lockId}`);
         } catch (err) {
-            const status = err.code || err?.response?.status;
+            type BoxError = {
+                statusCode?: number;
+                response?: { status?: number };
+                message?: string;
+            };
+            const error = err as BoxError;
+            const status = error.statusCode || error.response?.status;
             if (status !== 404 && status !== 403) {
-                console.warn("Failed to release lock:", lockId, err.message);
+                console.warn("Failed to release lock:", lockId, error.message);
             } else {
                 console.debug(
                     `[release] Lock ${lockId} already gone (status ${status})`
@@ -132,7 +138,10 @@ export async function acquireBoxLock(
         try {
             await client.files.delete(existing.id);
         } catch (err) {
-            console.warn("Failed to delete existing lock:", err.message);
+            console.warn(
+                "Failed to delete existing lock:",
+                (err as Error).message
+            );
         }
     }
 
@@ -155,9 +164,15 @@ export async function releaseBoxLock(client, lockId): Promise<void> {
             await client.files.delete(lockId);
             console.log(`[release] Deleted lock ${lockId}`);
         } catch (err) {
-            const status = err.statusCode || err.response?.status;
+            type BoxError = {
+                statusCode?: number;
+                response?: { status?: number };
+                message?: string;
+            };
+            const error = err as BoxError;
+            const status = error.statusCode || error.response?.status;
             if (status !== 404 && status !== 403) {
-                console.warn("Failed to release lock:", lockId, err.message);
+                console.warn("Failed to release lock:", lockId, error.message);
             } else {
                 console.debug(
                     `[release] Lock ${lockId} already gone (status ${status})`
