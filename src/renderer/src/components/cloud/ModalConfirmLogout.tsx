@@ -1,4 +1,14 @@
-const ModalConfirmDelete = ({ cancelDelete, confirmDelete }) => {
+import React from "react";
+
+type ModalConfirmDeleteProps = {
+    cancelDelete: () => void;
+    confirmDelete: () => void;
+};
+
+const ModalConfirmDelete = ({
+    cancelDelete,
+    confirmDelete,
+}: ModalConfirmDeleteProps): React.ReactElement => {
     return (
         <div className="fixed inset-0 z-15 flex items-center justify-center dark:bg-gray-900/50">
             <div className="absolute inset-0 bg-black opacity-50" />

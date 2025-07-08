@@ -5,15 +5,17 @@ import * as api from "../api";
 import { toast } from "react-toastify";
 import icon from "@assets/icon.png";
 
-const Header = () => {
+const Header: React.FC = () => {
     const [setting, setSetting] = useState({
         darkMode: false,
     });
 
     useEffect(() => {
-        async function fetchSettings() {
+        async function fetchSettings(): Promise<void> {
             try {
-                const settings = await api.getSettings();
+                const settings = (await api.getSettings()) as {
+                    darkMode: boolean;
+                };
                 setSetting(settings);
                 if (settings.darkMode) {
                     document.documentElement.classList.add("dark");
@@ -24,16 +26,24 @@ const Header = () => {
                 console.error("Failed to fetch settings:", err);
                 toast.error(
                     "Failed to load settings: " +
-                        (err.message || "Unknown error")
+                        (err && typeof err === "object" && "message" in err
+                            ? (err as { message: string }).message
+                            : "Unknown error")
                 );
             }
         }
         fetchSettings();
     }, []);
 
-    const toggle = (key) => async () => {
+    interface Setting {
+        darkMode: boolean;
+    }
+
+    type SettingKey = keyof Setting;
+
+    const toggle = (key: SettingKey) => async (): Promise<void> => {
         const newValue = !setting[key];
-        setSetting((prev) => ({ ...prev, [key]: newValue }));
+        setSetting((prev: Setting) => ({ ...prev, [key]: newValue }));
         try {
             await api.updateSettings({ [key]: newValue });
             if (key === "darkMode") {
@@ -43,11 +53,13 @@ const Header = () => {
                     document.documentElement.classList.remove("dark");
                 }
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error(`Failed to update ${key}:`, err);
             toast.error(
                 `Failed to change to Dark mode: ` +
-                    (err.message || "Unknown error")
+                    (err && typeof err === "object" && "message" in err
+                        ? (err as { message: string }).message
+                        : "Unknown error")
             );
         }
     };

@@ -1,4 +1,9 @@
-const Toggle = ({ checked, onChange }) => {
+type ToggleProps = {
+    checked: boolean;
+    onChange: React.ChangeEventHandler<HTMLInputElement>;
+};
+
+const Toggle: React.FC<ToggleProps> = ({ checked, onChange }) => {
     return (
         <div className="flex items-center justify-between">
             <label className="relative inline-flex cursor-pointer items-center">
@@ -7,6 +12,7 @@ const Toggle = ({ checked, onChange }) => {
                     checked={checked}
                     onChange={onChange}
                     className="peer sr-only"
+                    aria-label="Toggle switch"
                 />
                 <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 dark:peer-focus:ring-blue-500"></div>
                 <div className="absolute top-1 left-1 h-4 w-4 rounded-full border border-gray-300 bg-white transition-transform peer-checked:translate-x-5 dark:bg-gray-200"></div>

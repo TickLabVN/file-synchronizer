@@ -2,7 +2,21 @@ import { useState } from "react";
 import * as api from "../api";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
-const Login = ({
+type Provider = {
+    id: string;
+    label: string;
+    icon: string;
+};
+
+type LoginProps = {
+    providerList: Provider[];
+    onSuccess: (id: string, accountId: string, username: string) => void;
+    onClose?: () => void;
+    cloud: string;
+    handleCloudChoose: (id: string) => void;
+};
+
+const Login: React.FC<LoginProps> = ({
     providerList,
     onSuccess,
     onClose,
@@ -10,9 +24,15 @@ const Login = ({
     handleCloudChoose,
 }) => {
     const [status, setStatus] = useState("idle");
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleSignIn = async (id) => {
+    interface SignInResult {
+        email?: string;
+        login?: string;
+        name?: string;
+    }
+
+    const handleSignIn = async (id: string): Promise<void> => {
         if (!id) {
             toast.error("Please choose a cloud provider first!");
             setError("No cloud provider selected");
@@ -21,19 +41,24 @@ const Login = ({
         setStatus("loading");
         setError(null);
         try {
-            const result =
-                id === "google" ? await api.signIn() : await api.boxSignIn();
+            const result: SignInResult =
+                id === "google"
+                    ? ((await api.signIn()) as SignInResult)
+                    : ((await api.boxSignIn()) as SignInResult);
 
-            const accountId = result.email || result.login;
-            const username = result.name || accountId;
+            const accountId: string | undefined = result.email || result.login;
+            const username: string = result.name || accountId!;
 
             if (!accountId) throw new Error("No account identifier returned");
 
             onSuccess(id, accountId, username);
             setStatus("success");
-        } catch (err) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err.toString() || "An error occurred during sign-in");
+            setError(
+                (err instanceof Error ? err.message : String(err)) ||
+                    "An error occurred during sign-in"
+            );
             setStatus("error");
         }
     };

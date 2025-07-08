@@ -1,4 +1,9 @@
-const Loading = ({ syncing = false, updating = false }) => {
+import React from "react";
+
+const Loading: React.FC<{ syncing?: boolean; updating?: boolean }> = ({
+    syncing = false,
+    updating = false,
+}) => {
     return (
         <div className="fixed inset-0 z-50 flex h-screen flex-col items-center justify-center bg-gray-100 dark:bg-gray-900">
             <div role="status">
