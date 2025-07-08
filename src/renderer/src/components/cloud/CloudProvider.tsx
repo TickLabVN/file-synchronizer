@@ -13,13 +13,36 @@ const PROVIDER_OPTIONS = [
     { id: "box", label: "Box", icon: box },
 ];
 
-export default function CloudProvider({ onFilterChange }) {
+import type { ReactElement } from "react";
+interface CloudAccount {
+    type: string;
+    accountId: string;
+    icon: string;
+    username: string;
+    label: string;
+}
+
+interface CloudProviderProps {
+    onFilterChange?: (filter: CloudAccount | null) => void;
+}
+
+export default function CloudProvider({
+    onFilterChange,
+}: CloudProviderProps): ReactElement {
     const [showLoginModal, setShowLoginModal] = useState(false);
-    const [picked, setPicked] = useState(""); // radio in Login
-    const [connected, setConnected] = useState([]); // [{type,accountId,...}]
-    const [delTarget, setDelTarget] = useState(null); // card đang xoá
-    const [activeFilter, setActiveFilter] = useState(null);
-    const handleCardClick = (acc) => {
+    const [picked, setPicked] = useState<string>(""); // radio in Login
+    const [connected, setConnected] = useState<CloudAccount[]>([]); // [{type,accountId,...}]
+    const [delTarget, setDelTarget] = useState<CloudAccount | null>(null); // card đang xoá
+    const [activeFilter, setActiveFilter] = useState<CloudAccount | null>(null);
+    interface HandleCardClickArg {
+        type: string;
+        accountId: string;
+        icon: string;
+        username: string;
+        label: string;
+    }
+
+    const handleCardClick = (acc: HandleCardClickArg): void => {
         const same =
             activeFilter &&
             activeFilter.type === acc.type &&
@@ -32,21 +55,24 @@ export default function CloudProvider({ onFilterChange }) {
     /* ---------- Khôi phục thẻ đã lưu ---------- */
     useEffect(() => {
         let alive = true;
-        const loadAccounts = async () => {
-            const list = [];
+        const loadAccounts = async (): Promise<void> => {
+            const list: CloudAccount[] = [];
 
             /* ---------- GOOGLE ---------- */
+            // @ts-ignore: api.listAccounts is a custom function
             const gd = await api.listAccounts().catch(() => []); // luôn trả mảng
             await Promise.allSettled(
-                gd.map(async ({ email }) => {
+                gd.map(async ({ email }: { email: string }) => {
                     try {
                         await api.useAccount(email);
                     } catch (e) {
                         console.warn("[Google] useAccount fail:", e);
                     }
-                    let prof = null;
+                    let prof: { name?: string } | null = null;
                     try {
-                        prof = await api.getProfile(email);
+                        prof = (await api.getProfile(email)) as {
+                            name?: string;
+                        } | null;
                     } catch (e) {
                         console.warn("[Google] getProfile fail:", e);
                     }
@@ -62,17 +88,20 @@ export default function CloudProvider({ onFilterChange }) {
             );
 
             /* ---------- BOX ---------- */
+            // @ts-ignore: api.listAccounts is a custom function
             const bx = await api.listBoxAccounts().catch(() => []);
             await Promise.allSettled(
-                bx.map(async ({ login }) => {
+                bx.map(async ({ login }: { login: string }) => {
                     try {
                         await api.useBoxAccount(login);
                     } catch (e) {
                         console.warn("[Box] useBoxAccount fail:", e);
                     }
-                    let prof = null;
+                    let prof: { name?: string } | null = null;
                     try {
-                        prof = await api.getBoxProfile();
+                        prof = (await api.getBoxProfile(login)) as {
+                            name?: string;
+                        } | null;
                     } catch (e) {
                         console.warn("[Box] getBoxProfile fail:", e);
                     }
@@ -99,8 +128,11 @@ export default function CloudProvider({ onFilterChange }) {
         };
     }, []);
 
-    /* ---------- Login thành công ---------- */
-    const handleLoginSuccess = async (type, accountId, username) => {
+    const handleLoginSuccess = async (
+        type: string,
+        accountId: string,
+        username?: string
+    ): Promise<void> => {
         const option = PROVIDER_OPTIONS.find((o) => o.id === type);
         if (!option) {
             console.error("Invalid provider type:", type);
@@ -115,16 +147,16 @@ export default function CloudProvider({ onFilterChange }) {
             setPicked("");
             return;
         }
-        const uname = username || accountId.split("@")[0];
-        const providerLabel = type === "google" ? "Drive" : "Box";
-        const newAccount = {
+        const uname: string = username || accountId.split("@")[0];
+        const providerLabel: string = type === "google" ? "Drive" : "Box";
+        const newAccount: CloudAccount = {
             type,
             accountId,
             icon: option.icon,
             username: uname,
             label: `${providerLabel} – ${uname}`,
         };
-        const next = [...connected, newAccount];
+        const next: CloudAccount[] = [...connected, newAccount];
         setConnected(next);
 
         window.dispatchEvent(new CustomEvent("cloud-accounts-updated"));
@@ -142,7 +174,7 @@ export default function CloudProvider({ onFilterChange }) {
     };
 
     /* ---------- Xoá tài khoản ---------- */
-    const handleDelete = async () => {
+    const handleDelete = async (): Promise<void> => {
         if (!delTarget) return;
         try {
             if (delTarget.type === "google")

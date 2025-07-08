@@ -21,13 +21,35 @@ import {
 import * as api from "../../api";
 import FileExtIcon from "../FileExtIcon";
 
-const FileBadge = ({ path }) => <FileExtIcon path={path} size={14} />;
-const formatBytes = (bytes) => {
+const FileBadge: React.FC<{ path: string }> = ({ path }) => (
+    <FileExtIcon path={path} size={14} />
+);
+interface FormatBytes {
+    (bytes: number): string;
+}
+
+const formatBytes: FormatBytes = (bytes) => {
     if (!bytes) return "0 B";
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB", "PB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))}${sizes[i]}`;
+};
+
+type AddFilesPopupProps = {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    chooseFiles: () => void;
+    chooseFolder: () => void;
+    handleUpload: (account: { type: string; id: string }) => void;
+    selectedItems: Array<{
+        path: string;
+        isDirectory: boolean;
+        size?: number;
+    }>;
+    handleRemove: (path: string) => void;
+    excludedPaths: string[];
+    handleExclude: (path: string) => void;
 };
 
 export default function AddFilesPopup({
@@ -40,12 +62,16 @@ export default function AddFilesPopup({
     handleRemove,
     excludedPaths,
     handleExclude,
-}) {
-    const [expanded, setExpanded] = useState({}); // track folder expand/collapse
-    const [dirContents, setDirContents] = useState({});
-    const [loadingPath, setLoadingPath] = useState(null);
-    const [accountList, setAccountList] = useState([]); // [{label,value}]
-    const [selected, setSelected] = useState(null);
+}: AddFilesPopupProps): React.ReactElement | null {
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({}); // track folder expand/collapse
+    const [dirContents, setDirContents] = useState<
+        Record<string, DirectoryEntry[]>
+    >({});
+    const [loadingPath, setLoadingPath] = useState<string | null>(null);
+    const [accountList, setAccountList] = useState<
+        Array<{ label: string; value: string }>
+    >([]); // [{label,value}]
+    const [selected, setSelected] = useState<string | undefined>(undefined);
     const hasAccount = accountList.length > 0;
     const canUpload = hasAccount && selected && selectedItems.length;
 
@@ -53,13 +79,17 @@ export default function AddFilesPopup({
         return selectedItems.reduce((sum, item) => sum + (item.size || 0), 0);
     }, [selectedItems]);
 
-    const fetchAccounts = async () => {
-        const gd = await api.listAccounts(); // [{email}]
-        const box = await api.listBoxAccounts(); // [{login}]
+    const fetchAccounts = async (): Promise<void> => {
+        //@ts-ignore: api is defined in preload script
+        const gd: Array<{ email: string }> = await api.listAccounts(); // [{email}]
+        //@ts-ignore: api is defined in preload script
+        const box: Array<{ login: string }> = await api.listBoxAccounts(); // [{login}]
         const list = [
             ...(await Promise.all(
                 gd.map(async ({ email }) => {
-                    const prof = await api.getProfile(email);
+                    const prof = (await api.getProfile(email)) as {
+                        name?: string;
+                    } | null;
                     const uname = prof?.name || email.split("@")[0];
                     return {
                         label: `Drive – ${uname}`,
@@ -69,7 +99,9 @@ export default function AddFilesPopup({
             )),
             ...(await Promise.all(
                 box.map(async ({ login }) => {
-                    const prof = await api.getBoxProfile(login);
+                    const prof = (await api.getBoxProfile(login)) as {
+                        name?: string;
+                    } | null;
                     const uname = prof?.name || login;
                     return {
                         label: `Box – ${uname}`,
@@ -84,7 +116,7 @@ export default function AddFilesPopup({
             (prev) =>
                 list.find((a) => a.value === prev)?.value ??
                 list[0]?.value ??
-                null
+                undefined
         );
     };
 
@@ -100,18 +132,30 @@ export default function AddFilesPopup({
             window.removeEventListener("cloud-accounts-updated", fetchAccounts);
     }, []);
 
-    const toggleDir = async (p) => {
-        setExpanded((prev) => ({ ...prev, [p]: !prev[p] }));
+    interface DirectoryEntry {
+        path: string;
+        isDirectory: boolean;
+        size?: number;
+    }
+
+    type ExpandedState = Record<string, boolean>;
+    type DirContentsState = Record<string, DirectoryEntry[]>;
+
+    const toggleDir = async (p: string): Promise<void> => {
+        setExpanded((prev: ExpandedState) => ({ ...prev, [p]: !prev[p] }));
         if (dirContents[p] || loadingPath === p) return; // đã có hoặc đang tải
         try {
             setLoadingPath(p);
-            const children = await api.listDirectory(p); // <- IPC
-            setDirContents((prev) => ({ ...prev, [p]: children }));
+            const children = (await api.listDirectory(p)) as DirectoryEntry[]; // <- IPC
+            setDirContents((prev: DirContentsState) => ({
+                ...prev,
+                [p]: children,
+            }));
         } finally {
             setLoadingPath(null);
         }
     };
-    const renderEntry = (item, depth = 0) => {
+    const renderEntry = (item: DirectoryEntry, depth = 0): React.ReactNode => {
         const isDir = item.isDirectory;
         const isExpanded = expanded[item.path];
         const children = dirContents[item.path] ?? [];
@@ -285,8 +329,10 @@ export default function AddFilesPopup({
                         disabled={!canUpload}
                         className="w-full"
                         onClick={() => {
-                            handleUpload(JSON.parse(selected));
-                            onOpenChange(false);
+                            if (selected) {
+                                handleUpload(JSON.parse(selected));
+                                onOpenChange(false);
+                            }
                         }}
                     >
                         <UploadIcon className="mr-2 h-4 w-4" /> Upload

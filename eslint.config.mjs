@@ -5,7 +5,15 @@ import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
 import eslintPluginPrettier from "eslint-plugin-prettier";
 
 export default tseslint.config(
-    { ignores: ["**/node_modules", "**/dist", "**/out"] },
+    {
+        ignores: [
+            "**/node_modules",
+            "**/dist",
+            "**/out",
+            "**/build",
+            "src/renderer/src/components/ui/**",
+        ],
+    },
     tseslint.configs.recommended,
     eslintPluginReact.configs.flat.recommended,
     eslintPluginReact.configs.flat["jsx-runtime"],
@@ -26,6 +34,7 @@ export default tseslint.config(
         rules: {
             ...eslintPluginReactHooks.configs.recommended.rules,
             ...eslintPluginReactRefresh.configs.vite.rules,
+            "react-refresh/only-export-components": "off",
             "react/prop-types": "off",
             "prettier/prettier": [
                 "error",

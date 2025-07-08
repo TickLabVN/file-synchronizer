@@ -13,6 +13,7 @@ export default defineConfig({
     renderer: {
         resolve: {
             alias: {
+                "@": path.resolve(__dirname, "src/renderer/src"),
                 "@renderer": path.resolve(__dirname, "src/renderer/src"),
                 "@components": path.resolve(
                     __dirname,

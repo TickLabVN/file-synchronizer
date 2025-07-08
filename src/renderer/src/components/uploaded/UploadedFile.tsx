@@ -14,12 +14,17 @@ import box from "@assets/box.svg";
 import FileExtIcon from "../FileExtIcon";
 import * as api from "../../api";
 
-const openInExplorer = (path) => api.openInExplorer(path);
+//@ts-ignore: api is a global object injected by the backend
+const openInExplorer = (path: string): void => api.openInExplorer(path);
 
 /* ------------------------------------------------------------------
  * Helpers
  * ------------------------------------------------------------------ */
-const formatBytes = (n) => {
+interface FormatBytes {
+    (n: number | null | undefined): string;
+}
+
+const formatBytes: FormatBytes = (n) => {
     if (n == null) return "";
     if (n === 0) return "0B";
     const u = ["B", "KB", "MB", "GB", "TB", "PB"];
@@ -28,9 +33,20 @@ const formatBytes = (n) => {
 };
 
 // --- NEW: helper để lấy dung lượng từ node.raw với nhiều key khác nhau ----
-const pickSize = (raw = {}) =>
+const pickSize = (raw: Record<string, unknown> = {}): number =>
     Number(
-        raw.size ?? raw.bytes ?? raw.byteSize ?? raw.fileSize ?? 0 // fallback
+        (
+            raw as {
+                size?: number;
+                bytes?: number;
+                byteSize?: number;
+                fileSize?: number;
+            }
+        ).size ??
+            (raw as { bytes?: number }).bytes ??
+            (raw as { byteSize?: number }).byteSize ??
+            (raw as { fileSize?: number }).fileSize ??
+            0 // fallback
     );
 
 const PROVIDER_ICONS = {
@@ -39,23 +55,40 @@ const PROVIDER_ICONS = {
 };
 
 // UploadedFile.jsx
-function propagateMeta(node, parentProvider, parentUsername) {
+function propagateMeta(
+    node: TreeNode,
+    parentProvider: unknown,
+    parentUsername: unknown
+): void {
     // nếu thiếu thì thừa kế của cha
-    if (!node.provider) node.provider = parentProvider;
-    if (!node.username) node.username = parentUsername;
+    if (!node.provider) node.provider = parentProvider as string | undefined;
+    if (!node.username) node.username = parentUsername as string | undefined;
     if (node.children) {
         Object.values(node.children).forEach((child) =>
             propagateMeta(child, node.provider, node.username)
         );
     }
 }
+
 // --- FIX: aggregateSize giờ sẽ gắn đúng size cho cả file & folder ---------
-function aggregateSize(node) {
+function aggregateSize(node: {
+    isDirectory?: boolean;
+    children?: Record<string, unknown>;
+    size?: number;
+    raw?: Record<string, unknown>;
+}): number {
     if (node.isDirectory) {
         if (node.children) {
             let total = 0;
             for (const child of Object.values(node.children)) {
-                total += aggregateSize(child);
+                total += aggregateSize(
+                    child as {
+                        isDirectory?: boolean;
+                        children?: Record<string, unknown>;
+                        size?: number;
+                        raw?: Record<string, unknown>;
+                    }
+                );
             }
             node.size = total;
             return total;
@@ -78,12 +111,41 @@ function aggregateSize(node) {
  */
 const isWin = navigator?.userAgent.includes("Windows");
 const SEP = isWin ? "\\" : "/";
-function buildTree(list) {
-    const root = {};
+// Define a type for tracked file items
+interface TrackedFileItem {
+    src: string;
+    name?: string;
+    path?: string;
+    isDirectory?: boolean;
+    provider?: string;
+    username?: string;
+    size?: number;
+    bytes?: number;
+    byteSize?: number;
+    fileSize?: number;
+    lastSync?: string;
+    [key: string]: unknown;
+}
+
+// Define a type for tree nodes
+interface TreeNode {
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    provider?: string;
+    username?: string;
+    size?: number;
+    lastSync?: string;
+    raw?: Record<string, unknown>;
+    children?: Record<string, TreeNode>;
+}
+
+function buildTree(list: TrackedFileItem[]): Record<string, TreeNode> {
+    const root: { children?: Record<string, TreeNode> } = {};
     for (const item of list) {
         const hasLeadingSep = !isWin && item.src.startsWith(SEP);
         const parts = item.src.split(/[/\\]/).filter(Boolean);
-        let cur = root;
+        let cur: { children?: Record<string, TreeNode> } = root;
         let acc = "";
         parts.forEach((seg, idx) => {
             const prefix = idx === 0 && hasLeadingSep ? SEP : acc ? SEP : "";
@@ -93,7 +155,7 @@ function buildTree(list) {
                 cur.children[seg] = {
                     name: seg,
                     path: acc,
-                    isDirectory: idx < parts.length - 1 || item.isDirectory,
+                    isDirectory: idx < parts.length - 1 || !!item.isDirectory,
                     provider: item.provider,
                     username: item.username,
                     // --- FIX: đảm bảo leaf node nào cũng có size nếu có ---
@@ -141,25 +203,38 @@ function buildTree(list) {
  * Kết quả: chỉ những mục người dùng thực sự theo dõi (raw) mới xuất hiện ở
  * root của danh sách, đúng với mong muốn “Test” thay vì “Downloads/Test”.
  */
-function flattenUntrackedRoots(nodes) {
+function flattenUntrackedRoots(
+    nodes: Record<string, TreeNode>
+): Record<string, TreeNode> {
     const result = {};
-    const lift = (node) => {
+    interface FlattenedTreeNode {
+        path: string;
+        raw?: Record<string, unknown>;
+        children?: Record<string, TreeNode>;
+        [key: string]: unknown;
+    }
+
+    type FlattenedTreeResult = Record<string, FlattenedTreeNode>;
+
+    const lift = (node: FlattenedTreeNode): void => {
         if (node.raw || !node.children) {
             // node được track (hoặc file lẻ) → giữ nguyên
-            result[node.path] = node;
+            (result as FlattenedTreeResult)[node.path] = node;
         } else {
             // node cha không được track → đẩy con lên
-            Object.values(node.children).forEach(lift);
+            Object.values(node.children).forEach((child) =>
+                lift(child as unknown as FlattenedTreeNode)
+            );
         }
     };
-    Object.values(nodes).forEach(lift);
+    (Object.values(nodes) as unknown as FlattenedTreeNode[]).forEach(lift);
     return result;
 }
 
 /**
  * Ẩn bớt các nhánh dài chỉ có một con – giống như VSCode tree view
  */
-function compressPath(node) {
+function compressPath(node: TreeNode): TreeNode {
     let cur = node;
     while (
         cur.isDirectory &&
@@ -180,6 +255,22 @@ function compressPath(node) {
 /* ------------------------------------------------------------------
  * Component
  * ------------------------------------------------------------------ */
+type UploadedFileProps = {
+    handlePullDown: () => void;
+    trackedFiles: TrackedFileItem[];
+    stopSyncPaths: string[];
+    onToggleStopSync: (path: string) => void;
+    onDeleteTrackedFile: (file: {
+        src: string;
+        provider?: string;
+        username?: string;
+    }) => void;
+    onAddClick: () => void;
+    filterAccount?: { type: string; username: string };
+    hasCloud?: boolean;
+    resumeSyncPaths?: string[];
+};
+
 export default function UploadedFile({
     handlePullDown,
     trackedFiles,
@@ -190,8 +281,8 @@ export default function UploadedFile({
     filterAccount,
     hasCloud = false,
     resumeSyncPaths = [],
-}) {
-    const [expanded, setExpanded] = useState({});
+}: UploadedFileProps): React.ReactElement {
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [, forceRerender] = useState(0);
     useEffect(() => {
         const id = setInterval(() => forceRerender((n) => n + 1), 30_000);
@@ -220,11 +311,30 @@ export default function UploadedFile({
         return flattenUntrackedRoots(rawRoot);
     }, [trackedFiles, filterAccount]);
 
-    const toggle = (p) => setExpanded((prev) => ({ ...prev, [p]: !prev[p] }));
+    interface ExpandedState {
+        [path: string]: boolean;
+    }
+
+    const toggle = (p: string): void =>
+        setExpanded((prev: ExpandedState) => ({ ...prev, [p]: !prev[p] }));
 
     /* -------------------------- UI – render 1 node ------------------------- */
-    const renderNode = (orig, depth = 0) => {
-        const node = compressPath(orig);
+    interface RenderNodeProps {
+        name: string;
+        path: string;
+        isDirectory: boolean;
+        children?: Record<string, TreeNode>;
+        size?: number;
+        lastSync?: string;
+        provider?: string;
+        username?: string;
+    }
+
+    const renderNode = (
+        orig: TreeNode,
+        depth: number = 0
+    ): React.ReactElement => {
+        const node: RenderNodeProps = compressPath(orig);
         const {
             name,
             path,
@@ -235,13 +345,13 @@ export default function UploadedFile({
             provider,
             username,
         } = node;
-        const indent = { paddingLeft: depth * 14 };
-        const isStopped =
+        const indent: React.CSSProperties = { paddingLeft: depth * 14 };
+        const isStopped: boolean =
             stopSyncPaths.some((p) => path === p || path.startsWith(p + SEP)) &&
             !resumeSyncPaths.some(
                 (r) => path === r || path.startsWith(r + SEP)
             );
-        const Icon = isDirectory
+        const Icon: React.ElementType = isDirectory
             ? FolderIcon
             : () => <FileExtIcon path={path} size={16} />;
 
@@ -318,7 +428,11 @@ export default function UploadedFile({
                     {/* provider icon + delete */}
                     {provider && (
                         <img
-                            src={PROVIDER_ICONS[provider]}
+                            src={
+                                PROVIDER_ICONS[
+                                    provider as keyof typeof PROVIDER_ICONS
+                                ]
+                            }
                             alt={provider}
                             className="mt-1 h-4 w-4"
                         />
@@ -391,11 +505,14 @@ export default function UploadedFile({
 /* ------------------------------------------------------------------
  * Utilities
  * ------------------------------------------------------------------ */
-function filterTree(node, filter) {
+function filterTree(
+    node: TreeNode,
+    filter: { type: string; username: string }
+): TreeNode | null {
     if (!filter) return node;
 
     // --- 1. Lọc children trước --------------------------------------------
-    const keptChildren = {};
+    const keptChildren: Record<string, TreeNode> = {};
     if (node.children) {
         Object.entries(node.children).forEach(([key, child]) => {
             const kept = filterTree(child, filter);

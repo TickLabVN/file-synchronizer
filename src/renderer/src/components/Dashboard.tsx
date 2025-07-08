@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import * as api from "../api";
-import Loading from "@components/Loading";
+import Loading from "./Loading";
 import Header from "./Header";
 import CloudProvider from "./cloud/CloudProvider";
 import UploadedFile from "./uploaded/UploadedFile";
 import AddFilesPopup from "./uploaded/AddFilesPopup";
-function mergeUnique(prev, next) {
+
+function mergeUnique<T extends { path: string }>(prev: T[], next: T[]): T[] {
     const existed = new Set(prev.map((it) => it.path));
     return [...prev, ...next.filter((it) => !existed.has(it.path))];
 }
-function pruneExcluded(prevExcluded, newItems) {
+
+function pruneExcluded(
+    prevExcluded: string[],
+    newItems: Array<{ path: string }>
+): string[] {
     if (!newItems?.length) return prevExcluded;
     return prevExcluded.filter((ex) => {
         return !newItems.some(
@@ -21,19 +26,41 @@ function pruneExcluded(prevExcluded, newItems) {
         );
     });
 }
-const Dashboard = ({ auth, provider }) => {
+
+interface DashboardProps {
+    auth: boolean;
+    username?: string;
+    provider: { type: string } | null;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     const [syncing, setSyncing] = useState(false);
-    const [selectedItems, setSelectedItems] = useState([]);
-    const [stopSyncPaths, setStopSyncPaths] = useState([]);
-    const [resumeSyncPaths, setResumeSyncPaths] = useState([]);
-    const [trackedFiles, setTrackedFiles] = useState([]);
+    const [selectedItems, setSelectedItems] = useState<
+        Array<{ path: string; isDirectory: boolean; size?: number }>
+    >([]);
+    const [stopSyncPaths, setStopSyncPaths] = useState<string[]>([]);
+    const [resumeSyncPaths, setResumeSyncPaths] = useState<string[]>([]);
+    interface TrackedFile {
+        provider: string;
+        username: string;
+        src: string;
+        [key: string]: unknown;
+    }
+    const [trackedFiles, setTrackedFiles] = useState<TrackedFile[]>([]);
     const [pulling, setPulling] = useState(false);
     const [showAddPopup, setShowAddPopup] = useState(false);
-    const providerType = provider?.type;
-    const [excludedPaths, setExcludedPaths] = useState([]);
-    const [filterAccount, setFilterAccount] = useState(null);
-    const [removedAccounts, setRemovedAccounts] = useState([]);
-    const [cloudAccounts, setCloudAccounts] = useState([]);
+    const [excludedPaths, setExcludedPaths] = useState<string[]>([]);
+    const [filterAccount, setFilterAccount] = useState<
+        { type: string; username: string } | undefined
+    >(undefined);
+    const [removedAccounts, setRemovedAccounts] = useState<
+        Array<{ type: string; username: string }>
+    >([]);
+    const [cloudAccounts, setCloudAccounts] = useState<
+        Array<{ type: string; id: string; username: string }>
+    >([]);
+    const isWin = navigator?.userAgent.includes("Windows");
+    const SEP = isWin ? "\\" : "/";
 
     // lọc trước khi render
     const displayedFiles = trackedFiles.filter(
@@ -43,15 +70,19 @@ const Dashboard = ({ auth, provider }) => {
             )
     );
 
-    const handleExclude = useCallback(
-        (p) =>
-            setExcludedPaths((prev) =>
+    interface HandleExclude {
+        (p: string): void;
+    }
+
+    const handleExclude: HandleExclude = useCallback(
+        (p: string) =>
+            setExcludedPaths((prev: string[]) =>
                 prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
             ),
         []
     );
 
-    const handlePullDown = async () => {
+    const handlePullDown = async (): Promise<void> => {
         if (cloudAccounts.length === 0) {
             toast.error("No cloud account connected.");
             return;
@@ -71,20 +102,35 @@ const Dashboard = ({ auth, provider }) => {
             toast.success("Pull down successful!");
         } catch (err) {
             console.error(err);
-            toast.error("Failed to pull: " + (err.message || "Unknown error"));
+            toast.error(
+                "Failed to pull: " +
+                    (err && typeof err === "object" && "message" in err
+                        ? (err as { message?: string }).message
+                        : "Unknown error")
+            );
         } finally {
             setPulling(false);
         }
     };
 
     useEffect(() => {
+        //@ts-ignore: api.getCloudAccounts is a function
         api.getSettings().then(
-            ({ stopSyncPaths = [], resumeSyncPaths = [] }) => {
-                const compress = (list) => {
-                    const sorted = [...list] // sao chép để không mutate
+            ({
+                stopSyncPaths = [],
+                resumeSyncPaths = [],
+            }: {
+                stopSyncPaths?: string[];
+                resumeSyncPaths?: string[];
+            }) => {
+                interface CompressFn {
+                    (list: string[]): string[];
+                }
+                const compress: CompressFn = (list) => {
+                    const sorted: string[] = [...list] // sao chép để không mutate
                         .filter((p) => !resumeSyncPaths.includes(p))
                         .sort((a, b) => a.length - b.length); // cha trước con
-                    const res = [];
+                    const res: string[] = [];
                     for (const p of sorted) {
                         if (!res.some((r) => p.startsWith(r + SEP)))
                             res.push(p);
@@ -99,12 +145,14 @@ const Dashboard = ({ auth, provider }) => {
                 }
             }
         );
-    }, []);
+    }, [SEP]);
 
     const loadTrackedFiles = useCallback(async () => {
         try {
             const [drive, box] = await Promise.all([
-                api.getTrackedFiles().catch(() => []), // ← tránh gãy cả cụm
+                //@ts-ignore: api.getTrackedFiles is a function
+                api.getTrackedFiles().catch(() => []),
+                //@ts-ignore: api.getTrackedFiles is a function
                 api.getTrackedFilesBox().catch(() => []),
             ]);
             setTrackedFiles([...drive, ...box]);
@@ -112,7 +160,9 @@ const Dashboard = ({ auth, provider }) => {
             console.error("Failed to load tracked files", err);
             toast.error(
                 "Failed to load tracked files: " +
-                    (err.message || "Unknown error")
+                    (err && typeof err === "object" && "message" in err
+                        ? (err as { message?: string }).message
+                        : "Unknown error")
             );
         }
     }, []);
@@ -124,25 +174,39 @@ const Dashboard = ({ auth, provider }) => {
     }, [loadTrackedFiles, auth]);
 
     useEffect(() => {
-        const handler = () => loadTrackedFiles();
+        const handler = (): void => {
+            loadTrackedFiles();
+        };
         api.onTrackedFilesUpdated(handler);
     }, [loadTrackedFiles]);
 
-    const handleDeleteTrackedFile = async (file) => {
+    interface CloudAccount {
+        type: string;
+        id: string;
+        username: string;
+    }
+
+    const handleDeleteTrackedFile = async (file: {
+        src: string;
+        provider?: string;
+        username?: string;
+    }): Promise<void> => {
         toast.info("Deleting tracked file...");
         try {
+            const provider = file.provider ?? "";
+            const username = file.username ?? "";
             // tìm accountId (login/email) tương ứng
-            const acc = cloudAccounts.find(
-                (a) =>
-                    a.type === file.provider &&
-                    (a.username === file.username || a.id === file.username)
+            const acc: CloudAccount | undefined = cloudAccounts.find(
+                (a: CloudAccount) =>
+                    a.type === provider &&
+                    (a.username === username || a.id === username)
             );
-            const accountId = acc ? acc.id : file.username; // fallback khi đã truyền đúng id
+            const accountId: string = acc ? acc.id : username; // fallback khi đã truyền đúng id
 
-            if (file.provider === "google") {
+            if (provider === "google") {
                 await api.useAccount(accountId); // ← dùng email
                 await api.deleteTrackedFile(file.src);
-            } else if (file.provider === "box") {
+            } else if (provider === "box") {
                 await api.useBoxAccount(accountId); // ← dùng login
                 await api.deleteTrackedFileBox(file.src);
             } else {
@@ -155,23 +219,30 @@ const Dashboard = ({ auth, provider }) => {
             console.error("Failed to delete tracked file", err);
             toast.error(
                 "Failed to delete tracked file: " +
-                    (err.message || "Unknown error")
+                    (err && typeof err === "object" && "message" in err
+                        ? (err as { message?: string }).message
+                        : "Unknown error")
             );
         }
     };
 
-    const isWin = navigator?.userAgent.includes("Windows");
-    const SEP = isWin ? "\\" : "/";
+    interface IsActuallyStopped {
+        (p: string): boolean;
+    }
 
-    const isActuallyStopped = (p) =>
-        stopSyncPaths.some((s) => p === s || p.startsWith(s + SEP)) &&
-        !resumeSyncPaths.some((r) => p === r || p.startsWith(r + SEP));
+    const isActuallyStopped: IsActuallyStopped = (p: string): boolean =>
+        stopSyncPaths.some((s: string) => p === s || p.startsWith(s + SEP)) &&
+        !resumeSyncPaths.some((r: string) => p === r || p.startsWith(r + SEP));
 
-    const handleToggleStopSync = (p) => {
-        const isExactInStop = stopSyncPaths.includes(p);
-        const isBlockedByAnc = isActuallyStopped(p) && !isExactInStop;
-        const nextStop = [...stopSyncPaths];
-        const nextResume = [...resumeSyncPaths];
+    interface HandleToggleStopSync {
+        (p: string): void;
+    }
+
+    const handleToggleStopSync: HandleToggleStopSync = (p: string) => {
+        const isExactInStop: boolean = stopSyncPaths.includes(p);
+        const isBlockedByAnc: boolean = isActuallyStopped(p) && !isExactInStop;
+        const nextStop: string[] = [...stopSyncPaths];
+        const nextResume: string[] = [...resumeSyncPaths];
 
         if (isExactInStop) {
             /* ---- 1. Đang bị chặn trực tiếp → gỡ chặn ---- */
@@ -189,8 +260,8 @@ const Dashboard = ({ auth, provider }) => {
             toast.success("Resumed sync for " + p);
         } else {
             /* ---- 3. Hiện đang sync bình thường → thêm vào stopSync ---- */
-            const coveredByParent = nextStop.some(
-                (s) => s !== p && p.startsWith(s + SEP)
+            const coveredByParent: boolean = nextStop.some(
+                (s: string) => s !== p && p.startsWith(s + SEP)
             );
             if (!coveredByParent) {
                 for (let i = nextStop.length - 1; i >= 0; i--) {
@@ -213,25 +284,42 @@ const Dashboard = ({ auth, provider }) => {
         });
     };
 
-    const handleChooseFiles = async () => {
+    const handleChooseFiles = async (): Promise<void> => {
         const items = await api.selectFiles(); // [{ path, size, isDirectory }]
-        if (items) {
+        if (Array.isArray(items) && items.length > 0) {
             setSelectedItems((prev) => mergeUnique(prev, items));
             setExcludedPaths((prev) => pruneExcluded(prev, items));
         }
     };
 
-    const handleChooseFolders = async () => {
-        const items = await api.selectFolders();
-        if (items) setSelectedItems((prev) => mergeUnique(prev, items));
+    const handleChooseFolders = async (): Promise<void> => {
+        const items = await api.selectFolders(); // [{ path, isDirectory, size? }]
+        if (Array.isArray(items) && items.length > 0) {
+            setSelectedItems((prev) => mergeUnique(prev, items));
+        }
     };
 
-    const handleRemove = (p) => {
+    interface HandleRemove {
+        (p: string): void;
+    }
+
+    const handleRemove: HandleRemove = (p: string): void => {
         setSelectedItems((prev) => prev.filter((item) => item.path !== p));
         setExcludedPaths((prev) => prev.filter((x) => !x.startsWith(p)));
     };
 
-    const handleSync = async (target) => {
+    interface SyncTarget {
+        type: string;
+        id: string;
+        username: string;
+    }
+
+    interface SyncResult {
+        success: boolean;
+        failed: Array<{ path: string }>;
+    }
+
+    const handleSync = async (target: SyncTarget): Promise<void> => {
         if (!selectedItems.length) {
             toast.error("Please select files or folders to sync.");
             return;
@@ -246,14 +334,14 @@ const Dashboard = ({ auth, provider }) => {
             else await api.useBoxAccount(target.id);
 
             // B2: upload
-            const payload = {
+            const payload: { paths: string[]; exclude: string[] } = {
                 paths: selectedItems.map((it) => it.path),
                 exclude: excludedPaths,
             };
-            const result =
+            const result: SyncResult =
                 target.type === "google"
-                    ? await api.syncFiles(payload)
-                    : await api.syncBoxFiles(payload);
+                    ? ((await api.syncFiles(payload)) as SyncResult)
+                    : ((await api.syncBoxFiles(payload)) as SyncResult);
             if (result.success) {
                 toast.success("All files synced successfully!");
                 setSelectedItems([]);
@@ -268,23 +356,41 @@ const Dashboard = ({ auth, provider }) => {
                 );
             }
             loadTrackedFiles();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error(err);
-            toast.error("Sync failed: " + (err.message || "Unknown error"));
+            toast.error(
+                "Sync failed: " +
+                    (err && typeof err === "object" && "message" in err
+                        ? (err as { message?: string }).message
+                        : "Unknown error")
+            );
         } finally {
             setSyncing(false);
         }
     };
 
     useEffect(() => {
-        const onRemoved = (e) => {
-            const { type, username } = e.detail || {};
+        interface CloudAccountEventDetail {
+            type: string;
+            username: string;
+        }
+
+        const onRemoved = (e: Event): void => {
+            const { type, username } = ((
+                e as CustomEvent<CloudAccountEventDetail>
+            ).detail || {}) as CloudAccountEventDetail;
             setRemovedAccounts((prev) => [...prev, { type, username }]);
             loadTrackedFiles(); // reload để ẩn ngay
         };
 
-        const onAdded = (e) => {
-            const { type, username } = e.detail || {};
+        interface CloudAccountEventDetail {
+            type: string;
+            username: string;
+        }
+
+        const onAdded = (e: Event): void => {
+            const { type, username } =
+                (e as CustomEvent<CloudAccountEventDetail>).detail || {};
             // huỷ cờ “đã xoá” nếu người dùng login lại
             setRemovedAccounts((prev) =>
                 prev.filter(
@@ -303,9 +409,10 @@ const Dashboard = ({ auth, provider }) => {
     }, [loadTrackedFiles]);
 
     const refreshCloudAccounts = useCallback(async () => {
+        //@ts-ignore: api.listAccounts is a function
         const drive = await api.listAccounts().catch(() => []);
         const google = await Promise.all(
-            drive.map(async ({ email }) => {
+            drive.map(async ({ email }: { email: string }) => {
                 // Lấy profile để biết tên hiển thị
                 try {
                     await api.useAccount(email);
@@ -313,6 +420,7 @@ const Dashboard = ({ auth, provider }) => {
                     console.warn(`Failed to use account ${email}`);
                     return null; // nếu không dùng được thì bỏ qua
                 }
+                //@ts-ignore: api.getProfile is a function
                 const prof = await api.getProfile(email).catch(() => null);
                 return {
                     type: "google",
@@ -322,15 +430,18 @@ const Dashboard = ({ auth, provider }) => {
             })
         );
 
+        //@ts-ignore: api.listAccounts is a function
         const box = await api.listBoxAccounts().catch(() => []);
         const boxAcc = await Promise.all(
-            box.map(async ({ login }) => {
+            box.map(async (account: { login: string }) => {
+                const { login } = account;
                 try {
                     await api.useBoxAccount(login);
                 } catch {
                     console.warn(`Failed to use Box account ${login}`);
                     return null; // nếu không dùng được thì bỏ qua
                 }
+                //@ts-ignore: api.getProfile is a function
                 const prof = await api.getBoxProfile().catch(() => null);
                 return {
                     type: "box",
@@ -371,7 +482,11 @@ const Dashboard = ({ auth, provider }) => {
                     />
                 </main>
                 <aside className="w-80 border-l border-gray-200 p-6 dark:border-gray-700">
-                    <CloudProvider onFilterChange={setFilterAccount} />
+                    <CloudProvider
+                        onFilterChange={(filter) =>
+                            setFilterAccount(filter ?? undefined)
+                        }
+                    />
                 </aside>
             </div>
             {pulling && <Loading syncing={true} />}
@@ -379,10 +494,19 @@ const Dashboard = ({ auth, provider }) => {
             <AddFilesPopup
                 open={showAddPopup}
                 onOpenChange={setShowAddPopup}
-                providerType={providerType}
                 chooseFiles={handleChooseFiles}
                 chooseFolder={handleChooseFolders}
-                handleUpload={(targetAcc) => handleSync(targetAcc)}
+                handleUpload={async (account: { type: string; id: string }) => {
+                    // Find the username for the selected account
+                    const acc = cloudAccounts.find(
+                        (a) => a.type === account.type && a.id === account.id
+                    );
+                    if (acc) {
+                        await handleSync(acc);
+                    } else {
+                        toast.error("Selected account not found.");
+                    }
+                }}
                 selectedItems={selectedItems}
                 handleRemove={handleRemove}
                 excludedPaths={excludedPaths}
