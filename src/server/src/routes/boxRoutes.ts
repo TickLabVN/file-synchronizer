@@ -6,7 +6,7 @@ import {
     setTokens,
     refreshTokens,
     me,
-} from "../controllers/boxControllers";
+} from "../controllers/boxControllers.js";
 
 const router: Router = Router();
 
