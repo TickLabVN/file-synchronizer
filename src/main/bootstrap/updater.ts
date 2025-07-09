@@ -10,6 +10,11 @@ const { store } = constants;
 let updating = false;
 export const isUpdating = (): boolean => updating;
 
+/**
+ * Initializes the auto-updater for the application.
+ * This function checks for updates and handles the update process.
+ * It should be called after the app is ready.
+ */
 export function initialiseUpdater(): void {
     if (is.dev) {
         console.log("Running in development mode, skipping auto-updater.");
