@@ -3,12 +3,7 @@ import "dotenv/config";
 import createWindow from "./window";
 import { constants } from "./lib/constants";
 import registerIpcHandlers from "./ipcHandlers";
-import {
-    listGDTokens,
-    getGDTokens,
-    listBoxTokens,
-    getBoxTokens,
-} from "./lib/credentials";
+import { listGDTokens, listBoxTokens } from "./lib/credentials";
 import pkg from "electron-updater";
 import { is } from "@electron-toolkit/utils";
 //@ts-ignore: Ignore import error
@@ -33,7 +28,6 @@ let isUpdating = false;
 let mainWindow;
 let tray;
 let isQuiting = false;
-let activeProvider: "google" | "box" | null = null; // "google" | "box"
 let hasCleanedLocks = false;
 
 async function cleanupAllLocks(): Promise<void> {
@@ -100,13 +94,9 @@ async function shouldSync(): Promise<boolean> {
         }
     }
 
-    const gd = store.get("gdActive");
-    if (gd && (await getGDTokens(gd))) return !!centralFolderPath;
-
-    const bx = store.get("boxActive");
-    if (bx && (await getBoxTokens(bx))) return !!centralFolderPath;
-
-    return false;
+    const anyGD = (await listGDTokens()).length > 0;
+    const anyBX = (await listBoxTokens()).length > 0;
+    return (anyGD || anyBX) && !!centralFolderPath;
 }
 
 // Prevent multiple instances of the app from running
@@ -162,57 +152,24 @@ app.whenReady().then(async () => {
         return;
     }
 
-    const gdActive = store.get("gdActive");
-    const boxActive = store.get("boxActive");
-
-    if (gdActive) {
-        const tk = await getGDTokens(gdActive);
-        if (tk) {
-            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tk),
-            });
-            activeProvider = "google";
-        }
-    } else if (boxActive) {
-        const tk = await getBoxTokens(boxActive);
-        if (tk) {
-            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tk),
-            });
-            activeProvider = "box";
-        }
+    const gdAccounts = await listGDTokens(); // ⇐ [{ email, tokens }]
+    for (const { tokens } of gdAccounts) {
+        await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(tokens),
+        });
     }
 
-    /* Nếu chưa có “active” ⇒ chọn account đầu tiên tìm thấy */
-    if (!activeProvider) {
-        const gd = await listGDTokens();
-        if (gd.length) {
-            const { email, tokens } = gd[0];
-            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tokens),
-            });
-            store.set("gdActive", email);
-            activeProvider = "google";
-        } else {
-            const bx = await listBoxTokens();
-            if (bx.length) {
-                const { login, tokens } = bx[0];
-                await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(tokens),
-                });
-                store.set("boxActive", login);
-                activeProvider = "box";
-            }
-        }
+    const bxAccounts = await listBoxTokens(); // ⇐ [{ login, tokens }]
+    for (const { tokens } of bxAccounts) {
+        await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(tokens),
+        });
     }
+
     mainWindow = createWindow();
 
     mainWindow.webContents.on("did-finish-load", () => {
