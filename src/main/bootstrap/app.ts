@@ -10,15 +10,20 @@ import createMainWindow from "../windows/mainWindow";
 import { setMainWindow, broadcast } from "../windows/WindowManager";
 import { startSyncScheduler } from "./syncScheduler";
 import { initialiseUpdater, isUpdating } from "./updater";
-import createAppTray from "../windows/AppTray";
+import createAppTray from "../windows/appTray";
 
 const { BACKEND_URL, store } = constants;
 
 let isQuit: boolean = false;
 let hasCleanedLocks: boolean = false;
 
+/**
+ * Cleans up all locks on exit by removing backup folders from Google Drive and Box.
+ * This function is called when the app is about to quit.
+ * @returns {Promise<void>} A promise that resolves when the cleanup is complete.
+ */
 async function cleanupAllLocks(): Promise<void> {
-    /* ----- GOOGLE DRIVE ----- */
+    // Clean up locks for Google Drive
     const gdAccounts = await listGDTokens();
     for (const { email, tokens } of gdAccounts) {
         try {
@@ -43,7 +48,7 @@ async function cleanupAllLocks(): Promise<void> {
         }
     }
 
-    /* ----- BOX ----- */
+    // Clean up locks for Box
     const boxAccounts = await listBoxTokens();
     for (const { login, tokens } of boxAccounts) {
         try {
@@ -69,6 +74,12 @@ async function cleanupAllLocks(): Promise<void> {
     }
 }
 
+/**
+ * Asynchronously bootstraps the Electron application.
+ * This function initializes the application, sets up IPC handlers, creates the main window,
+ * @returns {Promise<void>} A promise that resolves when the bootstrap process is complete.
+ * handles Google Drive and Box tokens, and sets up the system tray icon.
+ */
 export default async function bootstrap(): Promise<void> {
     // Prevent multiple instances of the app from running
     const gotLock: boolean = app.requestSingleInstanceLock();
@@ -102,6 +113,7 @@ export default async function bootstrap(): Promise<void> {
             return;
         }
 
+        // Initialize Google Drive client
         const gdAccounts = await listGDTokens(); // ⇐ [{ email, tokens }]
         for (const { tokens } of gdAccounts) {
             await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
@@ -111,6 +123,7 @@ export default async function bootstrap(): Promise<void> {
             });
         }
 
+        // Initialize Box client
         const bxAccounts = await listBoxTokens(); // ⇐ [{ login, tokens }]
         for (const { tokens } of bxAccounts) {
             await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
@@ -120,15 +133,17 @@ export default async function bootstrap(): Promise<void> {
             });
         }
 
+        // Create the main application window
         const mainWindow = createMainWindow();
         setMainWindow(mainWindow);
 
+        // Load the main application page
         mainWindow.webContents.on("did-finish-load", () =>
             broadcast("cloud-accounts-updated")
         );
 
+        // Check updates and initialize the updater
         initialiseUpdater();
-        startSyncScheduler();
 
         // Notify successful update
         const pending = store.get("pendingUpdate") as
@@ -144,11 +159,21 @@ export default async function bootstrap(): Promise<void> {
             store.delete("pendingUpdate");
         }
 
+        // Start the sync scheduler
+        startSyncScheduler();
+
+        // Create the system tray icon
+        createAppTray(mainWindow, () => {
+            isQuit = true;
+        });
+
+        // Activate the main window when the app is activated
         app.on("activate", () => {
             if (!mainWindow.isVisible()) mainWindow.show();
             mainWindow.focus();
         });
 
+        // Handle the app's before-quit event to clean up locks
         app.once("before-quit", async (e) => {
             if (hasCleanedLocks || isUpdating()) return;
             e.preventDefault();
@@ -161,10 +186,7 @@ export default async function bootstrap(): Promise<void> {
                 app.quit();
             }
         });
-        // Create the system tray icon
-        createAppTray(mainWindow, () => {
-            isQuit = true;
-        });
+
         // Close the app when the main window is closed
         mainWindow.on("close", (e) => {
             if (!isQuit) {

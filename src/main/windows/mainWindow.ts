@@ -8,6 +8,10 @@ import icon from "../../../resources/icon.png?asset";
 const fileURL = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURL);
 
+/**
+ * Creates the main application window.
+ * @returns {BrowserWindow} The created BrowserWindow instance.
+ */
 export default function createMainWindow(): BrowserWindow {
     const win = new BrowserWindow({
         width: 800,
