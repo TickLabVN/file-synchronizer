@@ -5,7 +5,7 @@ import {
     getToken,
     setTokens,
     refreshTokens,
-} from "../controllers/driveControllers";
+} from "../controllers/driveControllers.js";
 
 const router: Router = Router();
 

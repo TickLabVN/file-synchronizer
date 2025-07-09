@@ -20,7 +20,7 @@ export const SCOPES: string[] = [
     "profile",
 ];
 
-const REDIRECT_URI: string = `${BACKEND_URL}/auth/google/callback`;
+export const REDIRECT_URI: string = `${BACKEND_URL}/auth/google/callback`;
 
 export const oauth2Client = new google.auth.OAuth2(
     GOOGLE_CLIENT_ID,

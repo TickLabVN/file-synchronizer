@@ -1,10 +1,11 @@
 {
-    "name": "backend",
+    "name": "server",
     "version": "1.0.0",
     "description": "Backend server for the application",
     "main": "src/index.js",
     "scripts": {
-        "start": "nodemon server.js"
+        "build": "tsc",
+        "start": "nodemon dist/index.js"
     },
     "keywords": [],
     "author": "",
@@ -20,7 +21,6 @@
         "box-node-sdk": "^3.8.1",
         "dotenv": "^16.5.0",
         "express": "^5.1.0",
-        "googleapis": "^150.0.1",
-        "ts-node-dev": "^2.0.0"
+        "googleapis": "^150.0.1"
     }
 }
