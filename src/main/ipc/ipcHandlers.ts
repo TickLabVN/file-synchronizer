@@ -1,9 +1,9 @@
 import { ipcMain } from "electron";
-import * as auth from "./handlers/auth";
-import * as selection from "./handlers/selection";
-import * as settings from "./handlers/settings";
-import * as sync from "./handlers/sync";
-import * as trackedFiles from "./handlers/trackedFiles";
+import * as auth from "../handlers/auth";
+import * as selection from "../handlers/selection";
+import * as settings from "../handlers/settings";
+import * as sync from "../handlers/sync";
+import * as trackedFiles from "../handlers/trackedFiles";
 
 export default function registerIpcHandlers(): void {
     // GOOGLE DRIVE
