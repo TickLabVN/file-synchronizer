@@ -3,8 +3,8 @@ import fs from "fs";
 import "dotenv/config";
 import { constants } from "../lib/constants";
 import { drive_v3 } from "googleapis";
-const { mapping, store } = constants as {
-    mapping: Record<string, { id: string; lastSync?: string }>;
+const { driveMapping, store } = constants as {
+    driveMapping: Record<string, { id: string; lastSync?: string }>;
     store: {
         get: (
             key: string,
@@ -41,7 +41,7 @@ export default async function traverseCompare(
             const entries = await fs.promises.readdir(srcPath);
             for (const entry of entries) {
                 const childPath = path.join(srcPath, entry);
-                const rec = mapping[childPath];
+                const rec = driveMapping[childPath];
                 if (rec) {
                     const childChanged = await traverseCompare(
                         childPath,
@@ -66,7 +66,7 @@ export default async function traverseCompare(
                     media: { body: fs.createReadStream(srcPath) },
                 });
                 const now = new Date().toISOString();
-                mapping[srcPath].lastSync = now;
+                driveMapping[srcPath].lastSync = now;
                 hasChanged = true;
             }
         }
@@ -77,7 +77,7 @@ export default async function traverseCompare(
             } catch (driveErr) {
                 console.error("Failed to delete on Drive:", driveErr);
             }
-            delete mapping[srcPath];
+            delete driveMapping[srcPath];
             console.log(
                 `Deleted ${srcPath} locally : removed on Drive (ID=${fileId})`
             );

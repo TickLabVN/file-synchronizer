@@ -2,7 +2,7 @@ import { app } from "electron";
 import path, { sep as SEP } from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
-const { mapping, store, boxMapping } = constants;
+const { driveMapping, store, boxMapping } = constants;
 import getDriveClient from "../utils/getDriveClient";
 import { getBoxClient } from "../utils/getBoxClient";
 
@@ -24,7 +24,7 @@ export async function getTrackedFiles(): Promise<
 
     return Promise.all(
         Object.entries(
-            mapping as Record<
+            driveMapping as Record<
                 string,
                 { lastSync?: number; provider?: string; username?: string }
             >
@@ -104,13 +104,13 @@ export async function getTrackedFilesBox(): Promise<
 
 // Handler to delete a tracked file (both local link and Drive entry)
 export async function deleteTrackedFile(_, src): Promise<boolean> {
-    if (!(mapping as Record<string, { id?: string }>)[src]) {
+    if (!(driveMapping as Record<string, { id?: string }>)[src]) {
         throw new Error(`File not tracked: ${src}`);
     }
     // Delete on Drive
     const drive = await getDriveClient();
     try {
-        const typedMapping = mapping as Record<string, { id?: string }>;
+        const typedMapping = driveMapping as Record<string, { id?: string }>;
         await drive.files.delete({ fileId: typedMapping[src].id });
     } catch (err) {
         console.error("Drive delete error:", err);
@@ -128,18 +128,18 @@ export async function deleteTrackedFile(_, src): Promise<boolean> {
             console.error("Local unlink error:", err);
         }
     }
-    // Remove mapping entries (for file and any children)
+    // Remove driveMapping entries (for file and any children)
     const normalize = (p: string): string =>
         path.normalize(p).replace(/[/\\]+/g, SEP);
-    Object.keys(mapping as Record<string, unknown>).forEach((key) => {
+    Object.keys(driveMapping as Record<string, unknown>).forEach((key) => {
         const normKey = normalize(key);
         const normSrc = normalize(src);
         if (normKey === normSrc || normKey.startsWith(normSrc + SEP)) {
-            delete (mapping as Record<string, unknown>)[key];
+            delete (driveMapping as Record<string, unknown>)[key];
         }
     });
     // Persist updated
-    await store.set("driveMapping", mapping);
+    await store.set("driveMapping", driveMapping);
 
     interface Settings {
         stopSyncPaths?: string[];

@@ -6,7 +6,7 @@ const BACKEND_URL = is.dev
     ? "http://localhost:3000"
     : "https://file-synchronizer.onrender.com";
 const store = new Store();
-const mapping = store.get("driveMapping", {});
+const driveMapping = store.get("driveMapping", {});
 const boxMapping = store.get("boxMapping", {});
 const deviceId =
     store.get("deviceId") ||
@@ -19,7 +19,7 @@ const deviceId =
 export const constants = {
     BACKEND_URL,
     store,
-    mapping,
+    driveMapping,
     boxMapping,
     deviceId,
 };
