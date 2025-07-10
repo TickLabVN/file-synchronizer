@@ -76,7 +76,7 @@ export async function getTrackedFilesBox(): Promise<
                     id?: string;
                     provider?: string;
                     username?: string;
-                    isFolder?: boolean;
+                    isDirectory?: boolean;
                 }
             >
         ).map(async ([src, rec]) => {
@@ -158,7 +158,7 @@ export async function deleteTrackedFile(_, src): Promise<boolean> {
 // Handler to delete a tracked file (both local link and Box entry)
 export async function deleteTrackedFileBox(_, src): Promise<boolean> {
     if (
-        !(boxMapping as Record<string, { id?: string; isFolder?: boolean }>)[
+        !(boxMapping as Record<string, { id?: string; isDirectory?: boolean }>)[
             src
         ]
     ) {
@@ -166,12 +166,12 @@ export async function deleteTrackedFileBox(_, src): Promise<boolean> {
     }
 
     const client = await getBoxClient();
-    const { id, isFolder } = (
-        boxMapping as Record<string, { id?: string; isFolder?: boolean }>
+    const { id, isDirectory } = (
+        boxMapping as Record<string, { id?: string; isDirectory?: boolean }>
     )[src];
 
     try {
-        if (isFolder) {
+        if (isDirectory) {
             if (!id) {
                 throw new Error("Folder ID is undefined");
             }

@@ -5,7 +5,7 @@ import { constants } from "../lib/constants";
 interface BoxMappingValue {
     id: string;
     parentId: string;
-    isFolder: boolean;
+    isDirectory: boolean;
     lastSync: string;
     provider: string;
     username: string;
@@ -112,14 +112,14 @@ export default async function downloadTreeBox(
                     ? origPath
                     : path.join(localDir, item.name);
 
-            const isFolder = item.type === "folder";
+            const isDirectory = item.type === "folder";
 
             // Cập nhật boxMapping (ghi đè hoặc thêm mới)
             if (isSameOS) {
                 boxMapping[targetPath] = {
                     id: item.id,
                     parentId,
-                    isFolder,
+                    isDirectory,
                     lastSync: new Date().toISOString(),
                     provider,
                     username,
@@ -135,7 +135,7 @@ export default async function downloadTreeBox(
                 username,
             });
 
-            if (isFolder) {
+            if (isDirectory) {
                 // Đệ quy cho thư mục con
                 await downloadTreeBox(
                     item.id,

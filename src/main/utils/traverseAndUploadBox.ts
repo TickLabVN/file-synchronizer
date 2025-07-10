@@ -6,7 +6,7 @@ import { constants } from "../lib/constants";
 type BoxMappingEntry = {
     id: string;
     parentId: string;
-    isFolder: boolean;
+    isDirectory: boolean;
     lastSync: string;
     provider?: string | null;
     username?: string | null;
@@ -108,7 +108,7 @@ export async function traverseAndUploadBox(
             boxMapping[key] = {
                 id: folderId,
                 parentId,
-                isFolder: true,
+                isDirectory: true,
                 lastSync: new Date().toISOString(),
                 provider,
                 username,
@@ -167,7 +167,7 @@ export async function traverseAndUploadBox(
             boxMapping[key] = {
                 id: uploaded.id,
                 parentId,
-                isFolder: false,
+                isDirectory: false,
                 lastSync: new Date().toISOString(),
                 provider,
                 username,

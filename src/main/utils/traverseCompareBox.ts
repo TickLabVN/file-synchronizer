@@ -4,7 +4,7 @@ import { constants } from "../lib/constants";
 const { boxMapping, store } = constants as unknown as {
     boxMapping: Record<
         string,
-        { id: string; isFolder?: boolean; lastSync?: string }
+        { id: string; isDirectory?: boolean; lastSync?: string }
     >;
     store: { set: (key: string, value: unknown) => Promise<void> };
 };
@@ -67,7 +67,7 @@ export default async function traverseCompareBox(
         // File/folder đã bị xoá cục bộ → xoá trên Box
         if ((err as NodeJS.ErrnoException).code === "ENOENT") {
             try {
-                if (rec?.isFolder) {
+                if (rec?.isDirectory) {
                     await client.folders.delete(itemId, { recursive: true });
                 } else {
                     await client.files.delete(itemId);
