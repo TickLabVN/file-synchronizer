@@ -614,7 +614,7 @@ export async function syncBoxOnLaunch(): Promise<boolean> {
             const record = rec as {
                 parentId?: string;
                 id?: string;
-                isFolder?: boolean;
+                isDirectory?: boolean;
             };
             if (record.parentId === rootFolderId) {
                 const linkPath = path.join(
@@ -626,7 +626,7 @@ export async function syncBoxOnLaunch(): Promise<boolean> {
                 } catch (err) {
                     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
                         try {
-                            if (record.isFolder) {
+                            if (record.isDirectory) {
                                 if (typeof record.id === "string") {
                                     await client.folders.delete(record.id, {
                                         recursive: true,

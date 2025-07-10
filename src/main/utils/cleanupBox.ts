@@ -4,7 +4,7 @@ const { boxMapping } = constants;
 
 interface BoxMappingRecord {
     id: string;
-    isFolder: boolean;
+    isDirectory: boolean;
     // add other properties if needed
 }
 
@@ -27,7 +27,7 @@ export default async function cleanupBox(
         const rec = (boxMapping as Record<string, BoxMappingRecord>)[p];
         if (rec) {
             try {
-                if (rec.isFolder) {
+                if (rec.isDirectory) {
                     await client.folders.delete(rec.id, { recursive: true });
                 } else {
                     await client.files.delete(rec.id);
