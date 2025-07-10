@@ -12,7 +12,9 @@ type MappingRecord = {
     isDirectory: boolean;
 };
 
-const { mapping } = constants as { mapping: Record<string, MappingRecord> };
+const { driveMapping } = constants as {
+    driveMapping: Record<string, MappingRecord>;
+};
 
 // * Traverse a directory structure and upload files to Google Drive
 /**
@@ -38,7 +40,7 @@ export default async function traverseAndUpload(
     }
     const stats = await fs.promises.stat(srcPath);
     const key = srcPath;
-    const record = (mapping as Record<string, MappingRecord>)[key] as
+    const record = (driveMapping as Record<string, MappingRecord>)[key] as
         | MappingRecord
         | undefined;
 
@@ -64,7 +66,7 @@ export default async function traverseAndUpload(
                     `Failed to create or retrieve folder ID for path: ${srcPath}`
                 );
             }
-            mapping[key] = {
+            driveMapping[key] = {
                 id: folderId,
                 parentId,
                 lastSync: new Date().toISOString(),
@@ -114,7 +116,7 @@ export default async function traverseAndUpload(
                     `Failed to create or retrieve file ID for path: ${srcPath}`
                 );
             }
-            mapping[key] = {
+            driveMapping[key] = {
                 id: fileRes.data.id,
                 parentId,
                 lastSync: new Date().toISOString(),

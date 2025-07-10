@@ -4,7 +4,7 @@ import path from "path";
 import "dotenv/config";
 import { constants } from "../lib/constants";
 
-const { store, mapping } = constants;
+const { store, driveMapping } = constants;
 
 async function getDirSize(dir): Promise<number> {
     const entries = await fs.promises.readdir(dir, { withFileTypes: true });
@@ -109,7 +109,7 @@ export async function selectStopSyncFiles(): Promise<string[] | null> {
     );
 
     const matchedSrcs: string[] = [];
-    for (const src of Object.keys(mapping as Record<string, unknown>)) {
+    for (const src of Object.keys(driveMapping as Record<string, unknown>)) {
         let st;
         try {
             st = await fs.promises.stat(src);

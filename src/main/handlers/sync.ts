@@ -21,7 +21,7 @@ import {
     releaseBoxLock,
 } from "../utils/lock";
 
-const { store, mapping, boxMapping, deviceId } = constants;
+const { store, driveMapping, boxMapping, deviceId } = constants;
 
 function notifyRenderer(): void {
     BrowserWindow.getAllWindows().forEach((w) =>
@@ -177,17 +177,17 @@ export async function syncFiles(
                     throw err;
                 }
             }
-            //@ts-ignore: mapping is defined in constants
-            mapping[p] = {
-                //@ts-ignore: mapping is defined in constants
-                ...(mapping[p] || {}),
+            //@ts-ignore: driveMapping is defined in constants
+            driveMapping[p] = {
+                //@ts-ignore: driveMapping is defined in constants
+                ...(driveMapping[p] || {}),
                 parentId: driveFolderId,
                 lastSync: new Date().toISOString(),
                 provider: "google",
                 username: driveUsername,
                 isDirectory: stats.isDirectory(),
             };
-            await store.set("driveMapping", mapping);
+            await store.set("driveMapping", driveMapping);
             notifyRenderer();
         } catch (err) {
             if ((err as NodeJS.ErrnoException).code === "ENOENT") {
@@ -195,7 +195,7 @@ export async function syncFiles(
                     `Path "${p}" not found locally, cleaning up on Drive...`
                 );
                 await cleanupDrive(p, drive);
-                await store.set("driveMapping", mapping);
+                await store.set("driveMapping", driveMapping);
                 const message =
                     err instanceof Error ? err.message : String(err);
                 failed.push({ path: p, message });
@@ -297,7 +297,7 @@ export async function syncBoxFiles(
                     throw err;
                 }
             }
-            //@ts-ignore: mapping is defined in constants
+            //@ts-ignore: driveMapping is defined in constants
             Object.assign(boxMapping[p], {
                 parentId: rootFolderId,
                 lastSync: new Date().toISOString(),
@@ -306,7 +306,7 @@ export async function syncBoxFiles(
                 isDirectory: stats.isDirectory(),
             });
 
-            // 4d‑iii. Persist updated mapping
+            // 4d‑iii. Persist updated driveMapping
             await store.set("boxMapping", boxMapping);
             notifyRenderer();
         } catch (err) {
@@ -347,7 +347,7 @@ export async function syncOnLaunch(): Promise<boolean> {
         return true;
     }
 
-    if (Object.keys(mapping as object).length === 0) {
+    if (Object.keys(driveMapping as object).length === 0) {
         console.log("Skip sync-on-launch: no files mapped yet");
         return true;
     }
@@ -398,7 +398,7 @@ export async function syncOnLaunch(): Promise<boolean> {
         }
         try {
             for (const [src] of Object.entries(
-                mapping as Record<string, unknown>
+                driveMapping as Record<string, unknown>
             )) {
                 try {
                     await fs.promises.stat(src);
@@ -424,7 +424,7 @@ export async function syncOnLaunch(): Promise<boolean> {
             }
 
             for (const [src, rec] of Object.entries(
-                mapping as Record<string, unknown>
+                driveMapping as Record<string, unknown>
             )) {
                 const record = rec as { parentId?: string; id?: string };
                 if (record.parentId === driveFolderId) {
@@ -447,7 +447,7 @@ export async function syncOnLaunch(): Promise<boolean> {
                                     driveErr
                                 );
                             }
-                            const mappingObj = mapping as Record<
+                            const mappingObj = driveMapping as Record<
                                 string,
                                 unknown
                             >;
@@ -468,7 +468,7 @@ export async function syncOnLaunch(): Promise<boolean> {
 
             console.log("Starting auto-update on launch...");
             for (const [src, rec] of Object.entries(
-                mapping as Record<string, unknown>
+                driveMapping as Record<string, unknown>
             )) {
                 const record = rec as {
                     provider?: string;
@@ -513,7 +513,7 @@ export async function syncOnLaunch(): Promise<boolean> {
         }
     }
 
-    await store.set("driveMapping", mapping);
+    await store.set("driveMapping", driveMapping);
     return true;
 }
 
@@ -743,7 +743,7 @@ export async function pullFromDrive(): Promise<boolean> {
         "google",
         driveUsername
     );
-    await store.set("driveMapping", mapping);
+    await store.set("driveMapping", driveMapping);
 
     const rootEntries = pulledEntries.filter(
         (entry) => entry.parentId === rootId

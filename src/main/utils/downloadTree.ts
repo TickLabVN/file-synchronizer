@@ -1,8 +1,8 @@
 import path from "path";
 import fs from "fs";
 import { constants } from "../lib/constants";
-const { mapping } = constants as {
-    mapping: Record<
+const { driveMapping } = constants as {
+    driveMapping: Record<
         string,
         {
             id: string;
@@ -71,7 +71,7 @@ export default async function downloadTree(
             const isFolder =
                 file.mimeType === "application/vnd.google-apps.folder";
             if (isSameOs) {
-                mapping[targetPath] = {
+                driveMapping[targetPath] = {
                     id: file.id,
                     parentId,
                     lastSync: new Date().toISOString(),
