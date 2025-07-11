@@ -5,6 +5,12 @@ import * as settings from "../handlers/settings";
 import * as sync from "../handlers/sync";
 import * as tracked from "../handlers/trackedFiles";
 
+/**
+ * Registers IPC handlers for various application functionalities.
+ * This function sets up the communication between the main process and renderer processes
+ * for handling authentication, file selection, application settings, synchronization,
+ * and tracking of files.
+ */
 export default function registerIpcHandlers(): void {
     /* ----------  Auth (provider‑agnostic)  ---------- */
     ipcMain.handle("provider:sign-in", auth.signIn);
@@ -29,6 +35,6 @@ export default function registerIpcHandlers(): void {
     ipcMain.handle("sync:auto-sync", sync.autoSync);
 
     /* ----------  Tracked items  ---------- */
-    ipcMain.handle("tracked:track-file", tracked.trackFile);
+    ipcMain.handle("tracked:track-file", tracked.trackedFile);
     ipcMain.handle("tracked:delete-file", tracked.deleteTrackedFile);
 }

@@ -36,7 +36,8 @@ contextBridge.exposeInMainWorld("api", {
     autoSync: () => invoke("sync:auto-sync"),
 
     // Tracked files handlers
-    trackFile: (providerId: string) => invoke("tracked:track-file", providerId),
+    trackedFile: (providerId: string) =>
+        invoke("tracked:track-file", providerId),
     deleteTrackedFile: (providerId: string, src: string) =>
         invoke("tracked:delete-file", providerId, src),
 

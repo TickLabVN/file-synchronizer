@@ -1,13 +1,19 @@
 import { store } from "../lib/constants";
 
-// Handle retrieving the current settings
+/**
+ * Get the current settings
+ * @returns Current settings object with darkMode property
+ */
 export async function getSettings(): Promise<{ darkMode: boolean }> {
     return store.get("settings", {
         darkMode: false,
     }) as { darkMode: boolean };
 }
 
-// Handle updating the settings
+/** * Set new settings
+ * @param newSettings New settings object to merge with current settings
+ * @returns Updated settings object
+ */
 export async function setSettings(
     _: unknown,
     newSettings: Record<string, boolean>
