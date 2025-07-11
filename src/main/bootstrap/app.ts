@@ -1,18 +1,14 @@
 import { app, BrowserWindow, dialog } from "electron";
-import { constants } from "../lib/constants";
 import registerIpcHandlers from "../ipc/ipcHandlers";
-import { listGDTokens, listBoxTokens } from "../lib/credentials";
-import createCentralFolder from "../utils/centralConfig";
-import getDriveClient from "../utils/getDriveClient";
-import { getBoxClient } from "../utils/getBoxClient";
-import { cleanupDriveLockOnExit, cleanupBoxLockOnExit } from "../utils/lock";
+import createCentralFolder from "../utils/createCentralFolder";
 import createMainWindow from "../windows/mainWindow";
 import { setMainWindow, broadcast } from "../windows/WindowManager";
 import { startSyncScheduler } from "./syncScheduler";
 import { initialiseUpdater, isUpdating } from "./updater";
 import createAppTray from "../windows/appTray";
-
-const { BACKEND_URL, store } = constants;
+import provider from "./provider";
+import { allProviders } from "../lib/providerRegistry";
+import { store } from "../lib/constants";
 
 let isQuit: boolean = false;
 let hasCleanedLocks: boolean = false;
@@ -23,53 +19,14 @@ let hasCleanedLocks: boolean = false;
  * @returns {Promise<void>} A promise that resolves when the cleanup is complete.
  */
 async function cleanupAllLocks(): Promise<void> {
-    // Clean up locks for Google Drive
-    const gdAccounts = await listGDTokens();
-    for (const { email, tokens } of gdAccounts) {
+    const BACKUP_FOLDER = "__ticklabfs_backup";
+    for (const provider of allProviders()) {
         try {
-            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tokens),
-            });
-            const drive = await getDriveClient();
-            const {
-                data: { files },
-            } = await drive.files.list({
-                q: "name='__ticklabfs_backup' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-                fields: "files(id)",
-                spaces: "drive",
-            });
-            if (files && files.length) {
-                await cleanupDriveLockOnExit(drive, files[0].id);
+            if (provider.cleanupLockOnExit) {
+                await provider.cleanupLockOnExit(BACKUP_FOLDER);
             }
         } catch (err) {
-            console.error(`[exit] Drive ${email}:`, err);
-        }
-    }
-
-    // Clean up locks for Box
-    const boxAccounts = await listBoxTokens();
-    for (const { login, tokens } of boxAccounts) {
-        try {
-            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tokens),
-            });
-            const client = await getBoxClient();
-            const rootItems = await client.folders.getItems("0", {
-                fields: "id,type,name",
-                limit: 1000,
-            });
-            const backup = rootItems.entries.find(
-                (it) => it.type === "folder" && it.name === "__ticklabfs_backup"
-            );
-            if (backup) {
-                await cleanupBoxLockOnExit(client, backup.id);
-            }
-        } catch (err) {
-            console.error(`[exit] Box ${login}:`, err);
+            console.error(`[exit] cleanup lock for ${provider.id}:`, err);
         }
     }
 }
@@ -81,6 +38,8 @@ async function cleanupAllLocks(): Promise<void> {
  * handles Google Drive and Box tokens, and sets up the system tray icon.
  */
 export default async function bootstrap(): Promise<void> {
+    // Register cloud providers
+    await provider();
     // Prevent multiple instances of the app from running
     const gotLock: boolean = app.requestSingleInstanceLock();
     if (!gotLock) {
@@ -111,26 +70,6 @@ export default async function bootstrap(): Promise<void> {
             );
             app.quit();
             return;
-        }
-
-        // Initialize Google Drive client
-        const gdAccounts = await listGDTokens(); // ⇐ [{ email, tokens }]
-        for (const { tokens } of gdAccounts) {
-            await fetch(`${BACKEND_URL}/auth/google/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tokens),
-            });
-        }
-
-        // Initialize Box client
-        const bxAccounts = await listBoxTokens(); // ⇐ [{ login, tokens }]
-        for (const { tokens } of bxAccounts) {
-            await fetch(`${BACKEND_URL}/auth/box/set-tokens`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(tokens),
-            });
         }
 
         // Create the main application window
