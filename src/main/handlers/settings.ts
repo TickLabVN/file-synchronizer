@@ -1,6 +1,4 @@
-import "dotenv/config";
-import { constants } from "../lib/constants";
-const { store } = constants;
+import { store } from "../lib/constants";
 
 // Handle retrieving the current settings
 export async function getSettings(): Promise<{ darkMode: boolean }> {
@@ -10,10 +8,10 @@ export async function getSettings(): Promise<{ darkMode: boolean }> {
 }
 
 // Handle updating the settings
-export async function updateSettings(
+export async function setSettings(
     _: unknown,
-    newSettings: Record<string, unknown>
-): Promise<Record<string, unknown>> {
+    newSettings: Record<string, boolean>
+): Promise<Record<string, boolean>> {
     const curr = store.get("settings", {});
     const updated = { ...Object(curr), ...Object(newSettings) };
     store.set("settings", updated);
