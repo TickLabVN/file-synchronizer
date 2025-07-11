@@ -8,7 +8,12 @@ const DEFAULT_FOLDER_NAME = "__ticklabfs_central";
 // Path to config file storing central folder
 const cfgPath = path.join(app.getPath("userData"), "central-config.json");
 
-// Create the central folder automatically
+/**
+ * Creates a central folder for the application if it does not already exist.
+ * The path to the central folder is stored in a central-config.json file.
+ *
+ * @returns {Promise<string>} The path to the central folder.
+ */
 export default async function createCentralFolder(): Promise<string> {
     try {
         // Read the existing config file
@@ -21,7 +26,7 @@ export default async function createCentralFolder(): Promise<string> {
         }
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-            console.error("Error reading central config:", err);
+            throw err;
         }
     }
 
