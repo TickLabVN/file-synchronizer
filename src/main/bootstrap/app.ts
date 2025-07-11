@@ -14,8 +14,8 @@ let isQuit: boolean = false;
 let hasCleanedLocks: boolean = false;
 
 /**
- * Cleans up all locks on exit by removing backup folders from Google Drive and Box.
- * This function is called when the app is about to quit.
+ * Cleans up all locks on exit by removing backup folders from Cloud providers.
+ * This is necessary to ensure that no stale locks remain when the application exits.
  * @returns {Promise<void>} A promise that resolves when the cleanup is complete.
  */
 async function cleanupAllLocks(): Promise<void> {
@@ -39,7 +39,18 @@ async function cleanupAllLocks(): Promise<void> {
  */
 export default async function bootstrap(): Promise<void> {
     // Register cloud providers
-    await provider();
+    try {
+        await provider();
+    } catch (err) {
+        console.error("Error registering cloud providers:", err);
+        dialog.showErrorBox(
+            "Provider Registration Error",
+            "Failed to register cloud providers. Please check your configuration."
+        );
+        app.quit();
+        return;
+    }
+
     // Prevent multiple instances of the app from running
     const gotLock: boolean = app.requestSingleInstanceLock();
     if (!gotLock) {

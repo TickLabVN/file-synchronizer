@@ -3,7 +3,10 @@ import fs from "fs";
 import path from "path";
 import getDirSize from "../utils/getDirSize";
 
-// Handle selecting multiple files
+/**
+ * Handle selecting multiple files
+ * @returns Array of file objects with path, size, and isDirectory flag
+ */
 export async function selectFiles(): Promise<
     { path: string; size: number; isDirectory: boolean }[] | null
 > {
@@ -25,7 +28,10 @@ export async function selectFiles(): Promise<
     );
 }
 
-// Handle selecting multiple folders
+/**
+ * Handle selecting multiple folders
+ * @returns Array of folder objects with path, size, and isDirectory flag
+ */
 export async function selectFolders(): Promise<
     { path: string; size: number; isDirectory: boolean }[] | null
 > {
@@ -47,7 +53,11 @@ export async function selectFolders(): Promise<
     );
 }
 
-// List directory contents with size and type
+/**
+ * List all files in a directory with their metadata
+ * @param dirPath Directory path to list
+ * @returns Array of file objects with path, isDirectory flag, and size
+ */
 export async function listDirectory(
     _: unknown,
     dirPath: string
@@ -67,7 +77,11 @@ export async function listDirectory(
     );
 }
 
-// Handler to get all tracked files with their metadata
+/**
+ * Open a file or directory in the system's file explorer
+ * @param fullPath Full path to the file or directory
+ * @returns True if successful, false otherwise
+ */
 export async function openInExplorer(
     _: unknown,
     fullPath: string
