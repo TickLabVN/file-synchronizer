@@ -1,11 +1,10 @@
 import { BrowserWindow, dialog } from "electron";
 import pkg from "electron-updater";
-import { constants } from "../lib/constants";
 import { broadcast } from "../windows/WindowManager";
 import { is } from "@electron-toolkit/utils";
+import { store } from "../lib/constants";
 
 const { autoUpdater } = pkg;
-const { store } = constants;
 
 let updating = false;
 export const isUpdating = (): boolean => updating;
