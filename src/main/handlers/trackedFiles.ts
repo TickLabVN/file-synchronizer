@@ -5,6 +5,7 @@ import { constants } from "../lib/constants";
 const { driveMapping, store, boxMapping } = constants;
 import getDriveClient from "../utils/getDriveClient";
 import { getBoxClient } from "../utils/getBoxClient";
+import getDirSize from "../utils/getDirSize";
 
 // Handler to get all tracked files with their last sync timestamp
 export async function getTrackedFiles(): Promise<
@@ -222,15 +223,4 @@ export async function deleteTrackedFileBox(_, src): Promise<boolean> {
     await store.set("settings", settings);
 
     return true;
-}
-
-async function getDirSize(dir): Promise<number> {
-    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-    let total = 0;
-    for (const e of entries) {
-        const full = path.join(dir, e.name);
-        if (e.isDirectory()) total += await getDirSize(full);
-        else total += (await fs.promises.stat(full)).size;
-    }
-    return total;
 }
