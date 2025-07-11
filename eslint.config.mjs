@@ -1,20 +1,12 @@
-import tseslint from "@electron-toolkit/eslint-config-ts";
+import eslint from "@electron-toolkit/eslint-config";
 import eslintPluginReact from "eslint-plugin-react";
 import eslintPluginReactHooks from "eslint-plugin-react-hooks";
 import eslintPluginReactRefresh from "eslint-plugin-react-refresh";
 import eslintPluginPrettier from "eslint-plugin-prettier";
 
-export default tseslint.config(
-    {
-        ignores: [
-            "**/node_modules",
-            "**/dist",
-            "**/out",
-            "**/build",
-            "src/renderer/src/components/ui/**",
-        ],
-    },
-    tseslint.configs.recommended,
+export default [
+    { ignores: ["**/node_modules", "**/dist", "**/out"] },
+    eslint,
     eslintPluginReact.configs.flat.recommended,
     eslintPluginReact.configs.flat["jsx-runtime"],
     {
@@ -25,7 +17,7 @@ export default tseslint.config(
         },
     },
     {
-        files: ["**/*.{ts,tsx}"],
+        files: ["**/*.{js,jsx}"],
         plugins: {
             "react-hooks": eslintPluginReactHooks,
             "react-refresh": eslintPluginReactRefresh,
@@ -34,7 +26,6 @@ export default tseslint.config(
         rules: {
             ...eslintPluginReactHooks.configs.recommended.rules,
             ...eslintPluginReactRefresh.configs.vite.rules,
-            "react-refresh/only-export-components": "off",
             "react/prop-types": "off",
             "prettier/prettier": [
                 "error",
@@ -50,5 +41,5 @@ export default tseslint.config(
                 },
             ],
         },
-    }
-);
+    },
+];
