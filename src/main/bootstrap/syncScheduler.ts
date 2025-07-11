@@ -1,8 +1,8 @@
 import { app } from "electron";
 import fs from "fs";
 import path from "path";
-import { listGDTokens, listBoxTokens } from "../lib/credentials";
-import { syncAllOnLaunch } from "../handlers/sync";
+import { autoSync } from "../handlers/sync";
+import { allProviders } from "../lib/providerRegistry";
 import { broadcast } from "../windows/WindowManager";
 
 const BASE_INTERVAL = 5 * 60 * 1000;
@@ -15,6 +15,19 @@ const JITTER_RANGE = 30 * 1000;
  */
 function nextDelay(): number {
     return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
+}
+
+/**
+ * A function to sync all accounts on application launch.
+ * It checks if there are any accounts registered with Google Drive or Box,
+ * and if so, it performs a sync operation.
+ * @returns {Promise<void>} A promise that resolves when the sync is complete.
+ */
+async function hasAccounts(): Promise<boolean> {
+    for (const provider of allProviders()) {
+        if ((await provider.listAccounts()).length) return true;
+    }
+    return false;
 }
 
 /**
@@ -34,9 +47,7 @@ async function shouldSync(): Promise<boolean> {
             throw err;
         }
     }
-    const anyGD = (await listGDTokens()).length > 0;
-    const anyBX = (await listBoxTokens()).length > 0;
-    return (anyGD || anyBX) && !!centralFolderPath;
+    return !!centralFolderPath && (await hasAccounts());
 }
 
 /**
@@ -47,7 +58,7 @@ export function startSyncScheduler(): void {
     const run = async (): Promise<void> => {
         if (await shouldSync()) {
             try {
-                await syncAllOnLaunch();
+                await autoSync();
                 console.log("[Background] sync completed");
                 broadcast("app:tracked-files-updated");
             } catch (err) {
