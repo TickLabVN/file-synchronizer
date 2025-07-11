@@ -1,76 +1,87 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+// Define a helper function to invoke IPC methods
+const invoke = (channel: string, ...args: unknown[]): Promise<unknown> =>
+    ipcRenderer.invoke(channel, ...args);
+
+// Expose API methods to the renderer process
 contextBridge.exposeInMainWorld("api", {
-    // Google Drive authentication functions
-    signIn: () => ipcRenderer.invoke("google-drive:sign-in"),
-    listAccounts: () => ipcRenderer.invoke("google-drive:list-accounts"),
-    useAccount: (email) =>
-        ipcRenderer.invoke("google-drive:use-account", email),
-    getProfile: (email) =>
-        ipcRenderer.invoke("google-drive:get-profile", email),
-    signOut: (email) => ipcRenderer.invoke("google-drive:sign-out", email),
-    // Box authentication functions
-    boxSignIn: () => ipcRenderer.invoke("box:sign-in"),
-    listBoxAccounts: () => ipcRenderer.invoke("box:list-accounts"),
-    useBoxAccount: (login) => ipcRenderer.invoke("box:use-account", login),
-    getBoxProfile: (login) => ipcRenderer.invoke("box:get-profile", login),
-    boxSignOut: (login) => ipcRenderer.invoke("box:sign-out", login),
+    // Authentication handlers
+    signIn: (providerId: string) => invoke("provider:sign-in", providerId),
+    listAccounts: (providerId: string) =>
+        invoke("provider:list-accounts", providerId),
+    useAccount: (providerId: string, accountId: string) =>
+        invoke("provider:use-account", providerId, accountId),
+    getProfile: (providerId: string, accountId: string) =>
+        invoke("provider:get-profile", providerId, accountId),
+    signOut: (providerId: string, accountId: string) =>
+        invoke("provider:sign-out", providerId, accountId),
 
-    // File and folder selection functions
-    selectFiles: () => ipcRenderer.invoke("app:select-files"),
-    selectFolders: () => ipcRenderer.invoke("app:select-folders"),
-    selectStopSyncFiles: () => ipcRenderer.invoke("app:select-stop-sync-files"),
-    listDirectory: (path) => ipcRenderer.invoke("app:list-directory", path),
-    openInExplorer: (path) => ipcRenderer.invoke("app:open-in-explorer", path),
+    // File system handlers
+    selectFiles: () => invoke("fs:select-files"),
+    selectFolders: () => invoke("fs:select-folders"),
+    listDirectory: (dirPath: string) => invoke("fs:list-directory", dirPath),
+    openInExplorer: (fullPath: string) =>
+        invoke("fs:open-in-explorer", fullPath),
 
-    // Settings functions
-    getSettings: () => ipcRenderer.invoke("app:get-settings"),
-    updateSettings: (settings) =>
-        ipcRenderer.invoke("app:update-settings", settings),
+    // Application settings handlers
+    getSettings: () => invoke("app:get-settings"),
+    setSettings: (settings: Record<string, boolean>) =>
+        invoke("app:set-settings", settings),
 
-    // Sync related functions
-    syncFiles: (paths) => ipcRenderer.invoke("app:sync-files", paths),
-    syncOnLaunch: () => ipcRenderer.invoke("app:sync-on-launch"),
-    pullFromDrive: () => ipcRenderer.invoke("app:pull-from-drive"),
-    syncBoxFiles: (paths) => ipcRenderer.invoke("app:sync-box-files", paths),
-    syncBoxOnLaunch: () => ipcRenderer.invoke("app:sync-box-on-launch"),
-    pullFromBox: () => ipcRenderer.invoke("app:pull-from-box"),
+    // Sync operations
+    syncFiles: (providerId: string, options: unknown) =>
+        invoke("sync:sync-files", providerId, options),
+    pull: (providerId: string) => invoke("sync:pull", providerId),
+    autoSync: () => invoke("sync:auto-sync"),
 
-    // Update related functions
-    onUpdateAvailable: (cb) =>
+    // Tracked files handlers
+    trackFile: (providerId: string) => invoke("tracked:track-file", providerId),
+    deleteTrackedFile: (providerId: string, src: string) =>
+        invoke("tracked:delete-file", providerId, src),
+
+    // Event listeners
+    onUpdateAvailable: (cb: (info: unknown) => void) =>
         ipcRenderer.on("app:update-available", (_e, info) => cb(info)),
-    onUpdateDownloaded: (cb) =>
+    onUpdateDownloaded: (cb: (info: unknown) => void) =>
         ipcRenderer.on("app:update-downloaded", (_e, info) => cb(info)),
-
-    // Tracked files and folders functions
-    getTrackedFiles: () => ipcRenderer.invoke("app:get-tracked-files"),
-    onTrackedFilesUpdated: (cb) =>
-        ipcRenderer.on("app:tracked-files-updated", (_e, data) => cb(data)),
-    deleteTrackedFile: (file) =>
-        ipcRenderer.invoke("app:delete-tracked-file", file),
-    getTrackedFilesBox: () => ipcRenderer.invoke("app:get-tracked-files-box"),
-    deleteTrackedFileBox: (file) =>
-        ipcRenderer.invoke("app:delete-tracked-file-box", file),
+    onTrackedFilesUpdated: (cb: (data: unknown) => void) =>
+        ipcRenderer.on("tracked:files-updated", (_e, data) => cb(data)),
 });
 
+// Expose Node.js versions
 contextBridge.exposeInMainWorld("versions", {
     node: () => process.versions.node,
     chrome: () => process.versions.chrome,
     electron: () => process.versions.electron,
 });
 
+// Expose window control methods
 contextBridge.exposeInMainWorld("windowControls", {
     minimize: () => ipcRenderer.send("window-minimize"),
     maximize: () => ipcRenderer.send("window-maximize"),
     close: () => ipcRenderer.send("window-close"),
-    isMaximized: () => ipcRenderer.invoke("window-isMaximized"),
+    isMaximized: () => invoke("window-isMaximized"),
 });
 
+// Expose IPC renderer methods for use in the preload script
 contextBridge.exposeInMainWorld("electron", {
     ipcRenderer: {
-        send: (channel, ...args) => ipcRenderer.send(channel, ...args),
-        on: (channel, listener) => ipcRenderer.on(channel, listener),
-        removeListener: (channel, listener) =>
-            ipcRenderer.removeListener(channel, listener),
+        send: (channel: string, ...args: unknown[]) =>
+            ipcRenderer.send(channel, ...args),
+        on: (
+            channel: string,
+            listener: (
+                event: Electron.IpcRendererEvent,
+                ...args: unknown[]
+            ) => void
+        ) => ipcRenderer.on(channel, listener),
+        removeListener: (
+            channel: string,
+            listener: (
+                event: Electron.IpcRendererEvent,
+                ...args: unknown[]
+            ) => void
+        ) => ipcRenderer.removeListener(channel, listener),
     },
 });
