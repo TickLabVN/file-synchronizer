@@ -14,7 +14,7 @@ import { mappingStore } from "./mappingStore";
  * @param stopSyncPaths - Paths where synchronization should be stopped.
  * @returns A promise that resolves to true if any changes were made, false otherwise.
  */
-export async function traverseCompare(
+export default async function traverseCompare(
     srcPath: string,
     remoteId: string,
     hooks: CompareHooks,
