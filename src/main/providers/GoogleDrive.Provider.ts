@@ -18,8 +18,9 @@ import { CredentialStore } from "../lib/credentials";
 import { BACKEND_URL, store, deviceId } from "../lib/constants";
 
 import traverseAndUpload from "../utils/traverseAndUpload.Generic";
-import { traverseCompare } from "../utils/traverseCompare.Generic";
+import traverseCompare from "../utils/traverseCompare.Generic";
 import downloadTree from "../utils/downloadTree.Generic";
+import cleanup from "../utils/cleanup.Generic";
 import {
     UploadHooks,
     CompareHooks,
@@ -36,6 +37,13 @@ interface GoogleDriveTokens {
     id_token: string;
     [key: string]: unknown;
 }
+
+// Define the structure of a Google Drive error
+type GoogleDriveError = {
+    code?: number | string;
+    response?: { status?: number };
+    message?: string;
+};
 
 // Google Drive provider implementation for file synchronization.
 export default class GoogleDriveProvider implements ICloudProvider {
@@ -98,7 +106,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
 
             let handled = false;
 
-            async function handleRedirect(url: string): Promise<void> {
+            const handleRedirect = async (url: string): Promise<void> => {
                 if (url.startsWith("myapp://oauth")) {
                     handled = true;
                     const code = new URL(url).searchParams.get("code");
@@ -139,7 +147,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                         authWin.close();
                     }
                 }
-            }
+            };
 
             authWin.webContents.on("will-redirect", (_, url) => {
                 handleRedirect(url);
@@ -452,13 +460,31 @@ export default class GoogleDriveProvider implements ICloudProvider {
 
                     await this.ensureSymlink(p, centralFolderPath);
                 } catch (err: unknown) {
-                    const errorMsg =
+                    if (
+                        err &&
+                        typeof err === "object" &&
+                        "code" in err &&
+                        (err as { code?: string }).code === "ENOENT"
+                    ) {
+                        console.warn(
+                            `[sync] Path "${p}" missing locally, cleaning up on Drive…`
+                        );
+                        await cleanup(p, this.buildCleanupHooks(drive));
+                        failed.push({
+                            path: p,
+                            error:
+                                (err as { message?: string }).message ??
+                                "ENOENT",
+                        });
+                        continue;
+                    }
+                    const msg =
                         err instanceof Error
                             ? err.message
                             : typeof err === "string"
                               ? err
                               : JSON.stringify(err);
-                    failed.push({ path: p, error: errorMsg });
+                    failed.push({ path: p, error: msg });
                 }
             }
 
@@ -702,13 +728,14 @@ export default class GoogleDriveProvider implements ICloudProvider {
             try {
                 await drive.files.delete({ fileId: lockId });
                 console.log(`[release] Deleted lock ${lockId}`);
-            } catch (err) {
-                const status = err.code || err?.response?.status;
+            } catch (err: unknown) {
+                const error = err as GoogleDriveError;
+                const status = error.code ?? error.response?.status;
                 if (status !== 404 && status !== 403) {
                     console.warn(
                         "Failed to release lock:",
                         lockId,
-                        err.message
+                        error.message
                     );
                 } else {
                     console.debug(

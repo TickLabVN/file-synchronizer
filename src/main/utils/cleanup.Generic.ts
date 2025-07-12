@@ -9,7 +9,7 @@ import { mappingStore } from "./mappingStore";
  * @param srcPath - The source path to clean up in the remote storage.
  * @param hooks - The cleanup hooks to perform remote deletions.
  */
-export async function cleanup(
+export default async function cleanup(
     srcPath: string,
     hooks: CleanupHooks
 ): Promise<void> {
