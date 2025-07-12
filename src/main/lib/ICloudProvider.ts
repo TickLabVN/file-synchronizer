@@ -69,7 +69,7 @@ export interface ICloudProvider {
     acquireLock(
         backupFolderId: string,
         deviceId: string,
-        ttlMs?: number
+        ttlMs: number
     ): Promise<{ acquired: boolean; lockId?: string }>;
     releaseLock(lockId: string): Promise<void>;
     cleanupLockOnExit(backupFolderId: string): Promise<void>;
