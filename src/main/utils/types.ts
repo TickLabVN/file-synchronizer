@@ -58,5 +58,5 @@ export interface CompareHooks {
  * It includes a method for deleting a remote file or folder.
  */
 export interface CleanupHooks {
-    deleteRemote(remoteId: string, isDir: boolean): Promise<void>;
+    deleteRemote(remoteId: string, isDir?: boolean): Promise<void>;
 }
