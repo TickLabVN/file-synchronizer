@@ -18,44 +18,32 @@ const App: React.FC = () => {
     useEffect(() => {
         async function init(): Promise<void> {
             try {
-                const gdAccounts = (await api.listAccounts()) as {
-                    email: string;
-                }[]; // [{email}]
-                const boxAccounts = (await api.listBoxAccounts()) as {
-                    login: string;
-                }[]; // [{login}]
-
-                if (gdAccounts.length) {
-                    const { email } = gdAccounts[0];
-                    await api.useAccount(email);
-                    setProvider({ type: "google", accountId: email });
-                    const prof = (await api.getProfile(email)) as {
-                        name?: string;
-                    };
-                    setUsername(prof?.name || email);
+                const gd = (await api.listAccounts()) as {
+                    id: string;
+                    displayName?: string;
+                }[];
+                if (gd.length) {
+                    const { id, displayName } = gd[0];
+                    await api.useAccount(id);
+                    setProvider({ type: "google", accountId: id });
+                    setUsername(displayName || id.split("@")[0]);
                     setAuth(true);
-                } else if (boxAccounts.length) {
-                    const { login } = boxAccounts[0];
-                    await api.useBoxAccount(login);
-                    setProvider({ type: "box", accountId: login });
-                    const prof = (await api.getBoxProfile(login)) as {
-                        name?: string;
-                    };
-                    setUsername(prof?.name || login);
-                    setAuth(true);
+                } else {
+                    const bx = (await api.listBoxAccounts()) as {
+                        id: string;
+                        displayName?: string;
+                    }[];
+                    if (bx.length) {
+                        const { id, displayName } = bx[0];
+                        await api.useBoxAccount(id);
+                        setProvider({ type: "box", accountId: id });
+                        setUsername(displayName || id);
+                        setAuth(true);
+                    }
                 }
             } catch (err) {
                 console.error("Init error:", err);
-                if (err instanceof Error) {
-                    toast.error(
-                        "Failed to initialize application: " +
-                            (err.message || "Unknown error")
-                    );
-                } else {
-                    toast.error(
-                        "Failed to initialize application: Unknown error"
-                    );
-                }
+                toast.error("Failed to initialize application");
             } finally {
                 setLoading(false);
             }
@@ -110,6 +98,7 @@ const App: React.FC = () => {
             if (data.type === "google") {
                 //@ts-ignore: window.electron is defined in preload script
                 api.getProfile(data.accountId).then((p) =>
+                    //@ts-ignore: window.electron is defined in preload script
                     setUsername(p?.name || data.accountId)
                 );
             } else {

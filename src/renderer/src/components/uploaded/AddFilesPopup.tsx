@@ -86,26 +86,23 @@ export default function AddFilesPopup({
         const box: Array<{ login: string }> = await api.listBoxAccounts(); // [{login}]
         const list = [
             ...(await Promise.all(
-                gd.map(async ({ email }) => {
-                    const prof = (await api.getProfile(email)) as {
-                        name?: string;
-                    } | null;
-                    const uname = prof?.name || email.split("@")[0];
+                gd.map(async ({ id, displayName }) => {
+                    const uname = displayName || id.split("@")[0];
                     return {
                         label: `Drive – ${uname}`,
-                        value: JSON.stringify({ type: "google", id: email }),
+                        value: JSON.stringify({ type: "google", id: id }),
                     };
                 })
             )),
             ...(await Promise.all(
-                box.map(async ({ login }) => {
-                    const prof = (await api.getBoxProfile(login)) as {
+                box.map(async ({ id, displayName }) => {
+                    const prof = (await api.getBoxProfile(id)) as {
                         name?: string;
                     } | null;
-                    const uname = prof?.name || login;
+                    const uname = displayName || (prof ? prof.name : id);
                     return {
                         label: `Box – ${uname}`,
-                        value: JSON.stringify({ type: "box", id: login }),
+                        value: JSON.stringify({ type: "box", id: id }),
                     };
                 })
             )),

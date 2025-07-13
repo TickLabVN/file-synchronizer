@@ -47,7 +47,7 @@ contextBridge.exposeInMainWorld("api", {
     onUpdateDownloaded: (cb: (info: unknown) => void) =>
         ipcRenderer.on("app:update-downloaded", (_e, info) => cb(info)),
     onTrackedFilesUpdated: (cb: (data: unknown) => void) =>
-        ipcRenderer.on("tracked:files-updated", (_e, data) => cb(data)),
+        ipcRenderer.on("app:tracked-files-updated", (_e, data) => cb(data)),
 });
 
 // Expose Node.js versions
