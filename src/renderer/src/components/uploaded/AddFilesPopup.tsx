@@ -230,7 +230,7 @@ export default function AddFilesPopup({
                     <ul className="space-y-2">
                         {loadingPath === item.path ? (
                             <li className="pl-6 text-xs text-gray-400 italic">
-                                Loading…
+                                Loading...
                             </li>
                         ) : hasChild ? (
                             children.map((child) =>

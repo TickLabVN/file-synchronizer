@@ -36,6 +36,7 @@ import icon from "../../../resources/icon.png?asset";
 type BoxTokens = {
     access_token: string;
     refresh_token: string;
+    name?: string;
     [k: string]: unknown;
 };
 // Define the structure of box folder entries
@@ -149,6 +150,7 @@ export default class BoxProvider implements ICloudProvider {
 
                     const login: string = profile.login;
                     const displayName: string | undefined = profile.name;
+                    tokens.name = profile.name;
 
                     await this.credStore.add(login, tokens);
 
@@ -192,11 +194,11 @@ export default class BoxProvider implements ICloudProvider {
      */
     async listAccounts(): Promise<AuthAccount[]> {
         const list = await this.credStore.list();
-        return list.map(({ account, tokens }) => ({
-            id: account,
-            displayName: account,
-            tokens,
-        }));
+        return list.map(({ account, tokens }) => {
+            const t = tokens as BoxTokens;
+            const uname = t.name || account;
+            return { id: account, displayName: uname, tokens };
+        });
     }
 
     /**
@@ -236,7 +238,13 @@ export default class BoxProvider implements ICloudProvider {
      */
     async getProfile(id: string): Promise<AuthAccount> {
         const tokens = await this.credStore.get(id);
-        return { id, displayName: id, tokens };
+        if (!tokens) throw new Error(`No saved tokens for ${id}`);
+        const { data: profile } = await axios.get(`${BACKEND_URL}/auth/box/me`);
+        return {
+            id: profile.login,
+            displayName: profile.name || profile.login,
+            tokens,
+        };
     }
 
     /* ------------------------------------------------------------------ */
@@ -264,8 +272,9 @@ export default class BoxProvider implements ICloudProvider {
                 refresh_token: stored.refresh_token,
             }
         );
+        const merged = { ...stored, ...fresh };
 
-        await this.credStore.add(this.activeAccount, fresh);
+        await this.credStore.add(this.activeAccount, merged);
         await axios.post(`${BACKEND_URL}/auth/box/set-tokens`, fresh);
 
         return BoxSDK.getBasicClient(fresh.access_token);

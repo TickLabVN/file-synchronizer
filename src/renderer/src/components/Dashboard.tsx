@@ -443,7 +443,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
                     return null; // nếu không dùng được thì bỏ qua
                 }
                 //@ts-ignore: api.getProfile is a function
-                const prof = await api.getBoxProfile().catch(() => null);
+                const prof = await api.getBoxProfile(id).catch(() => null);
                 return {
                     type: "box",
                     id: id,
