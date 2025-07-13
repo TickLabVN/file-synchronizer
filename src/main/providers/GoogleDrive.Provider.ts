@@ -33,10 +33,10 @@ import getDirSize from "../utils/getDirSize";
 import icon from "../resources/icon.png?asset";
 
 // Define the structure of Google Drive tokens
-interface GoogleDriveTokens {
+type GoogleDriveTokens = {
     id_token: string;
     [key: string]: unknown;
-}
+};
 
 // Define the structure of a Google Drive error
 type GoogleDriveError = {
@@ -52,7 +52,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
     readonly displayName = "Google Drive";
 
     // Credential store for managing Google Drive accounts
-    private readonly credStore = new CredentialStore<unknown>(
+    private readonly credStore = new CredentialStore<GoogleDriveTokens>(
         "com.filesynchronizer.googledrive",
         "gdAccounts"
     );
@@ -111,7 +111,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     handled = true;
                     const code = new URL(url).searchParams.get("code");
                     if (!code) {
-                        reject(new Error("No code returned"));
+                        reject(new Error("[Drive.auth] No code returned"));
                         authWin.close();
                         return;
                     }
@@ -159,7 +159,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
             authWin.on("closed", () => {
                 if (!handled) {
                     reject(
-                        new Error("Authentication window was closed by user")
+                        new Error(
+                            "[Drive.auth] Authentication window was closed by user"
+                        )
                     );
                 }
             });
@@ -235,7 +237,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
     }
 
     /* ------------------------------------------------------------------ */
-    /*                       GOOGLE DRIVE HOOKS                           */
+    /*                           CLIENT HELPERS                           */
     /* ------------------------------------------------------------------ */
 
     /**
@@ -247,7 +249,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
         if (!this.activeAccount) throw new Error("No active Google account");
         const stored = await this.credStore.get(this.activeAccount);
         if (!stored)
-            throw new Error("Tokens not found for " + this.activeAccount);
+            throw new Error(
+                "[Drive.client] Tokens not found for " + this.activeAccount
+            );
 
         await axios.post(`${BACKEND_URL}/auth/google/set-tokens`, stored);
 
@@ -260,6 +264,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
         oauth2.setCredentials(fresh);
         return google.drive({ version: "v3", auth: oauth2 });
     }
+
+    /* ------------------------------------------------------------------ */
+    /*                            HOOKS                                   */
+    /* ------------------------------------------------------------------ */
 
     /**
      * Builds the upload hooks for interacting with Google Drive.
@@ -429,7 +437,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
 
         const { acquired, lockId } = await this.acquireLock(folderId, deviceId);
         if (!acquired) {
-            console.log("[sync] Skipping sync, lock already held");
+            console.log("[Drive.sync] Skipping sync, lock already held");
             return { success: true, failed: null };
         }
         try {
@@ -467,7 +475,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                         (err as { code?: string }).code === "ENOENT"
                     ) {
                         console.warn(
-                            `[sync] Path "${p}" missing locally, cleaning up on Drive…`
+                            `[Drive.sync] Path "${p}" missing locally, cleaning up on Drive...`
                         );
                         await cleanup(p, this.buildCleanupHooks(drive));
                         failed.push({
@@ -497,7 +505,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 try {
                     await this.releaseLock(lockId);
                 } catch (err) {
-                    console.warn("[sync] Failed to release lock:", err);
+                    console.warn("[Drive.sync] Failed to release lock:", err);
                 }
             }
         }
@@ -517,7 +525,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
             deviceId
         );
         if (!acquired) {
-            console.log("[autoSync] Skipping auto-sync, lock already held");
+            console.log(
+                "[Drive.autoSync] Skipping auto-sync, lock already held"
+            );
             return true;
         }
 
@@ -541,7 +551,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     );
                     anyChanged ||= changed;
                 } catch (err) {
-                    console.error("[autoSync]", key, err);
+                    console.error("[Drive.autoSync]", key, err);
                 }
             }
             return anyChanged;
@@ -550,7 +560,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 try {
                     await this.releaseLock(lockId);
                 } catch (err) {
-                    console.warn("[autoSync] Failed to release lock:", err);
+                    console.warn(
+                        "[Drive.autoSync] Failed to release lock:",
+                        err
+                    );
                 }
             }
         }
@@ -608,7 +621,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 isDirectory = stats.isDirectory();
                 size = isDirectory ? await getDirSize(key) : stats.size;
             } catch {
-                console.warn("[getTrackedFiles] stat failed for", key);
+                console.warn("[Drive.getTrackedFiles] stat failed for", key);
                 size = null;
             }
             result[key] = {
@@ -639,7 +652,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         try {
             await drive.files.delete({ fileId: rec.id });
         } catch (err) {
-            console.warn("[deleteTrackedFile] remote delete", err);
+            console.warn("[Drive.deleteTrackedFile] remote delete", err);
         }
 
         const cfgPath = path.join(
@@ -653,7 +666,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
         try {
             await fs.promises.unlink(linkPath);
         } catch {
-            console.warn("[deleteTrackedFile] unlink failed, maybe not exist");
+            console.warn(
+                "[Drive.deleteTrackedFile] unlink failed, maybe not exist"
+            );
         }
 
         mappingStore.deleteSubtree(src);
@@ -727,7 +742,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         if (lockId) {
             try {
                 await drive.files.delete({ fileId: lockId });
-                console.log(`[release] Deleted lock ${lockId}`);
+                console.log(`[Drive.release] Deleted lock ${lockId}`);
             } catch (err: unknown) {
                 const error = err as GoogleDriveError;
                 const status = error.code ?? error.response?.status;
@@ -739,7 +754,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     );
                 } else {
                     console.debug(
-                        `[release] Lock ${lockId} already gone (status ${status})`
+                        `[Drive.release] Lock ${lockId} already gone (status ${status})`
                     );
                 }
             }
@@ -765,10 +780,12 @@ export default class GoogleDriveProvider implements ICloudProvider {
             if (typeof fileId === "string") {
                 try {
                     await drive.files.delete({ fileId });
-                    console.log("[exit] Deleted lock file on Google Drive");
+                    console.log(
+                        "[Drive.exit] Deleted lock file on Google Drive"
+                    );
                 } catch (err) {
                     console.warn(
-                        "[exit] Failed to delete lock file on Google Drive:",
+                        "[Drive.exit] Failed to delete lock file on Google Drive:",
                         err
                     );
                 }
@@ -795,7 +812,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
         try {
             await fs.promises.unlink(linkPath);
         } catch {
-            console.warn("[ensureSymlink] unlink failed, maybe not exist");
+            console.warn(
+                "[Drive.ensureSymlink] unlink failed, maybe not exist"
+            );
         }
 
         const stats = await fs.promises.stat(src);
