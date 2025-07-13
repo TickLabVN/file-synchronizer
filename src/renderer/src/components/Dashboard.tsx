@@ -147,22 +147,26 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         );
     }, [SEP]);
 
+    // Dashboard.tsx
+    // ... bên trong loadTrackedFiles ------------------------------
     const loadTrackedFiles = useCallback(async () => {
         try {
-            const [drive, box] = await Promise.all([
-                //@ts-ignore: api.getTrackedFiles is a function
+            // helper: biến mảng mapping thành mảng TrackedFile đích thực
+            const flatten = (
+                arr: Array<Record<string, TrackedFile>>
+            ): TrackedFile[] => arr.flatMap((m) => (m ? Object.values(m) : []));
+
+            const [driveMap, boxMap] = await Promise.all([
                 api.getTrackedFiles().catch(() => []),
-                //@ts-ignore: api.getTrackedFiles is a function
                 api.getTrackedFilesBox().catch(() => []),
             ]);
-            setTrackedFiles([...drive, ...box]);
+
+            setTrackedFiles([...flatten(driveMap), ...flatten(boxMap)]);
         } catch (err) {
             console.error("Failed to load tracked files", err);
             toast.error(
                 "Failed to load tracked files: " +
-                    (err && typeof err === "object" && "message" in err
-                        ? (err as { message?: string }).message
-                        : "Unknown error")
+                    (err instanceof Error ? err.message : "Unknown error")
             );
         }
     }, []);
@@ -412,20 +416,18 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         //@ts-ignore: api.listAccounts is a function
         const drive = await api.listAccounts().catch(() => []);
         const google = await Promise.all(
-            drive.map(async ({ email }: { email: string }) => {
+            drive.map(async ({ id, displayName }) => {
                 // Lấy profile để biết tên hiển thị
                 try {
-                    await api.useAccount(email);
+                    await api.useAccount(id);
                 } catch {
-                    console.warn(`Failed to use account ${email}`);
+                    console.warn(`Failed to use account ${id}`);
                     return null; // nếu không dùng được thì bỏ qua
                 }
-                //@ts-ignore: api.getProfile is a function
-                const prof = await api.getProfile(email).catch(() => null);
                 return {
                     type: "google",
-                    id: email, // khóa tra token
-                    username: prof?.name || email, // tên hiển thị khớp mapping
+                    id: id, // khóa tra token
+                    username: displayName || id.split("@")[0],
                 };
             })
         );
@@ -433,20 +435,19 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         //@ts-ignore: api.listAccounts is a function
         const box = await api.listBoxAccounts().catch(() => []);
         const boxAcc = await Promise.all(
-            box.map(async (account: { login: string }) => {
-                const { login } = account;
+            box.map(async ({ id, displayName }) => {
                 try {
-                    await api.useBoxAccount(login);
+                    await api.useBoxAccount(id);
                 } catch {
-                    console.warn(`Failed to use Box account ${login}`);
+                    console.warn(`Failed to use Box account ${id}`);
                     return null; // nếu không dùng được thì bỏ qua
                 }
                 //@ts-ignore: api.getProfile is a function
                 const prof = await api.getBoxProfile().catch(() => null);
                 return {
                     type: "box",
-                    id: login,
-                    username: prof?.name || login,
+                    id: id,
+                    username: displayName || (prof ? prof.login : id),
                 };
             })
         );

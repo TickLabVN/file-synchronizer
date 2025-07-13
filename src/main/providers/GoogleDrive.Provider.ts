@@ -177,11 +177,24 @@ export default class GoogleDriveProvider implements ICloudProvider {
      */
     async listAccounts(): Promise<AuthAccount[]> {
         const list = await this.credStore.list();
-        return list.map(({ account, tokens }) => ({
-            id: account,
-            displayName: account,
-            tokens,
-        }));
+        return list.map(({ account, tokens }) => {
+            let name = account;
+            try {
+                const payload = JSON.parse(
+                    Buffer.from(
+                        (tokens as GoogleDriveTokens).id_token.split(".")[1],
+                        "base64"
+                    ).toString()
+                );
+                name = payload.name || payload.email || account;
+            } catch {
+                console.warn(
+                    "[Drive.listAccounts] Failed to parse tokens",
+                    tokens
+                );
+            }
+            return { id: account, displayName: name, tokens };
+        });
     }
 
     /**
