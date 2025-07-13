@@ -30,7 +30,7 @@ import {
 import { mappingStore } from "../utils/mappingStore";
 import getDirSize from "../utils/getDirSize";
 // @ts-ignore – icon as asset
-import icon from "../resources/icon.png?asset";
+import icon from "../../../resources/icon.png?asset";
 
 // Define the structure of Box tokens
 type BoxTokens = {

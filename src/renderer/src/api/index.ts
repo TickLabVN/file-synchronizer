@@ -1,97 +1,140 @@
-// Extend the Window interface to include the 'api' property
+/* ------------------------------------------------------------------ */
+/*  src/renderer/src/api/index.ts – Adapter cho API mới (preload)     */
+/* ------------------------------------------------------------------ */
 declare global {
     interface Window {
         api: {
-            signIn: () => unknown;
-            listAccounts: () => unknown;
-            useAccount: (email: unknown) => unknown;
-            getProfile: (email: unknown) => unknown;
-            signOut: (email: unknown) => unknown;
-            boxSignIn: () => unknown;
-            listBoxAccounts: () => unknown;
-            useBoxAccount: (login: unknown) => unknown;
-            getBoxProfile: (login: unknown) => unknown;
-            boxSignOut: (login: unknown) => unknown;
-            selectFiles: () => unknown;
-            selectFolders: () => unknown;
-            selectStopSyncFiles: () => unknown;
-            listDirectory: (path: unknown) => unknown;
-            openInExplorer: (path: unknown) => unknown;
-            getSettings: () => unknown;
-            updateSettings: (settings: unknown) => unknown;
-            syncFiles: (paths: unknown) => unknown;
-            syncOnLaunch: () => unknown;
-            pullFromDrive: () => unknown;
-            syncBoxFiles: (paths: unknown) => unknown;
-            syncBoxOnLaunch: () => unknown;
-            pullFromBox: () => unknown;
-            onUpdateAvailable: (cb: unknown) => unknown;
-            onUpdateDownloaded: (cb: unknown) => unknown;
-            getTrackedFiles: () => unknown;
-            onTrackedFilesUpdated: (cb: unknown) => unknown;
-            deleteTrackedFile: (file: unknown) => unknown;
-            getTrackedFilesBox: () => unknown;
-            deleteTrackedFileBox: (file: unknown) => unknown;
+            /* ---------- Auth chung cho mọi provider ---------- */
+            signIn: (providerId: string) => Promise<unknown>;
+            listAccounts: (providerId: string) => Promise<unknown>;
+            useAccount: (
+                providerId: string,
+                accountId: string
+            ) => Promise<unknown>;
+            getProfile: (
+                providerId: string,
+                accountId: string
+            ) => Promise<unknown>;
+            signOut: (
+                providerId: string,
+                accountId: string
+            ) => Promise<unknown>;
+
+            /* ---------- File system ---------- */
+            selectFiles: () => Promise<unknown>;
+            selectFolders: () => Promise<unknown>;
+            listDirectory: (path: string) => Promise<unknown>;
+            openInExplorer: (path: string) => Promise<unknown>;
+
+            /* ---------- Settings ---------- */
+            getSettings: () => Promise<unknown>;
+            setSettings: (settings: unknown) => Promise<unknown>;
+
+            /* ---------- Sync ---------- */
+            syncFiles: (
+                providerId: string,
+                options: unknown
+            ) => Promise<unknown>;
+            pull: (providerId: string) => Promise<unknown>;
+            autoSync: () => Promise<unknown>;
+
+            /* ---------- Tracked files ---------- */
+            trackedFile: (providerId: string) => Promise<unknown>;
+            deleteTrackedFile: (
+                providerId: string,
+                src: string
+            ) => Promise<unknown>;
+
+            /* ---------- Events từ main ---------- */
+            onUpdateAvailable: (cb: unknown) => void;
+            onUpdateDownloaded: (cb: unknown) => void;
+            onTrackedFilesUpdated: (cb: unknown) => void;
         };
     }
 }
 
-// API for authentication
-export const signIn = (): unknown => window.api.signIn();
-export const listAccounts = (): unknown => window.api.listAccounts();
-export const useAccount = (email: unknown): unknown =>
-    window.api.useAccount(email);
-export const getProfile = (email: unknown): unknown =>
-    window.api.getProfile(email);
-export const signOut = (email: unknown): unknown => window.api.signOut(email);
-// API for Box authentication
-export const boxSignIn = (): unknown => window.api.boxSignIn();
-export const listBoxAccounts = (): unknown => window.api.listBoxAccounts();
-export const useBoxAccount = (login: unknown): unknown =>
-    window.api.useBoxAccount(login);
-export const getBoxProfile = (login: unknown): unknown =>
-    window.api.getBoxProfile(login);
-export const boxSignOut = (login: unknown): unknown =>
-    window.api.boxSignOut(login);
+/* --- Hằng tiện dụng --- */
+type Provider = "google" | "box";
+const G: Provider = "google";
+const B: Provider = "box";
 
-// API for file and folder selection
-export const selectFiles = (): unknown => window.api.selectFiles();
-export const selectFolders = (): unknown => window.api.selectFolders();
-export const selectStopSyncFiles = (): unknown =>
-    window.api.selectStopSyncFiles();
-export const listDirectory = (path: unknown): unknown =>
+/* ------------------------------------------------------------------ */
+/*                          Authentication                           */
+/* ------------------------------------------------------------------ */
+export const signIn = (): Promise<unknown> => window.api.signIn(G);
+export const boxSignIn = (): Promise<unknown> => window.api.signIn(B);
+
+export const listAccounts = (): Promise<unknown> => window.api.listAccounts(G);
+export const listBoxAccounts = (): Promise<unknown> =>
+    window.api.listAccounts(B);
+
+export const useAccount = (email: string): Promise<unknown> =>
+    window.api.useAccount(G, email);
+export const useBoxAccount = (login: string): Promise<unknown> =>
+    window.api.useAccount(B, login);
+
+export const getProfile = (email: string): Promise<unknown> =>
+    window.api.getProfile(G, email);
+export const getBoxProfile = (login: string): Promise<unknown> =>
+    window.api.getProfile(B, login);
+
+export const signOut = (email: string): Promise<unknown> =>
+    window.api.signOut(G, email);
+export const boxSignOut = (login: string): Promise<unknown> =>
+    window.api.signOut(B, login);
+
+/* ------------------------------------------------------------------ */
+/*                           File system                              */
+/* ------------------------------------------------------------------ */
+export const selectFiles = (): Promise<unknown> => window.api.selectFiles();
+export const selectFolders = (): Promise<unknown> => window.api.selectFolders();
+export const listDirectory = (path: string): Promise<unknown> =>
     window.api.listDirectory(path);
-export const openInExplorer = (path: unknown): unknown =>
+export const openInExplorer = (path: string): Promise<unknown> =>
     window.api.openInExplorer(path);
 
-// API for settings management
-export const getSettings = (): unknown => window.api.getSettings();
-export const updateSettings = (settings: unknown): unknown =>
-    window.api.updateSettings(settings);
+/* ------------------------------------------------------------------ */
+/*                             Settings                               */
+/* ------------------------------------------------------------------ */
+export const getSettings = (): Promise<unknown> => window.api.getSettings();
+/* Giữ tên cũ `updateSettings` để JSX hiện tại không phải đổi */
+export const updateSettings = (settings: unknown): Promise<unknown> =>
+    window.api.setSettings(settings);
 
-// API for sync related functions
-export const syncFiles = (paths: unknown): unknown =>
-    window.api.syncFiles(paths);
-export const syncOnLaunch = (): unknown => window.api.syncOnLaunch();
-export const pullFromDrive = (): unknown => window.api.pullFromDrive();
-export const syncBoxFiles = (paths: unknown): unknown =>
-    window.api.syncBoxFiles(paths);
-export const syncBoxOnLaunch = (): unknown => window.api.syncBoxOnLaunch();
-export const pullFromBox = (): unknown => window.api.pullFromBox();
+/* ------------------------------------------------------------------ */
+/*                               Sync                                 */
+/* ------------------------------------------------------------------ */
+export const syncFiles = (options: unknown): Promise<unknown> =>
+    window.api.syncFiles(G, options);
+export const syncBoxFiles = (options: unknown): Promise<unknown> =>
+    window.api.syncFiles(B, options);
 
-// API for update related functions
-export const onUpdateAvailable = (cb: unknown): unknown =>
+export const pullFromDrive = (): Promise<unknown> => window.api.pull(G);
+export const pullFromBox = (): Promise<unknown> => window.api.pull(B);
+
+/* Từ giờ đồng bộ nền được gộp chung – đặt tên cũ cho tiện */
+export const syncOnLaunch = (): Promise<unknown> => window.api.autoSync();
+export const syncBoxOnLaunch = (): Promise<unknown> => window.api.autoSync();
+
+/* ------------------------------------------------------------------ */
+/*                          Tracked files                             */
+/* ------------------------------------------------------------------ */
+export const getTrackedFiles = (): Promise<unknown> =>
+    window.api.trackedFile(G);
+export const getTrackedFilesBox = (): Promise<unknown> =>
+    window.api.trackedFile(B);
+
+export const deleteTrackedFile = (src: string): Promise<unknown> =>
+    window.api.deleteTrackedFile(G, src);
+export const deleteTrackedFileBox = (src: string): Promise<unknown> =>
+    window.api.deleteTrackedFile(B, src);
+
+/* ------------------------------------------------------------------ */
+/*                             Events                                 */
+/* ------------------------------------------------------------------ */
+export const onUpdateAvailable = (cb: unknown): void =>
     window.api.onUpdateAvailable(cb);
-export const onUpdateDownloaded = (cb: unknown): unknown =>
+export const onUpdateDownloaded = (cb: unknown): void =>
     window.api.onUpdateDownloaded(cb);
-
-// API for tracked files
-export const getTrackedFiles = (): unknown => window.api.getTrackedFiles();
-export const onTrackedFilesUpdated = (cb: unknown): unknown =>
+export const onTrackedFilesUpdated = (cb: unknown): void =>
     window.api.onTrackedFilesUpdated(cb);
-export const deleteTrackedFile = (file: unknown): unknown =>
-    window.api.deleteTrackedFile(file);
-export const getTrackedFilesBox = (): unknown =>
-    window.api.getTrackedFilesBox();
-export const deleteTrackedFileBox = (file: unknown): unknown =>
-    window.api.deleteTrackedFileBox(file);
