@@ -2,6 +2,7 @@ import { useState } from "react";
 import * as api from "../api";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
+import type { AccountInfo } from "../types/account";
 type Provider = {
     id: string;
     label: string;
@@ -26,12 +27,6 @@ const Login: React.FC<LoginProps> = ({
     const [status, setStatus] = useState("idle");
     const [error, setError] = useState<string | null>(null);
 
-    interface SignInResult {
-        email?: string;
-        login?: string;
-        name?: string;
-    }
-
     const handleSignIn = async (id: string): Promise<void> => {
         if (!id) {
             toast.error("Please choose a cloud provider first!");
@@ -41,13 +36,13 @@ const Login: React.FC<LoginProps> = ({
         setStatus("loading");
         setError(null);
         try {
-            const result: SignInResult =
+            const result: AccountInfo =
                 id === "google"
-                    ? ((await api.signIn()) as SignInResult)
-                    : ((await api.boxSignIn()) as SignInResult);
+                    ? ((await api.signIn()) as AccountInfo)
+                    : ((await api.boxSignIn()) as AccountInfo);
 
-            const accountId: string | undefined = result.email || result.login;
-            const username: string = result.name || accountId!;
+            const accountId = result.id;
+            const username = result.displayName ?? accountId;
 
             if (!accountId) throw new Error("No account identifier returned");
 

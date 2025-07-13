@@ -62,24 +62,16 @@ export default function CloudProvider({
             // @ts-ignore: api.listAccounts is a custom function
             const gd = await api.listAccounts().catch(() => []); // luôn trả mảng
             await Promise.allSettled(
-                gd.map(async ({ email }: { email: string }) => {
+                gd.map(async ({ id, displayName }) => {
                     try {
-                        await api.useAccount(email);
+                        await api.useAccount(id);
                     } catch (e) {
                         console.warn("[Google] useAccount fail:", e);
                     }
-                    let prof: { name?: string } | null = null;
-                    try {
-                        prof = (await api.getProfile(email)) as {
-                            name?: string;
-                        } | null;
-                    } catch (e) {
-                        console.warn("[Google] getProfile fail:", e);
-                    }
-                    const uname = prof?.name || email.split("@")[0];
+                    const uname = displayName ?? id.split("@")[0];
                     list.push({
                         type: "google",
-                        accountId: email,
+                        accountId: id,
                         icon: ggdrive,
                         username: uname,
                         label: `Drive – ${uname}`,
@@ -91,24 +83,16 @@ export default function CloudProvider({
             // @ts-ignore: api.listAccounts is a custom function
             const bx = await api.listBoxAccounts().catch(() => []);
             await Promise.allSettled(
-                bx.map(async ({ login }: { login: string }) => {
+                bx.map(async ({ id, displayName }: { login: string }) => {
                     try {
-                        await api.useBoxAccount(login);
+                        await api.useBoxAccount(id);
                     } catch (e) {
                         console.warn("[Box] useBoxAccount fail:", e);
                     }
-                    let prof: { name?: string } | null = null;
-                    try {
-                        prof = (await api.getBoxProfile(login)) as {
-                            name?: string;
-                        } | null;
-                    } catch (e) {
-                        console.warn("[Box] getBoxProfile fail:", e);
-                    }
-                    const uname = prof?.name || login;
+                    const uname = displayName ?? id;
                     list.push({
                         type: "box",
-                        accountId: login,
+                        accountId: id,
                         icon: box,
                         username: uname,
                         label: `Box – ${uname}`,
