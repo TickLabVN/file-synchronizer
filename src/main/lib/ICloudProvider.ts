@@ -9,6 +9,13 @@ export interface AuthAccount {
 }
 
 /**
+ * AccountInfo interface extends AuthAccount to include the provider type.
+ */
+export interface AccountInfo extends AuthAccount {
+    provider: string; // "google" | "box" | "dropbox" | ...
+}
+
+/**
  * SyncOptions interface defines the options for synchronizing files with a cloud provider.
  * It includes paths to sync and optional exclusions.
  */

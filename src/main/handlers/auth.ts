@@ -1,3 +1,4 @@
+import { AccountInfo, AuthAccount } from "../lib/ICloudProvider";
 import { getProvider } from "../lib/providerRegistry";
 import { IpcMainInvokeEvent } from "electron";
 
@@ -5,29 +6,36 @@ import { IpcMainInvokeEvent } from "electron";
  * Handles user sign-in for a specified provider.
  * @param {IpcMainInvokeEvent} _ - The IPC event object.
  * @param {string} providerId - The ID of the authentication provider.
- * @returns {Promise<void>} A promise that resolves when the sign-in process is complete.
+ * @returns {Promise<AccountInfo>} A promise that resolves to the account information of the signed-in user.
  */
 export async function signIn(
     _: IpcMainInvokeEvent,
     providerId: string
-): Promise<void> {
+): Promise<AccountInfo> {
     const provider = getProvider(providerId);
-    await provider.signIn();
+    const acc: AuthAccount = await provider.signIn();
+    if (!acc) {
+        throw new Error("Sign-in failed or was cancelled.");
+    }
+    return { provider: providerId, ...acc };
 }
 
 /**
  * Lists all accounts associated with a specified provider.
  * @param {IpcMainInvokeEvent} _ - The IPC event object.
  * @param {string} providerId - The ID of the authentication provider.
- * @returns {Promise<string[]>} A promise that resolves to an array of account IDs.
+ * @returns {Promise<AccountInfo[]>} A promise that resolves to an array of account information objects.
  */
 export async function listAccounts(
     _: IpcMainInvokeEvent,
     providerId: string
-): Promise<string[]> {
+): Promise<AccountInfo[]> {
     const provider = getProvider(providerId);
     const accounts = await provider.listAccounts();
-    return accounts.map((account) => account.id);
+    return accounts.map((a) => ({
+        provider: providerId,
+        ...a,
+    }));
 }
 
 /**
@@ -67,14 +75,14 @@ export async function signOut(
  * @param {IpcMainInvokeEvent} _ - The IPC event object.
  * @param {string} providerId - The ID of the authentication provider.
  * @param {string} accountId - The ID of the account whose profile is to be retrieved.
- * @returns {Promise<string>} A promise that resolves to the display name of the user, or "Unknown User" if not available.
+ * @returns {Promise<AccountInfo>} A promise that resolves to the account profile information.
  */
 export async function getProfile(
     _: IpcMainInvokeEvent,
     providerId: string,
     accountId: string
-): Promise<string> {
+): Promise<AccountInfo> {
     const provider = getProvider(providerId);
     const profile = await provider.getProfile(accountId);
-    return profile.displayName || "Unknown User";
+    return { provider: providerId, ...profile };
 }
