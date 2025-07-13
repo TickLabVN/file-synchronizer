@@ -11,9 +11,9 @@ import { IpcMainInvokeEvent } from "electron";
 export async function trackedFile(
     _: IpcMainInvokeEvent,
     providerId: string
-): Promise<void> {
+): Promise<unknown> {
     const provider = getProvider(providerId);
-    await provider.getTrackedFiles();
+    return provider.getTrackedFiles();
 }
 
 /**
