@@ -128,6 +128,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                         );
                         const email = payload.email as string;
                         const name = payload.name as string | undefined;
+                        if (name) tokens.name = name;
 
                         await this.credStore.add(email, tokens);
 
@@ -178,20 +179,25 @@ export default class GoogleDriveProvider implements ICloudProvider {
     async listAccounts(): Promise<AuthAccount[]> {
         const list = await this.credStore.list();
         return list.map(({ account, tokens }) => {
-            let name = account;
-            try {
-                const payload = JSON.parse(
-                    Buffer.from(
-                        (tokens as GoogleDriveTokens).id_token.split(".")[1],
-                        "base64"
-                    ).toString()
-                );
-                name = payload.name || payload.email || account;
-            } catch {
-                console.warn(
-                    "[Drive.listAccounts] Failed to parse tokens",
-                    tokens
-                );
+            const t = tokens as GoogleDriveTokens & { name?: string };
+            let name = t.name || account;
+            if (!t.name) {
+                try {
+                    const payload = JSON.parse(
+                        Buffer.from(
+                            (tokens as GoogleDriveTokens).id_token.split(
+                                "."
+                            )[1],
+                            "base64"
+                        ).toString()
+                    );
+                    name = payload.name || payload.email || account;
+                } catch {
+                    console.warn(
+                        "[Drive.listAccounts] Failed to parse tokens",
+                        tokens
+                    );
+                }
             }
             return { id: account, displayName: name, tokens };
         });
@@ -244,7 +250,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         );
         return {
             id,
-            displayName: payload.name || payload.email,
+            displayName: tokens.name || payload.name || payload.email,
             tokens,
         };
     }
@@ -271,7 +277,8 @@ export default class GoogleDriveProvider implements ICloudProvider {
         const { data: fresh } = await axios.get(
             `${BACKEND_URL}/auth/google/refresh-tokens`
         );
-        await this.credStore.add(this.activeAccount, fresh);
+        const merged = { ...stored, ...fresh };
+        await this.credStore.add(this.activeAccount, merged);
 
         const oauth2 = new google.auth.OAuth2();
         oauth2.setCredentials(fresh);
