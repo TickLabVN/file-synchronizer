@@ -58,6 +58,7 @@ export function startSyncScheduler(): void {
     const run = async (): Promise<void> => {
         if (await shouldSync()) {
             try {
+                console.log("[Background] Starting sync...");
                 await autoSync();
                 console.log("[Background] sync completed");
                 broadcast("app:tracked-files-updated");
