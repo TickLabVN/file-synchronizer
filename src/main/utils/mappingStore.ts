@@ -1,5 +1,6 @@
 import { RemoteMeta } from "./types";
 import { store } from "../lib/constants";
+import path from "path";
 
 /**
  * MappingStore is a utility class that manages the mapping of local paths to their remote metadata.
@@ -30,6 +31,43 @@ class MappingStore {
     }
 
     /**
+     * Removes all metadata entries that are descendants of the specified root path.
+     * This is useful for cleaning up entries related to a specific directory.
+     * It also updates the stop and resume sync paths in the settings.
+     * @param root - The root path to remove all related metadata entries.
+     */
+    private removeFromStopLists(root: string): void {
+        const settings = store.get("settings", {}) as {
+            stopSyncPaths?: string[];
+            resumeSyncPaths?: string[];
+            [k: string]: unknown;
+        };
+
+        const stop = settings.stopSyncPaths ?? [];
+        const resume = settings.resumeSyncPaths ?? [];
+
+        const isDescendant = (p: string): boolean =>
+            p === root ||
+            p.startsWith(root + "/") ||
+            p.startsWith(root + "\\") ||
+            p.startsWith(root + path.sep);
+
+        const nextStop = stop.filter((p) => !isDescendant(p));
+        const nextResume = resume.filter((p) => !isDescendant(p));
+
+        if (
+            nextStop.length !== stop.length ||
+            nextResume.length !== resume.length
+        ) {
+            store.set("settings", {
+                ...settings,
+                stopSyncPaths: nextStop,
+                resumeSyncPaths: nextResume,
+            });
+        }
+    }
+
+    /**
      * Retrieves the metadata for a given path.
      * @param path - The local path to retrieve metadata for.
      * @return The RemoteMeta object if found, otherwise undefined.
@@ -54,6 +92,7 @@ class MappingStore {
      */
     delete(path: string): void {
         this.data.delete(path);
+        this.removeFromStopLists(path);
         this.flush();
     }
 
@@ -63,8 +102,14 @@ class MappingStore {
      * @param root - The root path to delete all related metadata entries.
      */
     deleteSubtree(root: string): void {
-        for (const k of this.keys())
-            if (k === root || k.startsWith(root + "/")) this.data.delete(k);
+        const rootN = path.normalize(root);
+        for (const k of this.keys()) {
+            const kN = path.normalize(k);
+            if (kN === rootN || kN.startsWith(rootN + path.sep)) {
+                this.data.delete(k);
+            }
+        }
+        this.removeFromStopLists(root);
         this.flush();
     }
 

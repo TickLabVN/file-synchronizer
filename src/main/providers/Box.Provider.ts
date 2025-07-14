@@ -31,6 +31,7 @@ import { mappingStore } from "../utils/mappingStore";
 import getDirSize from "../utils/getDirSize";
 // @ts-ignore – icon as asset
 import icon from "../../../resources/icon.png?asset";
+import { isStopped, loadStopLists } from "../utils/stopSync";
 
 // Define the structure of Box tokens
 type BoxTokens = {
@@ -584,6 +585,7 @@ export default class BoxProvider implements ICloudProvider {
         if (!this.activeAccount) return true;
         const box = await this.getBoxClient();
         const backupFolderId = await this.ensureBackupFolder(box);
+        const { stop: stopSync, resume: resumeSync } = loadStopLists();
         const { acquired, lockId } = await this.acquireLock(
             backupFolderId,
             deviceId
@@ -606,11 +608,13 @@ export default class BoxProvider implements ICloudProvider {
                 if (!rec) continue;
                 if (rec.provider !== this.id || rec.account !== username)
                     continue;
+                if (isStopped(key, stopSync, resumeSync)) continue;
                 try {
                     const changed = await traverseCompare(
                         key,
                         rec.id,
-                        compareHooks
+                        compareHooks,
+                        stopSync
                     );
                     anyChanged ||= changed;
                 } catch (err) {

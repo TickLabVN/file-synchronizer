@@ -31,6 +31,7 @@ import { mappingStore } from "../utils/mappingStore";
 import getDirSize from "../utils/getDirSize";
 // @ts-ignore: importing icon as an asset
 import icon from "../../../resources/icon.png?asset";
+import { loadStopLists, isStopped } from "../utils/stopSync";
 
 // Define the structure of Google Drive tokens
 type GoogleDriveTokens = {
@@ -540,6 +541,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         const drive = await this.getDriveClient();
         const compareHooks = this.buildCompareHooks(drive);
         const backupFolderId = await this.ensureBackupFolder(drive);
+        const { stop: stopSync, resume: resumeSync } = loadStopLists();
         const { acquired, lockId } = await this.acquireLock(
             backupFolderId,
             deviceId
@@ -563,11 +565,13 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 if (!rec) continue;
                 if (rec.provider !== this.id || rec.account !== username)
                     continue;
+                if (isStopped(key, stopSync, resumeSync)) continue;
                 try {
                     const changed = await traverseCompare(
                         key,
                         rec.id,
-                        compareHooks
+                        compareHooks,
+                        stopSync
                     );
                     anyChanged ||= changed;
                 } catch (err) {
