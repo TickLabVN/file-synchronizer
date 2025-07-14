@@ -84,6 +84,7 @@ class MappingStore {
     touch(path: string): void {
         const m = this.get(path);
         if (m) m.lastSync = new Date().toISOString();
+        this.flush();
     }
 }
 

@@ -715,6 +715,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
     ): Promise<{ acquired: boolean; lockId?: string }> {
         const drive = await this.getDriveClient();
         const LOCK_NAME = "__ticklabfs_sync.lock";
+        if (!(await this.folderExists(drive, backupFolderId))) {
+            backupFolderId = await this.ensureBackupFolder(drive);
+        }
         const { data } = await drive.files.list({
             q: `'${backupFolderId}' in parents and name='${LOCK_NAME}' and trashed=false`,
             fields: "files(id, createdTime, appProperties)",
@@ -887,5 +890,25 @@ export default class GoogleDriveProvider implements ICloudProvider {
             fields: "id",
         });
         return created.id!;
+    }
+
+    /**
+     * Checks if a folder with the given ID exists in Google Drive.
+     *
+     * @param drive - The Google Drive API client.
+     * @param id - The ID of the folder to check.
+     * @returns A promise that resolves to true if the folder exists, false otherwise.
+     */
+    private async folderExists(
+        drive: drive_v3.Drive,
+        id: string
+    ): Promise<boolean> {
+        try {
+            await drive.files.get({ fileId: id, fields: "id" });
+            return true;
+        } catch (err: unknown) {
+            const code = (err as { code?: number }).code;
+            return code === 404 ? false : true;
+        }
     }
 }
