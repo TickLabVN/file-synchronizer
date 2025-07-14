@@ -417,13 +417,6 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         const drive = await api.listAccounts().catch(() => []);
         const google = await Promise.all(
             drive.map(async ({ id, displayName }) => {
-                // Lấy profile để biết tên hiển thị
-                try {
-                    await api.useAccount(id);
-                } catch {
-                    console.warn(`Failed to use account ${id}`);
-                    return null; // nếu không dùng được thì bỏ qua
-                }
                 return {
                     type: "google",
                     id: id, // khóa tra token
@@ -436,12 +429,6 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         const box = await api.listBoxAccounts().catch(() => []);
         const boxAcc = await Promise.all(
             box.map(async ({ id, displayName }) => {
-                try {
-                    await api.useBoxAccount(id);
-                } catch {
-                    console.warn(`Failed to use Box account ${id}`);
-                    return null; // nếu không dùng được thì bỏ qua
-                }
                 //@ts-ignore: api.getProfile is a function
                 const prof = await api.getBoxProfile(id).catch(() => null);
                 return {

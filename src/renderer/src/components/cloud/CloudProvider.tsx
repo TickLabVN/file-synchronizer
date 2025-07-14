@@ -63,11 +63,6 @@ export default function CloudProvider({
             const gd = await api.listAccounts().catch(() => []); // luôn trả mảng
             await Promise.allSettled(
                 gd.map(async ({ id, displayName }) => {
-                    try {
-                        await api.useAccount(id);
-                    } catch (e) {
-                        console.warn("[Google] useAccount fail:", e);
-                    }
                     const uname = displayName ?? id.split("@")[0];
                     list.push({
                         type: "google",
@@ -84,11 +79,6 @@ export default function CloudProvider({
             const bx = await api.listBoxAccounts().catch(() => []);
             await Promise.allSettled(
                 bx.map(async ({ id, displayName }: { login: string }) => {
-                    try {
-                        await api.useBoxAccount(id);
-                    } catch (e) {
-                        console.warn("[Box] useBoxAccount fail:", e);
-                    }
                     const uname = displayName ?? id;
                     list.push({
                         type: "box",
