@@ -41,7 +41,11 @@ export async function pull(
 export async function autoSync(): Promise<void> {
     for (const provider of allProviders()) {
         try {
-            await provider.autoSync();
+            const accounts = await provider.listAccounts();
+            for (const { id } of accounts) {
+                await provider.useAccount(id);
+                await provider.autoSync();
+            }
         } catch (err: unknown) {
             console.error(
                 `[sync] Failed to auto‑sync provider ${provider.id}:`,
