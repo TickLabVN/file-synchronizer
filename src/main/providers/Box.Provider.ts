@@ -751,6 +751,9 @@ export default class BoxProvider implements ICloudProvider {
     ): Promise<{ acquired: boolean; lockId?: string }> {
         const box = await this.getBoxClient();
         const LOCK_NAME = "__ticklabfs_sync.lock";
+        if (!(await this.folderExists(box, backupFolderId))) {
+            backupFolderId = await this.ensureBackupFolder(box);
+        }
         const { entries } = await box.folders.getItems(backupFolderId, {
             fields: "id,name,created_at",
             limit: 1000,
@@ -925,5 +928,24 @@ export default class BoxProvider implements ICloudProvider {
         if (existing) return existing.id;
         const created = await box.folders.create("0", folderName);
         return created.id;
+    }
+
+    /**
+     * Checks if a folder exists in Box by its ID.
+     * Returns true if the folder exists, false otherwise.
+     *
+     * @param box - The Box client instance.
+     * @param id - The ID of the folder to check.
+     * @returns A promise that resolves to true if the folder exists, false otherwise.
+     */
+    private async folderExists(box: BoxClient, id: string): Promise<boolean> {
+        try {
+            await box.folders.get(id, { fields: "id" });
+            return true;
+        } catch (err: unknown) {
+            const status = (err as BoxError).response?.status;
+            if (status === 404) return false;
+            return false;
+        }
     }
 }
