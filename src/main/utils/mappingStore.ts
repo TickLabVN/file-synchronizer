@@ -1,4 +1,5 @@
 import { RemoteMeta } from "./types";
+import { store } from "../lib/constants";
 
 /**
  * MappingStore is a utility class that manages the mapping of local paths to their remote metadata.
@@ -6,6 +7,27 @@ import { RemoteMeta } from "./types";
  */
 class MappingStore {
     private data = new Map<string, RemoteMeta>();
+
+    /**
+     * Initializes the MappingStore by loading persisted mappings from the store.
+     * It reads the mappings from the store and populates the internal Map.
+     */
+    constructor() {
+        const persisted = store.get("mappings", {}) as Record<
+            string,
+            RemoteMeta
+        >;
+        this.data = new Map(Object.entries(persisted));
+    }
+
+    /**
+     * Persists the current mappings to the store.
+     * This method should be called whenever the mappings are modified
+     * to ensure that changes are saved.
+     */
+    private flush(): void {
+        store.set("mappings", Object.fromEntries(this.data));
+    }
 
     /**
      * Retrieves the metadata for a given path.
@@ -23,6 +45,7 @@ class MappingStore {
      */
     set(path: string, meta: RemoteMeta): void {
         this.data.set(path, meta);
+        this.flush();
     }
 
     /**
@@ -31,6 +54,7 @@ class MappingStore {
      */
     delete(path: string): void {
         this.data.delete(path);
+        this.flush();
     }
 
     /**
@@ -41,6 +65,7 @@ class MappingStore {
     deleteSubtree(root: string): void {
         for (const k of this.keys())
             if (k === root || k.startsWith(root + "/")) this.data.delete(k);
+        this.flush();
     }
 
     /**
