@@ -34,6 +34,7 @@ import icon from "../../../resources/icon.png?asset";
 import { loadStopLists, isStopped } from "../utils/stopSync";
 import ensureSymlink from "../utils/ensureSymlink";
 import pickRootPaths from "../utils/pickRootPaths";
+import { broadcast } from "../windows/WindowManager";
 
 // Define the structure of Google Drive tokens
 type GoogleDriveTokens = {
@@ -413,6 +414,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     meta: f.appProperties as unknown,
                 }));
             },
+
             readFile: async (remoteId, dest) => {
                 const res = await drive.files.get(
                     { fileId: remoteId, alt: "media" },
@@ -461,6 +463,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
         const { acquired, lockId } = await this.acquireLock(folderId, deviceId);
         if (!acquired) {
             console.log("[Drive.sync] Skipping sync, lock already held");
+            broadcast(
+                "toast-all",
+                "Google Drive sync skipped, lock already held"
+            );
             return { success: true, failed: null };
         }
         try {
@@ -481,7 +487,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
             const failed: Array<{ path: string; error: string }> = [];
 
             for (const p of paths) {
-                if (exclude.includes(p)) continue;
+                if (exclude.includes(p)) {
+                    console.log(`[Drive.sync] Skipping excluded path: ${p}`);
+                    continue;
+                }
                 try {
                     await traverseAndUpload(p, folderId, hooks, {
                         exclude,
@@ -529,6 +538,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     await this.releaseLock(lockId);
                 } catch (err) {
                     console.warn("[Drive.sync] Failed to release lock:", err);
+                    broadcast(
+                        "toast-all",
+                        "Google Drive sync failed to release lock on cloud"
+                    );
                 }
             }
         }
@@ -552,6 +565,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
             console.log(
                 "[Drive.autoSync] Skipping auto-sync, lock already held"
             );
+            broadcast(
+                "toast-all",
+                "Google Drive auto-sync skipped, lock already held"
+            );
             return true;
         }
 
@@ -567,7 +584,12 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 if (!rec) continue;
                 if (rec.provider !== this.id || rec.account !== username)
                     continue;
-                if (isStopped(key, stopSync, resumeSync)) continue;
+                if (isStopped(key, stopSync, resumeSync)) {
+                    console.log(
+                        `[Drive.autoSync] Skipping stopped path: ${key}`
+                    );
+                    continue;
+                }
                 try {
                     const changed = await traverseCompare(
                         key,
@@ -589,6 +611,10 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     console.warn(
                         "[Drive.autoSync] Failed to release lock:",
                         err
+                    );
+                    broadcast(
+                        "toast-all",
+                        "Google Drive auto-sync failed to release lock on cloud"
                     );
                 }
             }
