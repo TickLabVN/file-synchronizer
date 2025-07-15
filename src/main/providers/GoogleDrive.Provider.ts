@@ -464,7 +464,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         if (!acquired) {
             console.log("[Drive.sync] Skipping sync, lock already held");
             broadcast(
-                "toast-all",
+                "app:toast",
                 "Google Drive sync skipped, lock already held"
             );
             return { success: true, failed: null };
@@ -539,7 +539,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 } catch (err) {
                     console.warn("[Drive.sync] Failed to release lock:", err);
                     broadcast(
-                        "toast-all",
+                        "app:toast",
                         "Google Drive sync failed to release lock on cloud"
                     );
                 }
@@ -566,7 +566,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                 "[Drive.autoSync] Skipping auto-sync, lock already held"
             );
             broadcast(
-                "toast-all",
+                "app:toast",
                 "Google Drive auto-sync skipped, lock already held"
             );
             return true;
@@ -613,7 +613,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                         err
                     );
                     broadcast(
-                        "toast-all",
+                        "app:toast",
                         "Google Drive auto-sync failed to release lock on cloud"
                     );
                 }
