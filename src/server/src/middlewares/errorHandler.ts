@@ -1,9 +1,14 @@
 import { Response } from "express";
 
-// This function logs an error and sends a response with the error message
-// It checks if the error has a statusCode and message, and uses them if available
-// Otherwise, it defaults to a 500 status code and a generic error message
-// It also logs the error details to the console for debugging purposes
+/**
+ * Error handler middleware for Express applications.
+ * It checks if the error has a statusCode and message, and responds accordingly.
+ * If not, it defaults to a 500 status code with a generic error message.
+ * It also logs the error details to the console for debugging purposes.
+ * @param {unknown} err - The error object, which can be of any type.
+ * @param {Response} res - The Express response object used to send the error response.
+ * @return {void} - This function does not return a value; it sends a response directly.
+ */
 export default function errorHandler(err: unknown, res: Response): void {
     if (
         err &&

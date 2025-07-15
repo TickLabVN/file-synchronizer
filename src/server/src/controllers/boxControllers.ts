@@ -1,23 +1,38 @@
 import { Request, Response, RequestHandler, NextFunction } from "express";
 import { sdk, SCOPES, REDIRECT_URI } from "../config/boxAuth.js";
 
+/**
+ * Box OAuth2 tokens interface
+ * This is used to define the structure of tokens returned by Box
+ */
 interface Tokens {
     accessToken: string;
     refreshToken: string;
     accessTokenTTLMS: number;
 }
 
+/**
+ * Token info interface
+ * This extends Tokens to include the time when tokens were acquired
+ */
 interface TokenInfo extends Tokens {
     acquiredAtMS: number;
 }
 
-// Initialize token info and Box client
-// These will be set after user authorizes the app
+/**
+ * Box OAuth2 client token information
+ * This is used to store the current token state
+ */
 let tokenInfo: TokenInfo | null = null;
 let boxClient: ReturnType<typeof sdk.getPersistentClient> | null = null;
 
-// Redirects user to Box's authorization page
-// This is called when the user wants to connect their Box account
+/**
+ * Redirects user to Box's authorization page
+ * This is called when the user wants to connect their Box account
+ * @param req - Express request object
+ * @param res - Express response object
+ * @return void
+ */
 export const auth: RequestHandler = (req: Request, res: Response): void => {
     const params: Record<string, string> = {
         response_type: "code",
@@ -36,8 +51,13 @@ export const auth: RequestHandler = (req: Request, res: Response): void => {
     res.redirect(url);
 };
 
-// Handles OAuth callback and redirects to client app with code
-// This is called after user authorizes the app
+/**
+ * Handles OAuth callback and redirects to client app with code
+ * This is called after user authorizes the app
+ * @param req - Express request object
+ * @param res - Express response object
+ * @returns void
+ */
 export const callback: RequestHandler = (req: Request, res: Response): void => {
     const code = Array.isArray(req.query.code)
         ? req.query.code[0]
@@ -51,8 +71,14 @@ export const callback: RequestHandler = (req: Request, res: Response): void => {
     res.redirect(`myapp://oauth?code=${encodeURIComponent(code)}`);
 };
 
-// Exchanges authorization code for access and refresh tokens
-// This is used to get tokens after user authorizes the app
+/**
+ * Exchanges authorization code for access and refresh tokens
+ * This is used to get tokens after user authorizes the app
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param next - Express next function
+ * @returns void
+ */
 export const getToken: RequestHandler = async (
     req: Request,
     res: Response,
@@ -81,8 +107,13 @@ export const getToken: RequestHandler = async (
     }
 };
 
-// Sets tokens on the OAuth2 client (from stored credentials)
-// This is used to initialize the client with tokens
+/**
+ * Sets the tokens in the OAuth2 client
+ * This is used to set tokens after user authorizes the app
+ * @param req - Express request object
+ * @param res - Express response object
+ * @returns void
+ */
 export const setTokens: RequestHandler = (
     req: Request,
     res: Response
@@ -118,8 +149,14 @@ export const setTokens: RequestHandler = (
     res.sendStatus(200);
 };
 
-// Refreshes access token using refresh token
-// This is used when the access token has expired
+/**
+ * Refreshes access tokens using the refresh token
+ * This is used to refresh tokens when they expire
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param next - Express next function
+ * @returns void
+ */
 export const refreshTokens: RequestHandler = async (
     req: Request,
     res: Response,
@@ -146,8 +183,14 @@ export const refreshTokens: RequestHandler = async (
     }
 };
 
-// Gets current user's information
-// This is used to fetch user details after authentication
+/**
+ * Gets the current user's information from Box
+ * This is used to get user details after authorization
+ * @param _req - Express request object (not used)
+ * @param res - Express response object
+ * @param next - Express next function
+ * @returns void
+ */
 export const me: RequestHandler = async (
     _req: Request,
     res: Response,

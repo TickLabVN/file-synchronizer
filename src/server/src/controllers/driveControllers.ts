@@ -1,8 +1,13 @@
 import { Request, Response, RequestHandler, NextFunction } from "express";
 import { oauth2Client, SCOPES } from "../config/driveAuth.js";
 
-// Redirects user to Google's consent page
-// This is called when the user wants to connect their Google Drive account
+/**
+ * Redirects user to Google Drive's authorization page
+ * This is called when the user wants to connect their Google Drive account
+ * @param req - Express request object
+ * @param res - Express response object
+ * @return void
+ */
 export const auth: RequestHandler = (req: Request, res: Response): void => {
     const url: Record<string, string> = {
         scope: SCOPES.join(" "),
@@ -25,8 +30,13 @@ export const auth: RequestHandler = (req: Request, res: Response): void => {
     res.redirect(authUrl);
 };
 
-// Handles OAuth callback and returns code to client app
-// This is called after user authorizes the app
+/**
+ * Handles OAuth callback and redirects to client app with code
+ * This is called after user authorizes the app
+ * @param req - Express request object
+ * @param res - Express response object
+ * @returns void
+ */
 export const callback: RequestHandler = (req: Request, res: Response): void => {
     const code = Array.isArray(req.query.code)
         ? req.query.code[0]
@@ -40,8 +50,14 @@ export const callback: RequestHandler = (req: Request, res: Response): void => {
     res.redirect(`myapp://oauth?code=${encodeURIComponent(code)}`);
 };
 
-// Exchanges authorization code for tokens
-// This is used to get access and refresh tokens after user authorizes the app
+/**
+ * Exchanges authorization code for access and refresh tokens
+ * This is used to get tokens after user authorizes the app
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param next - Express next function
+ * @returns void
+ */
 export const getToken: RequestHandler = async (
     req: Request,
     res: Response,
@@ -64,8 +80,13 @@ export const getToken: RequestHandler = async (
     }
 };
 
-// Sets tokens on the OAuth2 client (from stored credentials)
-// This is used to initialize the client with tokens
+/**
+ * Sets the tokens in the OAuth2 client
+ * This is used to set tokens after user authorizes the app
+ * @param req - Express request object
+ * @param res - Express response object
+ * @returns void
+ */
 export const setTokens: RequestHandler = (
     req: Request,
     res: Response
@@ -80,8 +101,14 @@ export const setTokens: RequestHandler = (
     res.sendStatus(200);
 };
 
-// Refreshes access token using refresh token
-// This is used when the access token has expired
+/**
+ * Refreshes access tokens using the refresh token
+ * This is used to refresh tokens when they expire
+ * @param _req - Express request object (not used)
+ * @param res - Express response object
+ * @param next - Express next function
+ * @returns void
+ */
 export const refreshTokens: RequestHandler = async (
     _req: Request,
     res: Response,
