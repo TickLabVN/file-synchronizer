@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Loading from "./components/Loading";
 import Dashboard from "./components/Dashboard";
 import TitleBar from "./components/TitleBar";
-import { toast, ToastContainer } from "react-toastify";
+import { toast, ToastContainer, type Id } from "react-toastify";
 import * as api from "./api";
 
 const App: React.FC = () => {
@@ -77,7 +77,8 @@ const App: React.FC = () => {
     useEffect(() => {
         //@ts-ignore: window.electron is defined in preload script
         if (!window?.electron?.ipcRenderer) return;
-        const onToast = (_: unknown, msg: string): void => void toast.info(msg);
+        const onToast = (_: unknown, msg: unknown): Id =>
+            toast.info(String(msg), { toastId: String(msg) });
         //@ts-ignore: window.electron is defined in preload script
         window.electron.ipcRenderer.on("app:toast", onToast);
         return () =>
