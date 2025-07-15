@@ -5,7 +5,7 @@
     "main": "src/index.js",
     "scripts": {
         "build": "tsc",
-        "start": "nodemon dist/index.js"
+        "start": "npm run build && nodemon dist/index.js"
     },
     "keywords": [],
     "author": "",

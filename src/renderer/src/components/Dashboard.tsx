@@ -154,11 +154,18 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
             ): TrackedFile[] => arr.flatMap((m) => (m ? Object.values(m) : []));
 
             const [driveMap, boxMap] = await Promise.all([
-                api.getTrackedFiles().catch(() => []),
-                api.getTrackedFilesBox().catch(() => []),
+                api.getTrackedFiles().catch(() => []) as Promise<
+                    Array<Record<string, TrackedFile>>
+                >,
+                api.getTrackedFilesBox().catch(() => []) as Promise<
+                    Array<Record<string, TrackedFile>>
+                >,
             ]);
 
-            setTrackedFiles([...flatten(driveMap), ...flatten(boxMap)]);
+            setTrackedFiles([
+                ...flatten(driveMap as Array<Record<string, TrackedFile>>),
+                ...flatten(boxMap as Array<Record<string, TrackedFile>>),
+            ]);
         } catch (err) {
             console.error("Failed to load tracked files", err);
             toast.error(
@@ -426,7 +433,8 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
     const refreshCloudAccounts = useCallback(async () => {
         //@ts-ignore: api.listAccounts is a function
-        const drive = await api.listAccounts().catch(() => []);
+        const drive: Array<{ id: string; displayName?: string }> =
+            await api.listAccounts();
         const google = await Promise.all(
             drive.map(async ({ id, displayName }) => {
                 return {
@@ -438,15 +446,18 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         );
 
         //@ts-ignore: api.listAccounts is a function
-        const box = await api.listBoxAccounts().catch(() => []);
+        const box: Array<{ id: string; displayName?: string }> =
+            await api.listBoxAccounts();
         const boxAcc = await Promise.all(
             box.map(async ({ id, displayName }) => {
                 //@ts-ignore: api.getProfile is a function
-                const prof = await api.getBoxProfile(id).catch(() => null);
+                const prof: { login?: string } | null = await api
+                    .getBoxProfile(id)
+                    .catch(() => null);
                 return {
                     type: "box",
                     id: id,
-                    username: displayName || (prof ? prof.login : id),
+                    username: displayName || (prof?.login ?? id),
                 };
             })
         );
