@@ -66,6 +66,9 @@ type BoxLockEntry = {
     description?: string;
 };
 
+// Define the name of the lock file used for synchronization
+const LOCK_NAME = "__ticklabfs_sync.lock";
+
 // Box provider implementation for file synchronization.
 export default class BoxProvider implements ICloudProvider {
     // Unique identifier for the provider
@@ -433,6 +436,8 @@ export default class BoxProvider implements ICloudProvider {
                     for (const item of entries) {
                         let meta: Record<string, unknown> = {};
                         try {
+                            if (item.type === "file" && item.name === LOCK_NAME)
+                                continue;
                             if (item.type === "file")
                                 meta = await box.files.getMetadata(
                                     item.id,
@@ -687,23 +692,52 @@ export default class BoxProvider implements ICloudProvider {
         const centralFolderPath = cfg.centralFolderPath as string | undefined;
         if (!centralFolderPath) throw new Error("Central folder not set");
 
-        await downloadTree(backupFolderId, centralFolderPath, downloadHooks, {
-            provider: this.id,
-            account: username,
-        });
-
-        const roots = pickRootPaths(username, this.id).filter(
-            (p) => !p.startsWith(centralFolderPath + path.sep)
+        const { acquired, lockId } = await this.acquireLock(
+            backupFolderId,
+            deviceId
         );
-        for (const p of roots) {
-            try {
-                await ensureSymlink(p, centralFolderPath);
-            } catch (err) {
-                console.warn("[ensureSymlink]", p, err);
-            }
+        if (!acquired) {
+            console.log("[Box.pull] Skipping pull, lock already held");
+            broadcast("app:toast", "Box pull skipped, lock already held");
+            return true;
         }
 
-        return true;
+        try {
+            await downloadTree(
+                backupFolderId,
+                centralFolderPath,
+                downloadHooks,
+                {
+                    provider: this.id,
+                    account: username,
+                }
+            );
+
+            const roots = pickRootPaths(username, this.id).filter(
+                (p) => !p.startsWith(centralFolderPath + path.sep)
+            );
+            for (const p of roots) {
+                try {
+                    await ensureSymlink(p, centralFolderPath);
+                } catch (err) {
+                    console.warn("[ensureSymlink]", p, err);
+                }
+            }
+
+            return true;
+        } finally {
+            if (lockId) {
+                try {
+                    await this.releaseLock(lockId);
+                } catch (err) {
+                    console.warn("[Box.pull] Failed to release lock:", err);
+                    broadcast(
+                        "app:toast",
+                        "Box pull failed to release lock on cloud"
+                    );
+                }
+            }
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -802,7 +836,6 @@ export default class BoxProvider implements ICloudProvider {
         ttlMs: number = 10 * 60 * 1e3
     ): Promise<{ acquired: boolean; lockId?: string }> {
         const box = await this.getBoxClient();
-        const LOCK_NAME = "__ticklabfs_sync.lock";
         if (!(await this.folderExists(box, backupFolderId))) {
             backupFolderId = await this.ensureBackupFolder(box);
         }
@@ -889,7 +922,6 @@ export default class BoxProvider implements ICloudProvider {
      */
     async cleanupLockOnExit(backupFolderId: string): Promise<void> {
         const box = await this.getBoxClient();
-        const LOCK_NAME = "__ticklabfs_sync.lock";
         const { entries } = await box.folders.getItems(backupFolderId, {
             fields: "id,name",
             limit: 1000,

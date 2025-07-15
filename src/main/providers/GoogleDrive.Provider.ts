@@ -49,6 +49,9 @@ type GoogleDriveError = {
     message?: string;
 };
 
+// Define the name of the lock file used for synchronization
+const LOCK_NAME = "__ticklabfs_sync.lock";
+
 // Google Drive provider implementation for file synchronization.
 export default class GoogleDriveProvider implements ICloudProvider {
     // Unique identifier for the provider
@@ -406,13 +409,15 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     fields: "files(id,name,mimeType,appProperties)",
                     spaces: "drive",
                 });
-                return (data.files || []).map((f) => ({
-                    id: f.id!,
-                    name: f.name!,
-                    isFolder:
-                        f.mimeType === "application/vnd.google-apps.folder",
-                    meta: f.appProperties as unknown,
-                }));
+                return (data.files || [])
+                    .filter((f) => f.name !== LOCK_NAME)
+                    .map((f) => ({
+                        id: f.id!,
+                        name: f.name!,
+                        isFolder:
+                            f.mimeType === "application/vnd.google-apps.folder",
+                        meta: f.appProperties as unknown,
+                    }));
             },
 
             readFile: async (remoteId, dest) => {
@@ -629,6 +634,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         const drive = await this.getDriveClient();
         const rootId = await this.ensureBackupFolder(drive);
         const hooks = this.buildDownloadHooks(drive);
+        const backupFolderId = await this.ensureBackupFolder(drive);
 
         const {
             data: { user },
@@ -644,23 +650,50 @@ export default class GoogleDriveProvider implements ICloudProvider {
         );
         if (!centralFolderPath) throw new Error("Central folder not set");
 
-        await downloadTree(rootId, centralFolderPath, hooks, {
-            provider: this.id,
-            account: username,
-        });
-
-        const roots = pickRootPaths(username, this.id).filter(
-            (p) => !p.startsWith(centralFolderPath + path.sep)
+        const { acquired, lockId } = await this.acquireLock(
+            backupFolderId,
+            deviceId
         );
-        for (const p of roots) {
-            try {
-                await ensureSymlink(p, centralFolderPath);
-            } catch (err) {
-                console.warn("[ensureSymlink]", p, err);
-            }
+        if (!acquired) {
+            console.log("[Drive.pull] Skipping pull, lock already held");
+            broadcast(
+                "app:toast",
+                "Google Drive pull skipped, lock already held"
+            );
+            return true;
         }
 
-        return true;
+        try {
+            await downloadTree(rootId, centralFolderPath, hooks, {
+                provider: this.id,
+                account: username,
+            });
+
+            const roots = pickRootPaths(username, this.id).filter(
+                (p) => !p.startsWith(centralFolderPath + path.sep)
+            );
+            for (const p of roots) {
+                try {
+                    await ensureSymlink(p, centralFolderPath);
+                } catch (err) {
+                    console.warn("[ensureSymlink]", p, err);
+                }
+            }
+
+            return true;
+        } finally {
+            if (lockId) {
+                try {
+                    await this.releaseLock(lockId);
+                } catch (err) {
+                    console.warn("[Drive.pull] Failed to release lock:", err);
+                    broadcast(
+                        "app:toast",
+                        "Google Drive pull failed to release lock on cloud"
+                    );
+                }
+            }
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -758,7 +791,6 @@ export default class GoogleDriveProvider implements ICloudProvider {
         ttlMs: number = 10 * 60 * 1e3
     ): Promise<{ acquired: boolean; lockId?: string }> {
         const drive = await this.getDriveClient();
-        const LOCK_NAME = "__ticklabfs_sync.lock";
         if (!(await this.folderExists(drive, backupFolderId))) {
             backupFolderId = await this.ensureBackupFolder(drive);
         }
@@ -836,7 +868,6 @@ export default class GoogleDriveProvider implements ICloudProvider {
      */
     async cleanupLockOnExit(backupFolderId: string): Promise<void> {
         const drive = await this.getDriveClient();
-        const LOCK_NAME = "__ticklabfs_sync.lock";
         const { data } = await drive.files.list({
             q: `'${backupFolderId}' in parents and name='${LOCK_NAME}' and trashed=false`,
             fields: "files(id)",
