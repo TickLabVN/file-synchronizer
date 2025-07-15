@@ -1,13 +1,14 @@
 {
     "name": "file-synchronizer",
     "version": "2.1.0",
-    "description": "A cross-platform desktop application built with ElectronJS, ReactJS, and TailwindCSS for synchronizing files with Google Drive",
+    "description": "A cross-platform desktop application built with ElectronJ for synchronizing files to Cloud storage services.",
     "keywords": [
         "ElectronJS",
         "ReactJS",
         "TailwindCSS",
         "ExpressJS",
-        "Google Drive API"
+        "Google Drive API",
+        "Box API"
     ],
     "homepage": "https://github.com/BaoDuong254/file-synchronizer#readme",
     "bugs": {
