@@ -809,7 +809,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
         if (lockId) {
             try {
                 await drive.files.delete({ fileId: lockId });
-                console.log(`[Drive.release] Deleted lock ${lockId}`);
+                console.log(`[Drive.releaseLock] Deleted lock ${lockId}`);
             } catch (err: unknown) {
                 const error = err as GoogleDriveError;
                 const status = error.code ?? error.response?.status;
@@ -821,7 +821,7 @@ export default class GoogleDriveProvider implements ICloudProvider {
                     );
                 } else {
                     console.debug(
-                        `[Drive.release] Lock ${lockId} already gone (status ${status})`
+                        `[Drive.releaseLock] Lock ${lockId} already gone (status ${status})`
                     );
                 }
             }
