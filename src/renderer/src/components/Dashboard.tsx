@@ -113,39 +113,36 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         }
     };
 
-    useEffect(() => {
-        //@ts-ignore: api.getCloudAccounts is a function
-        api.getSettings().then(
-            ({
-                stopSyncPaths = [],
-                resumeSyncPaths = [],
-            }: {
-                stopSyncPaths?: string[];
-                resumeSyncPaths?: string[];
-            }) => {
-                interface CompressFn {
-                    (list: string[]): string[];
-                }
-                const compress: CompressFn = (list) => {
-                    const sorted: string[] = [...list] // sao chép để không mutate
-                        .filter((p) => !resumeSyncPaths.includes(p))
-                        .sort((a, b) => a.length - b.length); // cha trước con
-                    const res: string[] = [];
-                    for (const p of sorted) {
-                        if (!res.some((r) => p.startsWith(r + SEP)))
-                            res.push(p);
-                    }
-                    return res;
+    const refreshStopLists = useCallback(async () => {
+        try {
+            const { stopSyncPaths = [], resumeSyncPaths = [] } =
+                (await api.getSettings()) as {
+                    stopSyncPaths?: string[];
+                    resumeSyncPaths?: string[];
                 };
-                const dedupStop = compress(stopSyncPaths);
-                setStopSyncPaths(dedupStop);
-                setResumeSyncPaths(resumeSyncPaths);
-                if (dedupStop.length !== stopSyncPaths.length) {
-                    api.updateSettings({ stopSyncPaths: dedupStop });
+
+            /* nén bớt path con trùng lặp giống logic cũ */
+            const compress = (list: string[]): string[] => {
+                const sorted = [...list]
+                    .filter((p) => !resumeSyncPaths.includes(p))
+                    .sort((a, b) => a.length - b.length); // cha trước con
+                const res: string[] = [];
+                for (const p of sorted) {
+                    if (!res.some((r) => p.startsWith(r + SEP))) res.push(p);
                 }
-            }
-        );
+                return res;
+            };
+
+            setStopSyncPaths(compress(stopSyncPaths));
+            setResumeSyncPaths(resumeSyncPaths);
+        } catch (err) {
+            console.error("[refreshStopLists]", err);
+        }
     }, [SEP]);
+
+    useEffect(() => {
+        refreshStopLists();
+    }, [refreshStopLists]);
 
     // Dashboard.tsx
     // ... bên trong loadTrackedFiles ------------------------------
@@ -180,9 +177,23 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     useEffect(() => {
         const handler = (): void => {
             loadTrackedFiles();
+            refreshStopLists();
         };
         api.onTrackedFilesUpdated(handler);
-    }, [loadTrackedFiles]);
+    }, [loadTrackedFiles, refreshStopLists]);
+
+    useEffect(() => {
+        //@ts-ignore: window.electron.ipcRenderer.send("app:settings-request");
+        const cb = (): unknown => refreshStopLists();
+        //@ts-ignore: window.electron.ipcRenderer.send("app:settings-request");
+        window.electron.ipcRenderer.on("app:settings-updated", cb);
+        return () =>
+            //@ts-ignore: window.electron.ipcRenderer.send("app:settings-request");
+            window.electron.ipcRenderer.removeListener(
+                "app:settings-updated",
+                cb
+            );
+    }, [refreshStopLists]);
 
     interface CloudAccount {
         type: string;
@@ -219,6 +230,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
             toast.success("Tracked file deleted successfully!");
             loadTrackedFiles();
+            refreshStopLists();
         } catch (err) {
             console.error("Failed to delete tracked file", err);
             toast.error(
