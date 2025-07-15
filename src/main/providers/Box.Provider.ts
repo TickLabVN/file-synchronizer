@@ -240,12 +240,20 @@ export default class BoxProvider implements ICloudProvider {
     async getProfile(id: string): Promise<AuthAccount> {
         const tokens = await this.credStore.get(id);
         if (!tokens) throw new Error(`No saved tokens for ${id}`);
+        await axios
+            .post(`${BACKEND_URL}/auth/box/set-tokens`, tokens)
+            .catch(() => {});
+        if (tokens.name) {
+            return { id, displayName: tokens.name, tokens };
+        }
+
         const { data: profile } = await axios.get(`${BACKEND_URL}/auth/box/me`);
-        return {
-            id: profile.login,
-            displayName: profile.name || profile.login,
-            tokens,
-        };
+        const displayName = profile.name ?? profile.login ?? id;
+        if (!tokens.name) {
+            tokens.name = displayName;
+            await this.credStore.add(id, tokens);
+        }
+        return { id, displayName, tokens };
     }
 
     /* ------------------------------------------------------------------ */
