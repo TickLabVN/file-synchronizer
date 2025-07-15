@@ -60,7 +60,10 @@ export default function CloudProvider({
 
             /* ---------- GOOGLE ---------- */
             // @ts-ignore: api.listAccounts is a custom function
-            const gd = await api.listAccounts().catch(() => []); // luôn trả mảng
+            const gd = (await api.listAccounts().catch(() => [])) as Array<{
+                id: string;
+                displayName?: string;
+            }>; // luôn trả mảng
             await Promise.allSettled(
                 gd.map(async ({ id, displayName }) => {
                     const uname = displayName ?? id.split("@")[0];
@@ -76,9 +79,12 @@ export default function CloudProvider({
 
             /* ---------- BOX ---------- */
             // @ts-ignore: api.listAccounts is a custom function
-            const bx = await api.listBoxAccounts().catch(() => []);
+            const bx = (await api.listBoxAccounts().catch(() => [])) as Array<{
+                id: string;
+                displayName?: string;
+            }>;
             await Promise.allSettled(
-                bx.map(async ({ id, displayName }: { login: string }) => {
+                bx.map(async ({ id, displayName }) => {
                     const uname = displayName ?? id;
                     list.push({
                         type: "box",

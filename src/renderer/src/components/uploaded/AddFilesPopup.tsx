@@ -81,9 +81,11 @@ export default function AddFilesPopup({
 
     const fetchAccounts = async (): Promise<void> => {
         //@ts-ignore: api is defined in preload script
-        const gd: Array<{ email: string }> = await api.listAccounts(); // [{email}]
+        const gd: Array<{ id: string; displayName?: string }> =
+            await api.listAccounts(); // [{email, displayName?}]
         //@ts-ignore: api is defined in preload script
-        const box: Array<{ login: string }> = await api.listBoxAccounts(); // [{login}]
+        const box: Array<{ id: string; displayName?: string }> =
+            await api.listBoxAccounts(); // [{login, displayName?}]
         const list = [
             ...(await Promise.all(
                 gd.map(async ({ id, displayName }) => {
