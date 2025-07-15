@@ -860,20 +860,20 @@ export default class BoxProvider implements ICloudProvider {
         if (lockId) {
             try {
                 await box.files.delete(lockId);
-                console.log(`[Box.release] Deleted lock ${lockId}`);
+                console.log(`[Box.releaseLock] Deleted lock ${lockId}`);
             } catch (err: unknown) {
                 const status = (err as BoxError).response?.status;
                 if (status === 404) {
                     console.debug(
-                        `[Box.release] Lock ${lockId} already deleted`
+                        `[Box.releaseLock] Lock ${lockId} already deleted`
                     );
                 } else if (status === 403) {
                     console.warn(
-                        `[Box.release] Lock ${lockId} could not be deleted (403 Forbidden)`
+                        `[Box.releaseLock] Lock ${lockId} could not be deleted (403 Forbidden)`
                     );
                 } else {
                     console.debug(
-                        `[Box.release] Lock ${lockId} already gone (status ${status})`
+                        `[Box.releaseLock] Lock ${lockId} already gone (status ${status})`
                     );
                 }
             }
