@@ -32,6 +32,8 @@ import getDirSize from "../utils/getDirSize";
 // @ts-ignore – icon as asset
 import icon from "../../../resources/icon.png?asset";
 import { isStopped, loadStopLists } from "../utils/stopSync";
+import ensureSymlink from "../utils/ensureSymlink";
+import pickRootPaths from "../utils/pickRootPaths";
 
 // Define the structure of Box tokens
 type BoxTokens = {
@@ -544,7 +546,7 @@ export default class BoxProvider implements ICloudProvider {
                         provider: this.id,
                         account: username,
                     });
-                    await this.ensureSymlink(p, centralFolderPath);
+                    await ensureSymlink(p, centralFolderPath);
                 } catch (err: unknown) {
                     if (
                         err &&
@@ -663,6 +665,18 @@ export default class BoxProvider implements ICloudProvider {
             provider: this.id,
             account: username,
         });
+
+        const roots = pickRootPaths(username, this.id).filter(
+            (p) => !p.startsWith(centralFolderPath + path.sep)
+        );
+        for (const p of roots) {
+            try {
+                await ensureSymlink(p, centralFolderPath);
+            } catch (err) {
+                console.warn("[ensureSymlink]", p, err);
+            }
+        }
+
         return true;
     }
 
@@ -873,51 +887,6 @@ export default class BoxProvider implements ICloudProvider {
     /* ------------------------------------------------------------------ */
     /*                             UTILITIES                              */
     /* ------------------------------------------------------------------ */
-
-    /**
-     * Ensures a symlink exists in the central folder for the specified source path.
-     * If the symlink already exists, it is updated to point to the new source.
-     *
-     * @param src - The source path to link to.
-     * @param centralDir - The central directory where the symlink should be created.
-     */
-    private async ensureSymlink(
-        src: string,
-        centralDir: string
-    ): Promise<void> {
-        const linkPath = path.join(centralDir, path.basename(src));
-        try {
-            await fs.promises.unlink(linkPath);
-        } catch {
-            console.warn("[Box.ensureSymlink] unlink symlink failed", linkPath);
-        }
-
-        const stats = await fs.promises.stat(src);
-        const type = stats.isDirectory() ? "junction" : "file";
-        try {
-            await fs.promises.symlink(src, linkPath, type);
-        } catch (err: unknown) {
-            if (
-                process.platform === "win32" &&
-                typeof err === "object" &&
-                err !== null &&
-                "code" in err &&
-                (err as { code?: string }).code === "EPERM"
-            ) {
-                if (stats.isDirectory()) {
-                    await fs.promises.cp(src, linkPath, { recursive: true });
-                } else {
-                    try {
-                        await fs.promises.link(src, linkPath);
-                    } catch {
-                        await fs.promises.copyFile(src, linkPath);
-                    }
-                }
-            } else {
-                throw err;
-            }
-        }
-    }
 
     /**
      * Ensures the backup folder exists in Box.

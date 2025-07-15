@@ -4,6 +4,7 @@ import path from "path";
 import { autoSync } from "../handlers/sync";
 import { allProviders } from "../lib/providerRegistry";
 import { broadcast } from "../windows/WindowManager";
+import { store } from "../lib/constants";
 
 const BASE_INTERVAL = 5 * 60 * 1000;
 const JITTER_RANGE = 30 * 1000;
@@ -39,6 +40,12 @@ async function hasAccounts(): Promise<boolean> {
 async function shouldSync(): Promise<boolean> {
     const cfgPath = path.join(app.getPath("userData"), "central-config.json");
     let centralFolderPath = null;
+    const mappings = store.get("mappings");
+    const mappingLength = Array.isArray(mappings) ? mappings.length : 0;
+    if (mappingLength === 0) {
+        console.log("[Background] No mappings found, skipping sync");
+        return false;
+    }
     try {
         const raw = await fs.promises.readFile(cfgPath, "utf-8");
         ({ centralFolderPath } = JSON.parse(raw));
