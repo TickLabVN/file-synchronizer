@@ -520,7 +520,7 @@ export default class BoxProvider implements ICloudProvider {
         );
         if (!acquired) {
             console.log("[Box.sync] Skipping sync, lock already held");
-            broadcast("toast-all", "Box sync skipped, lock already held");
+            broadcast("app:toast", "Box sync skipped, lock already held");
             return { success: true, failed: null };
         }
 
@@ -592,7 +592,7 @@ export default class BoxProvider implements ICloudProvider {
                 } catch (err) {
                     console.warn("[Box.sync] Failed to release lock:", err);
                     broadcast(
-                        "toast-all",
+                        "app:toast",
                         "Box sync failed to release lock on cloud"
                     );
                 }
@@ -617,7 +617,7 @@ export default class BoxProvider implements ICloudProvider {
         );
         if (!acquired) {
             console.log("[Box.autoSync] Skipping auto-sync, lock already held");
-            broadcast("toast-all", "Box auto-sync skipped, lock already held");
+            broadcast("app:toast", "Box auto-sync skipped, lock already held");
             return true;
         }
 
@@ -655,7 +655,7 @@ export default class BoxProvider implements ICloudProvider {
                 } catch (err) {
                     console.warn("[Box.autoSync] Failed to release lock:", err);
                     broadcast(
-                        "toast-all",
+                        "app:toast",
                         "Box sync failed to release lock on cloud"
                     );
                 }
