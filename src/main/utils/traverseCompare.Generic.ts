@@ -43,6 +43,7 @@ export default async function traverseCompare(
             if (stats.mtime > remoteTime) {
                 await hooks.newVersion(remoteId, srcPath);
                 changed = true;
+                console.log(`[Compare] Updated: ${srcPath}`);
             }
         }
     } catch (err: unknown) {

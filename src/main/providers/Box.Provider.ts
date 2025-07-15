@@ -34,6 +34,7 @@ import icon from "../../../resources/icon.png?asset";
 import { isStopped, loadStopLists } from "../utils/stopSync";
 import ensureSymlink from "../utils/ensureSymlink";
 import pickRootPaths from "../utils/pickRootPaths";
+import { broadcast } from "../windows/WindowManager";
 
 // Define the structure of Box tokens
 type BoxTokens = {
@@ -519,6 +520,7 @@ export default class BoxProvider implements ICloudProvider {
         );
         if (!acquired) {
             console.log("[Box.sync] Skipping sync, lock already held");
+            broadcast("toast-all", "Box sync skipped, lock already held");
             return { success: true, failed: null };
         }
 
@@ -539,7 +541,10 @@ export default class BoxProvider implements ICloudProvider {
             const failed: Array<{ path: string; error: string }> = [];
 
             for (const p of paths) {
-                if (exclude.includes(p)) continue;
+                if (exclude.includes(p)) {
+                    console.log(`[Box.sync] Skipping excluded path: ${p}`);
+                    continue;
+                }
                 try {
                     await traverseAndUpload(p, backupFolderId, uploadHooks, {
                         exclude,
@@ -581,7 +586,17 @@ export default class BoxProvider implements ICloudProvider {
                 failed: failed.length ? failed[0] : null,
             };
         } finally {
-            if (lockId) await this.releaseLock(lockId).catch(() => {});
+            if (lockId) {
+                try {
+                    await this.releaseLock(lockId);
+                } catch (err) {
+                    console.warn("[Box.sync] Failed to release lock:", err);
+                    broadcast(
+                        "toast-all",
+                        "Box sync failed to release lock on cloud"
+                    );
+                }
+            }
         }
     }
 
@@ -602,6 +617,7 @@ export default class BoxProvider implements ICloudProvider {
         );
         if (!acquired) {
             console.log("[Box.autoSync] Skipping auto-sync, lock already held");
+            broadcast("toast-all", "Box auto-sync skipped, lock already held");
             return true;
         }
 
@@ -633,7 +649,17 @@ export default class BoxProvider implements ICloudProvider {
             }
             return anyChanged;
         } finally {
-            if (lockId) await this.releaseLock(lockId).catch(() => {});
+            if (lockId) {
+                try {
+                    await this.releaseLock(lockId);
+                } catch (err) {
+                    console.warn("[Box.autoSync] Failed to release lock:", err);
+                    broadcast(
+                        "toast-all",
+                        "Box sync failed to release lock on cloud"
+                    );
+                }
+            }
         }
     }
 

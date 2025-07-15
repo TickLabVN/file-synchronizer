@@ -26,7 +26,7 @@ async function cleanupAllLocks(): Promise<void> {
                 await provider.cleanupLockOnExit(BACKUP_FOLDER);
             }
         } catch (err) {
-            console.error(`[exit] cleanup lock for ${provider.id}:`, err);
+            console.error(`[Lock] cleanup lock for ${provider.id}:`, err);
         }
     }
 }

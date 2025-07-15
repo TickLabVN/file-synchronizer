@@ -20,10 +20,7 @@ export default async function traverseAndUpload(
         account,
     }: { exclude?: string[]; provider: string; account: string }
 ): Promise<void> {
-    if (exclude.includes(srcPath)) {
-        console.log(`[Skipped] ${srcPath} (excluded)`);
-        return;
-    }
+    if (exclude.includes(srcPath)) return;
 
     const stats: fs.Stats = await fs.promises.stat(srcPath);
     const isDir: boolean = stats.isDirectory();
