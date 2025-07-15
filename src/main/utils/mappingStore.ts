@@ -1,5 +1,6 @@
 import { RemoteMeta } from "./types";
 import { store } from "../lib/constants";
+import { broadcast } from "../windows/WindowManager";
 import path from "path";
 
 /**
@@ -64,6 +65,7 @@ class MappingStore {
                 stopSyncPaths: nextStop,
                 resumeSyncPaths: nextResume,
             });
+            broadcast("app:settings-updated");
         }
     }
 
