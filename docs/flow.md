@@ -2,8 +2,6 @@
 
 This document explains how the cross‑platform **File Synchronizer** application works and how its pieces fit together. It can be shared with new contributors or stakeholders who need a quick but complete technical overview.
 
----
-
 ## 1  High‑Level Architecture
 
 ```mermaid
@@ -37,8 +35,6 @@ graph LR
 - **Security**: The preload layer exposes a **whitelisted API**; the renderer never gets Node internals directly.
 - **Separation of concerns**: Cloud logic lives in `src/main/providers`, while OAuth & token refresh live in the embedded Express server (`src/server`).
 
----
-
 ## 2  Folder Structure Cheatsheet
 
 | Path                 | Purpose                                                                              |
@@ -51,8 +47,6 @@ graph LR
 | `src/preload`        | Secure bridge between renderer and main.                                             |
 | `src/renderer/src`   | React UI (components, hooks, types).                                                 |
 | `src/server`         | Stand‑alone Express API used for OAuth redirects & REST proxy.                       |
-
----
 
 ## 3  Synchronization Workflow
 
@@ -102,15 +96,11 @@ sequenceDiagram
 - **mappingStore** keeps the authoritative map `{localPath → {id, isDirectory, provider, account, lastSync}}` and is flushed to `config.json` after every change .
 - **Scheduler** runs every 5 min ± 30 s jitter (`BASE_INTERVAL`, `JITTER_RANGE`) ; it skips the cycle if no accounts or no central folder are configured.
 
----
-
 ## 4  Auto‑Update Flow
 
 1. `src/main/bootstrap/updater.ts` checks GitHub releases.
 2. If a new version exists, it downloads the signed package to a temp dir.
 3. The user is prompted via an in‑app dialog; on confirmation the app quits and relaunches the installer.
-
----
 
 ## 5 Back‑End (Embedded Express)
 
@@ -145,8 +135,6 @@ flowchart TD
 
 **Design principle**: The embedded Express app acts solely as an **OAuth gateway and thin REST proxy**. All heavy lifting—syncing, uploads, downloads—lives in the Electron main process, keeping the server footprint tiny and avoiding any additional background service for the user.
 
----
-
 ## 6 Data Storage
 
 | Storage artefact                          | On-disk (Windows) path\*                                                          | What’s inside                                                                                                                                                                                                          |
@@ -158,8 +146,6 @@ flowchart TD
 | **Remote backup folder**                  | `__ticklabfs_backup` in each provider’s root                                      | Mirrored file-tree, metadata (`originalPath`, `os`) and the lock file `__ticklabfs_sync.lock`                                                                                                                          |
 
 `%APPDATA%` is automatically resolved from `app.getPath('userData')`; on macOS it is `~/Library/Application Support`, on Linux `${XDG_CONFIG_HOME}`.
-
----
 
 ## 7  Extensibility Guidelines
 
