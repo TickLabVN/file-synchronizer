@@ -10,6 +10,7 @@ A cross-platform desktop application built with ElectronJS for synchronizing fil
 - Seamless file synchronization with Cloud storage services like Google Drive, Box,...
 - Real-time updates and conflict resolution
 - User-friendly interface built with React and styled using TailwindCSS
+- **All synchronized files and folders are stored inside a folder named `__ticklabfs_backup` in your Cloud storage — please do not rename, move, or delete this folder, as doing so will break future backups.**
 
 ## Prerequisites
 
