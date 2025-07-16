@@ -1,6 +1,6 @@
 {
     "name": "file-synchronizer",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "description": "A cross-platform desktop application built with ElectronJS for synchronizing files to Cloud storage services.",
     "keywords": [
         "ElectronJS",
