@@ -1,13 +1,13 @@
 # File Synchronizer
 
-A cross-platform desktop application built with ElectronJS, ReactJS, and TailwindCSS for synchronizing files with Google Drive.
+A cross-platform desktop application built with ElectronJ for synchronizing files to Cloud storage services.
 
-> **Note:** Because the backend server is deployed on Render, the first login may take a few seconds while the server starts up. Please wait for the loading indicator before proceeding.
+> **Note:** Because the server is deployed on Render, the first login may take a few seconds while the server starts up. Please wait for the loading indicator before proceeding.
 
 ## Features
 
 - Cross-platform support (Windows, macOS, Linux)
-- Seamless file synchronization with Google Drive
+- Seamless file synchronization with Cloud storage services like Google Drive, Box,...
 - Real-time updates and conflict resolution
 - User-friendly interface built with React and styled using TailwindCSS
 
@@ -16,6 +16,7 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
 - Node.js
 - npm
 - A Google Cloud Platform account
+- A Box Platform account
 
 ## Installation
 
@@ -26,19 +27,27 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
     cd file-synchronizer
     ```
 
-2. **Install backend dependencies**:
+2. **Install Electron-vite dependencies**:
 
     ```bash
-    cd backend
     npm install
     ```
 
-3. **Install frontend and Electron dependencies**:
+3. **Install backend dependencies**:
 
     ```bash
-    cd ../
+    cd src/server
     npm install
     ```
+
+4. **Install frontend dependencies**:
+
+    ```bash
+    cd src/renderer
+    npm install
+    ```
+
+    > **Note:** You can also download a release package for your operating system from the repository’s Releases page.
 
 ## Configuration
 
@@ -52,6 +61,8 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
 
     - `GOOGLE_CLIENT_ID`
     - `GOOGLE_CLIENT_SECRET`
+    - `BOX_CLIENT_ID`
+    - `BOX_CLIENT_SECRET`
     - `BACKEND_URL`
 
 3. **Setup credentials in Google Cloud Platform**:
@@ -60,6 +71,8 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
     - Enable the Google Drive API and OAuth2
     - Create OAuth2 credentials for a **Web Application**
     - Copy the **Client ID** and **Client Secret** into your `.env`
+
+    > **Note:** The setup steps are similar for other cloud providers—simply create the corresponding credentials and update the variables above.
 
 ## Running the Application
 
@@ -78,8 +91,8 @@ A cross-platform desktop application built with ElectronJS, ReactJS, and Tailwin
 3. **Login and sync**:
 
     - The Electron window will open
-    - Sign in with your Google account
-    - Choose folders to synchronize
+    - Sign in with your Cloud account
+    - Choose files or folders to synchronize
 
 ## Contributing
 
