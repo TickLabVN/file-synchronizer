@@ -30,9 +30,9 @@ export default function CloudProvider({
     onFilterChange,
 }: CloudProviderProps): ReactElement {
     const [showLoginModal, setShowLoginModal] = useState(false);
-    const [picked, setPicked] = useState<string>(""); // radio in Login
-    const [connected, setConnected] = useState<CloudAccount[]>([]); // [{type,accountId,...}]
-    const [delTarget, setDelTarget] = useState<CloudAccount | null>(null); // card đang xoá
+    const [picked, setPicked] = useState<string>("");
+    const [connected, setConnected] = useState<CloudAccount[]>([]);
+    const [delTarget, setDelTarget] = useState<CloudAccount | null>(null);
     const [activeFilter, setActiveFilter] = useState<CloudAccount | null>(null);
     interface HandleCardClickArg {
         type: string;
@@ -47,12 +47,11 @@ export default function CloudProvider({
             activeFilter &&
             activeFilter.type === acc.type &&
             activeFilter.accountId === acc.accountId;
-        const next = same ? null : acc; // bỏ chọn nếu bấm lại
+        const next = same ? null : acc;
         setActiveFilter(next);
-        onFilterChange?.(next); // báo cho Dashboard
+        onFilterChange?.(next);
     };
 
-    /* ---------- Khôi phục thẻ đã lưu ---------- */
     useEffect(() => {
         let alive = true;
         const loadAccounts = async (): Promise<void> => {
@@ -63,7 +62,7 @@ export default function CloudProvider({
             const gd = (await api.listAccounts().catch(() => [])) as Array<{
                 id: string;
                 displayName?: string;
-            }>; // luôn trả mảng
+            }>;
             await Promise.allSettled(
                 gd.map(async ({ id, displayName }) => {
                     const uname = displayName ?? id.split("@")[0];
@@ -99,7 +98,6 @@ export default function CloudProvider({
             if (alive) setConnected(list);
         };
 
-        // nạp lần đầu + khi có sự kiện bên ngoài
         loadAccounts();
         window.addEventListener("cloud-accounts-updated", loadAccounts);
         return () => {
@@ -153,7 +151,6 @@ export default function CloudProvider({
         setPicked("");
     };
 
-    /* ---------- Xoá tài khoản ---------- */
     const handleDelete = async (): Promise<void> => {
         if (!delTarget) return;
         try {
