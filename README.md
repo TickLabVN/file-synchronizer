@@ -1,6 +1,6 @@
 # File Synchronizer
 
-A cross-platform desktop application built with ElectronJ for synchronizing files to Cloud storage services.
+A cross-platform desktop application built with ElectronJS for synchronizing files to Cloud storage services.
 
 > **Note:** Because the server is deployed on Render, the first login may take a few seconds while the server starts up. Please wait for the loading indicator before proceeding.
 
@@ -47,7 +47,7 @@ A cross-platform desktop application built with ElectronJ for synchronizing file
     npm install
     ```
 
-    > **Note:** You can also download a release package for your operating system from the repository’s Releases page.
+> **Note:** You can also download a release package for your operating system from the repository’s Releases page.
 
 ## Configuration
 
@@ -72,7 +72,7 @@ A cross-platform desktop application built with ElectronJ for synchronizing file
     - Create OAuth2 credentials for a **Web Application**
     - Copy the **Client ID** and **Client Secret** into your `.env`
 
-    > **Note:** The setup steps are similar for other cloud providers—simply create the corresponding credentials and update the variables above.
+> **Note:** The setup steps are similar for other cloud providers—simply create the corresponding credentials and update the variables above.
 
 ## Running the Application
 
