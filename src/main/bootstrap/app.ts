@@ -19,11 +19,10 @@ let hasCleanedLocks: boolean = false;
  * @returns {Promise<void>} A promise that resolves when the cleanup is complete.
  */
 async function cleanupAllLocks(): Promise<void> {
-    const BACKUP_FOLDER = "__ticklabfs_backup";
     for (const provider of allProviders()) {
         try {
             if (provider.cleanupLockOnExit) {
-                await provider.cleanupLockOnExit(BACKUP_FOLDER);
+                await provider.cleanupLockOnExit();
             }
         } catch (err) {
             console.error(`[Lock] cleanup lock for ${provider.id}:`, err);

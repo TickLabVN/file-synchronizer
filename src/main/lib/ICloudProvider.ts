@@ -79,5 +79,5 @@ export interface ICloudProvider {
         ttlMs: number
     ): Promise<{ acquired: boolean; lockId?: string }>;
     releaseLock(lockId: string): Promise<void>;
-    cleanupLockOnExit(backupFolderId: string): Promise<void>;
+    cleanupLockOnExit(): Promise<void>;
 }
