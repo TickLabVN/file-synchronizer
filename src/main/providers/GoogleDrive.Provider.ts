@@ -866,8 +866,9 @@ export default class GoogleDriveProvider implements ICloudProvider {
      *
      * @param backupFolderId - The ID of the backup folder in Google Drive.
      */
-    async cleanupLockOnExit(backupFolderId: string): Promise<void> {
+    async cleanupLockOnExit(): Promise<void> {
         const drive = await this.getDriveClient();
+        const backupFolderId = await this.ensureBackupFolder(drive);
         const { data } = await drive.files.list({
             q: `'${backupFolderId}' in parents and name='${LOCK_NAME}' and trashed=false`,
             fields: "files(id)",

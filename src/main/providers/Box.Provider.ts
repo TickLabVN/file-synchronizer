@@ -920,8 +920,9 @@ export default class BoxProvider implements ICloudProvider {
      * @param backupFolderId - The ID of the backup folder to clean up.
      * @returns A promise that resolves when the cleanup is complete.
      */
-    async cleanupLockOnExit(backupFolderId: string): Promise<void> {
+    async cleanupLockOnExit(): Promise<void> {
         const box = await this.getBoxClient();
+        const backupFolderId = await this.ensureBackupFolder(box);
         const { entries } = await box.folders.getItems(backupFolderId, {
             fields: "id,name",
             limit: 1000,
