@@ -1,10 +1,7 @@
-/* ------------------------------------------------------------------ */
-/*  src/renderer/src/api/index.ts – Adapter cho API mới (preload)     */
-/* ------------------------------------------------------------------ */
 declare global {
     interface Window {
         api: {
-            /* ---------- Auth chung cho mọi provider ---------- */
+            /* ---------- Auth ---------- */
             signIn: (providerId: string) => Promise<unknown>;
             listAccounts: (providerId: string) => Promise<unknown>;
             useAccount: (
@@ -53,7 +50,6 @@ declare global {
     }
 }
 
-/* --- Hằng tiện dụng --- */
 type Provider = "google" | "box";
 const G: Provider = "google";
 const B: Provider = "box";
@@ -112,7 +108,6 @@ export const syncBoxFiles = (options: unknown): Promise<unknown> =>
 export const pullFromDrive = (): Promise<unknown> => window.api.pull(G);
 export const pullFromBox = (): Promise<unknown> => window.api.pull(B);
 
-/* Từ giờ đồng bộ nền được gộp chung – đặt tên cũ cho tiện */
 export const syncOnLaunch = (): Promise<unknown> => window.api.autoSync();
 export const syncBoxOnLaunch = (): Promise<unknown> => window.api.autoSync();
 

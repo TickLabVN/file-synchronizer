@@ -62,7 +62,6 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     const isWin = navigator?.userAgent.includes("Windows");
     const SEP = isWin ? "\\" : "/";
 
-    // lọc trước khi render
     const displayedFiles = trackedFiles.filter(
         (f) =>
             !removedAccounts.some(
@@ -144,11 +143,8 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         refreshStopLists();
     }, [refreshStopLists]);
 
-    // Dashboard.tsx
-    // ... bên trong loadTrackedFiles ------------------------------
     const loadTrackedFiles = useCallback(async () => {
         try {
-            // helper: biến mảng mapping thành mảng TrackedFile đích thực
             const flatten = (
                 arr: Array<Record<string, TrackedFile>>
             ): TrackedFile[] => arr.flatMap((m) => (m ? Object.values(m) : []));
@@ -217,19 +213,18 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         try {
             const provider = file.provider ?? "";
             const username = file.username ?? "";
-            // tìm accountId (login/email) tương ứng
             const acc: CloudAccount | undefined = cloudAccounts.find(
                 (a: CloudAccount) =>
                     a.type === provider &&
                     (a.username === username || a.id === username)
             );
-            const accountId: string = acc ? acc.id : username; // fallback khi đã truyền đúng id
+            const accountId: string = acc ? acc.id : username;
 
             if (provider === "google") {
-                await api.useAccount(accountId); // ← dùng email
+                await api.useAccount(accountId);
                 await api.deleteTrackedFile(file.src);
             } else if (provider === "box") {
-                await api.useBoxAccount(accountId); // ← dùng login
+                await api.useBoxAccount(accountId);
                 await api.deleteTrackedFileBox(file.src);
             } else {
                 throw new Error("Unknown provider");
@@ -268,21 +263,16 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         const nextResume: string[] = [...resumeSyncPaths];
 
         if (isExactInStop) {
-            /* ---- 1. Đang bị chặn trực tiếp → gỡ chặn ---- */
-            // gỡ p khỏi stopSync
             for (let i = nextStop.length - 1; i >= 0; i--)
                 if (nextStop[i] === p) nextStop.splice(i, 1);
-            // gỡ mọi resume con (không còn cần thiết)
             for (let i = nextResume.length - 1; i >= 0; i--)
                 if (nextResume[i] === p || nextResume[i].startsWith(p + SEP))
                     nextResume.splice(i, 1);
             toast.success("Resumed sync for " + p);
         } else if (isBlockedByAnc) {
-            /* ---- 2. Bị chặn vì thư mục cha → whitelist p ---- */
             if (!nextResume.includes(p)) nextResume.push(p);
             toast.success("Resumed sync for " + p);
         } else {
-            /* ---- 3. Hiện đang sync bình thường → thêm vào stopSync ---- */
             const coveredByParent: boolean = nextStop.some(
                 (s: string) => s !== p && p.startsWith(s + SEP)
             );
@@ -403,7 +393,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
                 e as CustomEvent<CloudAccountEventDetail>
             ).detail || {}) as CloudAccountEventDetail;
             setRemovedAccounts((prev) => [...prev, { type, username }]);
-            loadTrackedFiles(); // reload để ẩn ngay
+            loadTrackedFiles();
         };
 
         interface CloudAccountEventDetail {
@@ -414,13 +404,12 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         const onAdded = (e: Event): void => {
             const { type, username } =
                 (e as CustomEvent<CloudAccountEventDetail>).detail || {};
-            // huỷ cờ “đã xoá” nếu người dùng login lại
             setRemovedAccounts((prev) =>
                 prev.filter(
                     (x) => !(x.type === type && x.username === username)
                 )
             );
-            loadTrackedFiles(); // reload để hiện lại đúng item
+            loadTrackedFiles();
         };
 
         window.addEventListener("cloud-account-removed", onRemoved);
@@ -466,7 +455,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     }, []);
 
     useEffect(() => {
-        refreshCloudAccounts(); // nạp lần đầu
+        refreshCloudAccounts();
         window.addEventListener("cloud-accounts-updated", refreshCloudAccounts);
         return () =>
             window.removeEventListener(
@@ -508,7 +497,6 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
                 chooseFiles={handleChooseFiles}
                 chooseFolder={handleChooseFolders}
                 handleUpload={async (account: { type: string; id: string }) => {
-                    // Find the username for the selected account
                     const acc = cloudAccounts.find(
                         (a) => a.type === account.type && a.id === account.id
                     );

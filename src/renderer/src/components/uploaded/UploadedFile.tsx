@@ -32,7 +32,6 @@ const formatBytes: FormatBytes = (n) => {
     return `${(n / 1024 ** i).toFixed(i ? 1 : 0)}${u[i]}`;
 };
 
-// --- NEW: helper để lấy dung lượng từ node.raw với nhiều key khác nhau ----
 const pickSize = (raw: Record<string, unknown> = {}): number =>
     Number(
         (
@@ -46,7 +45,7 @@ const pickSize = (raw: Record<string, unknown> = {}): number =>
             (raw as { bytes?: number }).bytes ??
             (raw as { byteSize?: number }).byteSize ??
             (raw as { fileSize?: number }).fileSize ??
-            0 // fallback
+            0
     );
 
 const PROVIDER_ICONS = {
@@ -54,13 +53,11 @@ const PROVIDER_ICONS = {
     box: box,
 };
 
-// UploadedFile.jsx
 function propagateMeta(
     node: TreeNode,
     parentProvider: unknown,
     parentUsername: unknown
 ): void {
-    // nếu thiếu thì thừa kế của cha
     if (!node.provider) node.provider = parentProvider as string | undefined;
     if (!node.username) node.username = parentUsername as string | undefined;
     if (node.children) {
@@ -70,7 +67,6 @@ function propagateMeta(
     }
 }
 
-// --- FIX: aggregateSize giờ sẽ gắn đúng size cho cả file & folder ---------
 function aggregateSize(node: {
     isDirectory?: boolean;
     children?: Record<string, unknown>;
@@ -93,22 +89,13 @@ function aggregateSize(node: {
             node.size = total;
             return total;
         }
-        // Nếu không có con → trả về 0
         node.size = 0;
         return 0;
     }
-
-    // File: lấy size từ chính node hoặc từ raw, đảm bảo là number
     node.size = Number(node.size ?? pickSize(node.raw));
     return node.size;
 }
-/**
- * Duyệt danh sách path đã theo dõi → dựng cây thư mục lồng nhau
- *   root.children = {
- *      "C:": { name, path, isDirectory, children: { ... } },
- *      ...
- *   }
- */
+
 const isWin = navigator?.userAgent.includes("Windows");
 const SEP = isWin ? "\\" : "/";
 // Define a type for tracked file items
@@ -158,7 +145,6 @@ function buildTree(list: TrackedFileItem[]): Record<string, TreeNode> {
                     isDirectory: idx < parts.length - 1 || !!item.isDirectory,
                     provider: item.provider,
                     username: item.username,
-                    // --- FIX: đảm bảo leaf node nào cũng có size nếu có ---
                     size:
                         idx === parts.length - 1
                             ? Number(
@@ -171,13 +157,9 @@ function buildTree(list: TrackedFileItem[]): Record<string, TreeNode> {
                             : undefined,
                     lastSync:
                         idx === parts.length - 1 ? item.lastSync : undefined,
-                    raw:
-                        idx === parts.length - 1
-                            ? { ...item } // lưu cả object gốc để lấy thông tin sau
-                            : undefined,
+                    raw: idx === parts.length - 1 ? { ...item } : undefined,
                 };
             } else {
-                // node đã tồn tại → bổ sung thông tin còn khuyết
                 if (!cur.children[seg].provider)
                     cur.children[seg].provider = item.provider;
                 if (!cur.children[seg].username)
@@ -196,13 +178,6 @@ function buildTree(list: TrackedFileItem[]): Record<string, TreeNode> {
     return root.children ?? {};
 }
 
-/**
- * ⚡️ Quan trọng
- * Khi một node KHÔNG phải folder/file được track (raw === undefined)
- *     ⇒ kéo toàn bộ con của nó lên cùng cấp
- * Kết quả: chỉ những mục người dùng thực sự theo dõi (raw) mới xuất hiện ở
- * root của danh sách, đúng với mong muốn “Test” thay vì “Downloads/Test”.
- */
 function flattenUntrackedRoots(
     nodes: Record<string, TreeNode>
 ): Record<string, TreeNode> {
@@ -218,10 +193,8 @@ function flattenUntrackedRoots(
 
     const lift = (node: FlattenedTreeNode): void => {
         if (node.raw || !node.children) {
-            // node được track (hoặc file lẻ) → giữ nguyên
             (result as FlattenedTreeResult)[node.path] = node;
         } else {
-            // node cha không được track → đẩy con lên
             Object.values(node.children).forEach((child) =>
                 lift(child as unknown as FlattenedTreeNode)
             );
@@ -231,20 +204,16 @@ function flattenUntrackedRoots(
     return result;
 }
 
-/**
- * Ẩn bớt các nhánh dài chỉ có một con – giống như VSCode tree view
- */
 function compressPath(node: TreeNode): TreeNode {
     let cur = node;
     while (
         cur.isDirectory &&
         cur.children &&
         Object.keys(cur.children).length === 1 &&
-        !cur.raw // đừng bỏ qua node gốc được track
+        !cur.raw
     ) {
         const key = Object.keys(cur.children)[0];
         const child = cur.children[key];
-        // ⭐ Thừa kế metadata nếu con còn thiếu
         if (!child.provider) child.provider = cur.provider;
         if (!child.username) child.username = cur.username;
         cur = child;
@@ -289,25 +258,20 @@ export default function UploadedFile({
         return () => clearInterval(id);
     }, []);
 
-    /* --------------------- Chuẩn hoá dữ liệu để render --------------------- */
     const tree = useMemo(() => {
-        // 1) dựng cây đầy đủ
         const rawRoot = buildTree(trackedFiles);
         if (rawRoot) {
             Object.values(rawRoot).forEach(aggregateSize);
         }
 
-        // 2) nếu lọc cloud → cắt bỏ nhánh không khớp
         if (filterAccount) {
             for (const k of Object.keys(rawRoot)) {
                 const filtered = filterTree(rawRoot[k], filterAccount);
-                if (filtered)
-                    rawRoot[k] = filtered; // chỉ giữ lại phần đã lọc
+                if (filtered) rawRoot[k] = filtered;
                 else delete rawRoot[k];
             }
         }
 
-        // 3) đẩy các node KHÔNG được track ra khỏi cấp gốc
         return flattenUntrackedRoots(rawRoot);
     }, [trackedFiles, filterAccount]);
 
@@ -318,7 +282,6 @@ export default function UploadedFile({
     const toggle = (p: string): void =>
         setExpanded((prev: ExpandedState) => ({ ...prev, [p]: !prev[p] }));
 
-    /* -------------------------- UI – render 1 node ------------------------- */
     interface RenderNodeProps {
         name: string;
         path: string;
@@ -357,12 +320,12 @@ export default function UploadedFile({
 
         return (
             <li key={path} className="flex flex-col">
-                {/* ── Hàng chính ─────────────────────────────────────────── */}
+                {}
                 <div
                     className="flex items-start gap-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800 dark:text-gray-200"
                     style={indent}
                 >
-                    {/* pause / resume */}
+                    {}
                     <button
                         onClick={() => onToggleStopSync(path)}
                         aria-label="Toggle"
@@ -371,7 +334,7 @@ export default function UploadedFile({
                         {isStopped ? <Play size={16} /> : <Pause size={16} />}
                     </button>
 
-                    {/* chevron */}
+                    {}
                     {isDirectory ? (
                         <button
                             onClick={() => toggle(path)}
@@ -388,7 +351,7 @@ export default function UploadedFile({
                         <span className="w-4" />
                     )}
 
-                    {/* icon + tên file/folder */}
+                    {}
                     <div className="flex-1 overflow-hidden">
                         <div className="flex items-center gap-2">
                             <Icon
@@ -397,7 +360,7 @@ export default function UploadedFile({
                                 }
                             />
                             <span className="truncate font-medium">{name}</span>
-                            {/* --- size giờ luôn có mặt nếu có dữ liệu --- */}
+                            {}
                             {size != null && (
                                 <span className="ml-2 text-xs whitespace-nowrap text-gray-500">
                                     {formatBytes(size)}
@@ -425,7 +388,7 @@ export default function UploadedFile({
                         </p>
                     </div>
 
-                    {/* provider icon + delete */}
+                    {}
                     {provider && (
                         <img
                             src={
@@ -452,7 +415,7 @@ export default function UploadedFile({
                     </button>
                 </div>
 
-                {/* ── Render con nếu là folder và đang expand ──────────────── */}
+                {}
                 {isDirectory && expanded[path] && children && (
                     <ul className="space-y-2">
                         {Object.values(children).map((c) =>
@@ -511,7 +474,6 @@ function filterTree(
 ): TreeNode | null {
     if (!filter) return node;
 
-    // --- 1. Lọc children trước --------------------------------------------
     const keptChildren: Record<string, TreeNode> = {};
     if (node.children) {
         Object.entries(node.children).forEach(([key, child]) => {
@@ -524,13 +486,11 @@ function filterTree(
     const matchSelf =
         node.provider === filter.type && node.username === filter.username;
 
-    // --- 2. Giữ node nếu bản thân khớp *hoặc* có con khớp ------------------
     if (matchSelf || hasKeptChild) {
         const next = { ...node };
         if (hasKeptChild) next.children = keptChildren;
-        else delete next.children; // gọn gàng khi không có con
+        else delete next.children;
 
-        // Bảo đảm metadata đúng để icon hiển thị chuẩn
         next.provider = filter.type;
         next.username = filter.username;
 

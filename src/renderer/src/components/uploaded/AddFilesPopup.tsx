@@ -124,7 +124,6 @@ export default function AddFilesPopup({
         if (open) fetchAccounts();
     }, [open]);
 
-    /* lắng nghe sự kiện khi CloudProvider thay đổi */
     useEffect(() => {
         window.addEventListener("cloud-accounts-updated", fetchAccounts);
         return () =>
@@ -142,10 +141,10 @@ export default function AddFilesPopup({
 
     const toggleDir = async (p: string): Promise<void> => {
         setExpanded((prev: ExpandedState) => ({ ...prev, [p]: !prev[p] }));
-        if (dirContents[p] || loadingPath === p) return; // đã có hoặc đang tải
+        if (dirContents[p] || loadingPath === p) return;
         try {
             setLoadingPath(p);
-            const children = (await api.listDirectory(p)) as DirectoryEntry[]; // <- IPC
+            const children = (await api.listDirectory(p)) as DirectoryEntry[];
             setDirContents((prev: DirContentsState) => ({
                 ...prev,
                 [p]: children,
@@ -166,7 +165,7 @@ export default function AddFilesPopup({
 
         return (
             <li key={item.path} className="flex flex-col">
-                {/* Hàng tiêu đề của file / folder */}
+                {}
                 <div
                     className={`flex items-start gap-2 rounded bg-gray-50 px-4 py-2 dark:bg-gray-700 dark:text-gray-400 ${rowClasses}`}
                     style={indentStyle}
@@ -203,7 +202,7 @@ export default function AddFilesPopup({
                         {item.path.split(/[/\\]/).pop()}
                     </p>
 
-                    {/* Chỉ cho xoá ở cấp đã chọn trực tiếp */}
+                    {}
                     {depth === 0 ? (
                         <button
                             onClick={() => handleRemove(item.path)}
@@ -227,7 +226,7 @@ export default function AddFilesPopup({
                     )}
                 </div>
 
-                {/* --- Đệ quy xuống con --- */}
+                {}
                 {isDir && isExpanded && (
                     <ul className="space-y-2">
                         {loadingPath === item.path ? (
@@ -258,13 +257,13 @@ export default function AddFilesPopup({
                 </DialogHeader>
 
                 <div className="space-y-6 p-6 pt-4">
-                    {/* Danh sách đã chọn */}
+                    {}
                     {selectedItems.length > 0 && (
                         <>
                             <ul className="scrollbar mb-2 max-h-48 space-y-2 overflow-auto pr-1">
                                 {selectedItems.map((it) => renderEntry(it))}
                             </ul>
-                            {/* 👉 Hiển thị tổng dung lượng */}
+                            {}
                             <p className="mb-4 text-right text-xs text-gray-500 dark:text-gray-400">
                                 Total size:{" "}
                                 <span className="font-medium">
@@ -274,7 +273,7 @@ export default function AddFilesPopup({
                         </>
                     )}
 
-                    {/* Chọn thư mục */}
+                    {}
                     <Button
                         variant="outline"
                         className="w-full justify-start"
@@ -284,7 +283,7 @@ export default function AddFilesPopup({
                         <FolderIcon className="mr-2 h-4 w-4" /> Choose Folder
                     </Button>
 
-                    {/* Chọn file */}
+                    {}
                     <Button
                         variant="outline"
                         className="w-full justify-start"
