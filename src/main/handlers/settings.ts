@@ -5,9 +5,9 @@ import { store } from "../lib/constants";
  * @returns Current settings object with darkMode property
  */
 export async function getSettings(): Promise<{ darkMode: boolean }> {
-    return store.get("settings", {
-        darkMode: false,
-    }) as { darkMode: boolean };
+  return store.get("settings", {
+    darkMode: false,
+  }) as { darkMode: boolean };
 }
 
 /** * Set new settings
@@ -15,11 +15,11 @@ export async function getSettings(): Promise<{ darkMode: boolean }> {
  * @returns Updated settings object
  */
 export async function setSettings(
-    _: unknown,
-    newSettings: Record<string, boolean>
+  _: unknown,
+  newSettings: Record<string, boolean>
 ): Promise<Record<string, boolean>> {
-    const curr = store.get("settings", {});
-    const updated = { ...Object(curr), ...Object(newSettings) };
-    store.set("settings", updated);
-    return updated;
+  const curr = store.get("settings", {});
+  const updated = { ...Object(curr), ...Object(newSettings) };
+  store.set("settings", updated);
+  return updated;
 }

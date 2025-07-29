@@ -9,8 +9,8 @@ import { randomUUID } from "crypto";
  * while in production, it points to a deployed server.
  */
 export const BACKEND_URL = is.dev
-    ? "http://localhost:3000"
-    : "https://file-synchronizer.onrender.com";
+  ? "http://localhost:3000"
+  : "https://file-synchronizer.onrender.com";
 
 /**
  * Store instance for managing application settings and state.
@@ -26,9 +26,9 @@ export const store: Store = new Store();
  * It is used to uniquely identify the device for synchronization purposes.
  */
 export const deviceId: string = (() => {
-    const existing = store.get("deviceId") as string | undefined;
-    if (existing) return existing;
-    const id = randomUUID();
-    store.set("deviceId", id);
-    return id;
+  const existing = store.get("deviceId") as string | undefined;
+  if (existing) return existing;
+  const id = randomUUID();
+  store.set("deviceId", id);
+  return id;
 })();

@@ -8,7 +8,7 @@ const providers = new Map<string, ICloudProvider>();
  * @throws Error if a provider with the same id already exists.
  */
 export function registerProvider(p: ICloudProvider): void {
-    providers.set(p.id, p);
+  providers.set(p.id, p);
 }
 
 /**
@@ -17,9 +17,9 @@ export function registerProvider(p: ICloudProvider): void {
  * @returns The cloud provider with the specified id.
  */
 export function getProvider(id: string): ICloudProvider {
-    const p = providers.get(id);
-    if (!p) throw new Error(`Provider with id "${id}" not found`);
-    return p;
+  const p = providers.get(id);
+  if (!p) throw new Error(`Provider with id "${id}" not found`);
+  return p;
 }
 
 /**
@@ -27,5 +27,5 @@ export function getProvider(id: string): ICloudProvider {
  * @returns An array of all registered cloud providers.
  */
 export function allProviders(): ICloudProvider[] {
-    return [...providers.values()];
+  return [...providers.values()];
 }

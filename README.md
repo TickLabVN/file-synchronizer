@@ -23,30 +23,30 @@ A cross-platform desktop application built with ElectronJS for synchronizing fil
 
 1. **Clone the repository**:
 
-    ```bash
-    git clone https://github.com/BaoDuong254/file-synchronizer.git
-    cd file-synchronizer
-    ```
+   ```bash
+   git clone https://github.com/BaoDuong254/file-synchronizer.git
+   cd file-synchronizer
+   ```
 
 2. **Install Electron-vite dependencies**:
 
-    ```bash
-    npm install
-    ```
+   ```bash
+   npm install
+   ```
 
 3. **Install backend dependencies**:
 
-    ```bash
-    cd src/server
-    npm install
-    ```
+   ```bash
+   cd src/server
+   npm install
+   ```
 
 4. **Install frontend dependencies**:
 
-    ```bash
-    cd src/renderer
-    npm install
-    ```
+   ```bash
+   cd src/renderer
+   npm install
+   ```
 
 > **Note:** You can also download a release package for your operating system from the repository’s Releases page.
 
@@ -54,24 +54,24 @@ A cross-platform desktop application built with ElectronJS for synchronizing fil
 
 1. **Copy the example environment file**:
 
-    ```bash
-    cp .env.example .env
-    ```
+   ```bash
+   cp .env.example .env
+   ```
 
 2. **Edit `.env` and set the following variables**:
 
-    - `GOOGLE_CLIENT_ID`
-    - `GOOGLE_CLIENT_SECRET`
-    - `BOX_CLIENT_ID`
-    - `BOX_CLIENT_SECRET`
-    - `BACKEND_URL`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `BOX_CLIENT_ID`
+   - `BOX_CLIENT_SECRET`
+   - `BACKEND_URL`
 
 3. **Setup credentials in Google Cloud Platform**:
 
-    - Create or select a project
-    - Enable the Google Drive API and OAuth2
-    - Create OAuth2 credentials for a **Web Application**
-    - Copy the **Client ID** and **Client Secret** into your `.env`
+   - Create or select a project
+   - Enable the Google Drive API and OAuth2
+   - Create OAuth2 credentials for a **Web Application**
+   - Copy the **Client ID** and **Client Secret** into your `.env`
 
 > **Note:** The setup steps are similar for other cloud providers—simply create the corresponding credentials and update the variables above.
 
@@ -79,21 +79,21 @@ A cross-platform desktop application built with ElectronJS for synchronizing fil
 
 1. **Start the backend server**:
 
-    ```bash
-    npm run server
-    ```
+   ```bash
+   npm run server
+   ```
 
 2. **Start the Electron app (in a separate terminal)**:
 
-    ```bash
-    npm run dev
-    ```
+   ```bash
+   npm run dev
+   ```
 
 3. **Login and sync**:
 
-    - The Electron window will open
-    - Sign in with your Cloud account
-    - Choose files or folders to synchronize
+   - The Electron window will open
+   - Sign in with your Cloud account
+   - Choose files or folders to synchronize
 
 ## Contributing
 
@@ -102,21 +102,21 @@ We welcome contributions! To contribute:
 1. **Fork the repository**
 2. **Create a branch for your feature or fix:**
 
-    ```bash
-    git checkout -b feature/your-feature-name
-    ```
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
 3. **Make your changes and commit:**
 
-    ```bash
-    git commit -m "Add feature X"
-    ```
+   ```bash
+   git commit -m "Add feature X"
+   ```
 
 4. **Push to your branch:**
 
-    ```bash
-    git push origin feature/your-feature-name
-    ```
+   ```bash
+   git push origin feature/your-feature-name
+   ```
 
 5. **Open a Pull Request on GitHub and describe your changes.**
 

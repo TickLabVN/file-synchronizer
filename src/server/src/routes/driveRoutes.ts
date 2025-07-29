@@ -1,10 +1,10 @@
 import { Router } from "express";
 import {
-    auth,
-    callback,
-    getToken,
-    setTokens,
-    refreshTokens,
+  auth,
+  callback,
+  getToken,
+  setTokens,
+  refreshTokens,
 } from "../controllers/driveControllers.js";
 
 const router: Router = Router();

@@ -9,6 +9,6 @@ import { registerProvider } from "../lib/providerRegistry";
  * @returns {Promise<void>} A promise that resolves when the providers are registered.
  */
 export default async function provider(): Promise<void> {
-    registerProvider(new GoogleDriveProvider());
-    registerProvider(new BoxProvider());
+  registerProvider(new GoogleDriveProvider());
+  registerProvider(new BoxProvider());
 }

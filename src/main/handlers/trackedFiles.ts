@@ -9,11 +9,11 @@ import { IpcMainInvokeEvent } from "electron";
  * @returns {Promise<void>} A promise that resolves when the tracked files are retrieved.
  */
 export async function trackedFile(
-    _: IpcMainInvokeEvent,
-    providerId: string
+  _: IpcMainInvokeEvent,
+  providerId: string
 ): Promise<unknown> {
-    const provider = getProvider(providerId);
-    return provider.getTrackedFiles();
+  const provider = getProvider(providerId);
+  return provider.getTrackedFiles();
 }
 
 /**
@@ -25,10 +25,10 @@ export async function trackedFile(
  * @returns {Promise<boolean>} A promise that resolves to true if the file was successfully deleted, false otherwise.
  */
 export async function deleteTrackedFile(
-    _: IpcMainInvokeEvent,
-    providerId: string,
-    src: string
+  _: IpcMainInvokeEvent,
+  providerId: string,
+  src: string
 ): Promise<boolean> {
-    const provider = getProvider(providerId);
-    return await provider.deleteTrackedFile(src);
+  const provider = getProvider(providerId);
+  return await provider.deleteTrackedFile(src);
 }

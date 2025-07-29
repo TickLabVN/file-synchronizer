@@ -10,16 +10,16 @@ import { mappingStore } from "./mappingStore";
  * @param hooks - The cleanup hooks to perform remote deletions.
  */
 export default async function cleanup(
-    srcPath: string,
-    hooks: CleanupHooks
+  srcPath: string,
+  hooks: CleanupHooks
 ): Promise<void> {
-    for (const p of mappingStore
-        .keys()
-        .filter((k) => k === srcPath || k.startsWith(srcPath + path.sep))) {
-        const rec = mappingStore.get(p);
-        if (rec) {
-            await hooks.deleteRemote(rec.id, rec.isDirectory);
-            mappingStore.delete(p);
-        }
+  for (const p of mappingStore
+    .keys()
+    .filter((k) => k === srcPath || k.startsWith(srcPath + path.sep))) {
+    const rec = mappingStore.get(p);
+    if (rec) {
+      await hooks.deleteRemote(rec.id, rec.isDirectory);
+      mappingStore.delete(p);
     }
+  }
 }
