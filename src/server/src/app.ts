@@ -17,7 +17,7 @@ app.use("/auth/google", driveRoutes);
 app.use("/auth/box", boxRoutes);
 
 app.get("/", (req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, "../public/index.html"));
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 app.use(errorHandler);

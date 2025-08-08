@@ -3,11 +3,11 @@ import { BrowserWindow } from "electron";
 let mainWindow: BrowserWindow | null = null;
 
 export function setMainWindow(win: BrowserWindow): void {
-    mainWindow = win;
+  mainWindow = win;
 }
 
 export function getMainWindow(): BrowserWindow | null {
-    return mainWindow;
+  return mainWindow;
 }
 
 /**
@@ -16,7 +16,5 @@ export function getMainWindow(): BrowserWindow | null {
  * @param payload Optional data to send with the message.
  */
 export function broadcast(channel: string, payload?: unknown): void {
-    BrowserWindow.getAllWindows().forEach((w) =>
-        w.webContents.send(channel, payload)
-    );
+  BrowserWindow.getAllWindows().forEach((w) => w.webContents.send(channel, payload));
 }

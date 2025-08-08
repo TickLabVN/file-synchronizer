@@ -7,11 +7,8 @@ import { store } from "../lib/constants";
  * @returns {Object} An object containing stop and resume paths.
  */
 export function loadStopLists(): { stop: string[]; resume: string[] } {
-    const { stopSyncPaths = [], resumeSyncPaths = [] } = store.get(
-        "settings",
-        {}
-    ) as Record<string, string[]>;
-    return { stop: stopSyncPaths, resume: resumeSyncPaths };
+  const { stopSyncPaths = [], resumeSyncPaths = [] } = store.get("settings", {}) as Record<string, string[]>;
+  return { stop: stopSyncPaths, resume: resumeSyncPaths };
 }
 
 /**
@@ -22,13 +19,9 @@ export function loadStopLists(): { stop: string[]; resume: string[] } {
  * @param {string[]} resume - The list of paths where sync should be resumed.
  * @returns {boolean} True if sync should be stopped for the path, false otherwise.
  */
-export function isStopped(
-    p: string,
-    stop: string[],
-    resume: string[]
-): boolean {
-    const SEP = path.sep;
-    const inStop = stop.some((s) => p === s || p.startsWith(s + SEP));
-    const inResume = resume.some((r) => p === r || p.startsWith(r + SEP));
-    return inStop && !inResume;
+export function isStopped(p: string, stop: string[], resume: string[]): boolean {
+  const SEP = path.sep;
+  const inStop = stop.some((s) => p === s || p.startsWith(s + SEP));
+  const inResume = resume.some((r) => p === r || p.startsWith(r + SEP));
+  return inStop && !inResume;
 }

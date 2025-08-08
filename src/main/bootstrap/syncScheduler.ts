@@ -15,7 +15,7 @@ const JITTER_RANGE = 30 * 1000;
  * @returns {number} The next delay in milliseconds.
  */
 function nextDelay(): number {
-    return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
+  return BASE_INTERVAL + (Math.random() * 2 - 1) * JITTER_RANGE;
 }
 
 /**
@@ -25,10 +25,10 @@ function nextDelay(): number {
  * @returns {Promise<void>} A promise that resolves when the sync is complete.
  */
 async function hasAccounts(): Promise<boolean> {
-    for (const provider of allProviders()) {
-        if ((await provider.listAccounts()).length) return true;
-    }
-    return false;
+  for (const provider of allProviders()) {
+    if ((await provider.listAccounts()).length) return true;
+  }
+  return false;
 }
 
 /**
@@ -38,21 +38,21 @@ async function hasAccounts(): Promise<boolean> {
  * @returns {Promise<boolean>} True if sync should be performed, false otherwise.
  */
 async function shouldSync(): Promise<boolean> {
-    const cfgPath = path.join(app.getPath("userData"), "central-config.json");
-    let centralFolderPath = null;
-    if (mappingStore.keys().length === 0) {
-        console.log("[Background] No mappings found, skipping sync");
-        return false;
+  const cfgPath = path.join(app.getPath("userData"), "central-config.json");
+  let centralFolderPath = null;
+  if (mappingStore.keys().length === 0) {
+    console.log("[Background] No mappings found, skipping sync");
+    return false;
+  }
+  try {
+    const raw = await fs.promises.readFile(cfgPath, "utf-8");
+    ({ centralFolderPath } = JSON.parse(raw));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw err;
     }
-    try {
-        const raw = await fs.promises.readFile(cfgPath, "utf-8");
-        ({ centralFolderPath } = JSON.parse(raw));
-    } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-            throw err;
-        }
-    }
-    return !!centralFolderPath && (await hasAccounts());
+  }
+  return !!centralFolderPath && (await hasAccounts());
 }
 
 /**
@@ -60,18 +60,18 @@ async function shouldSync(): Promise<boolean> {
  * and executes the sync if necessary.
  */
 export function startSyncScheduler(): void {
-    const run = async (): Promise<void> => {
-        if (await shouldSync()) {
-            try {
-                console.log("[Background] Starting sync...");
-                await autoSync();
-                console.log("[Background] sync completed");
-                broadcast("app:tracked-files-updated");
-            } catch (err) {
-                console.error("[Background] sync error:", err);
-            }
-        }
-        setTimeout(run, nextDelay());
-    };
-    run();
+  const run = async (): Promise<void> => {
+    if (await shouldSync()) {
+      try {
+        console.log("[Background] Starting sync...");
+        await autoSync();
+        console.log("[Background] sync completed");
+        broadcast("app:tracked-files-updated");
+      } catch (err) {
+        console.error("[Background] sync error:", err);
+      }
+    }
+    setTimeout(run, nextDelay());
+  };
+  run();
 }

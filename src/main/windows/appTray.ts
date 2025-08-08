@@ -9,28 +9,23 @@ import icon from "../../../resources/icon.png?asset";
  * @param {Function} [onQuit] - Optional callback function to execute before quitting.
  * @returns {Tray} The created tray instance.
  */
-export default function createAppTray(
-    mainWindow: BrowserWindow,
-    onQuit?: () => void
-): Tray {
-    const tray = new Tray(nativeImage.createFromPath(icon));
+export default function createAppTray(mainWindow: BrowserWindow, onQuit?: () => void): Tray {
+  const tray = new Tray(nativeImage.createFromPath(icon));
 
-    const contextMenu = Menu.buildFromTemplate([
-        { label: "Open App", click: () => mainWindow.show() },
-        {
-            label: "Quit",
-            click: () => {
-                onQuit?.();
-                app.quit();
-            },
-        },
-    ]);
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "Open App", click: () => mainWindow.show() },
+    {
+      label: "Quit",
+      click: () => {
+        onQuit?.();
+        app.quit();
+      },
+    },
+  ]);
 
-    tray.setToolTip("File Synchronizer");
-    tray.setContextMenu(contextMenu);
-    tray.on("click", () =>
-        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()
-    );
+  tray.setToolTip("File Synchronizer");
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => (mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()));
 
-    return tray;
+  return tray;
 }

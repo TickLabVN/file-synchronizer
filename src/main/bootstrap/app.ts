@@ -19,15 +19,15 @@ let hasCleanedLocks: boolean = false;
  * @returns {Promise<void>} A promise that resolves when the cleanup is complete.
  */
 async function cleanupAllLocks(): Promise<void> {
-    for (const provider of allProviders()) {
-        try {
-            if (provider.cleanupLockOnExit) {
-                await provider.cleanupLockOnExit();
-            }
-        } catch (err) {
-            console.error(`[Lock] cleanup lock for ${provider.id}:`, err);
-        }
+  for (const provider of allProviders()) {
+    try {
+      if (provider.cleanupLockOnExit) {
+        await provider.cleanupLockOnExit();
+      }
+    } catch (err) {
+      console.error(`[Lock] cleanup lock for ${provider.id}:`, err);
     }
+  }
 }
 
 /**
@@ -37,111 +37,107 @@ async function cleanupAllLocks(): Promise<void> {
  * handles Google Drive and Box tokens, and sets up the system tray icon.
  */
 export default async function bootstrap(): Promise<void> {
-    // Register cloud providers
+  // Register cloud providers
+  try {
+    await provider();
+  } catch (err) {
+    console.error("Error registering cloud providers:", err);
+    dialog.showErrorBox(
+      "Provider Registration Error",
+      "Failed to register cloud providers. Please check your configuration."
+    );
+    app.quit();
+    return;
+  }
+
+  // Prevent multiple instances of the app from running
+  const gotLock: boolean = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    app.quit();
+    return;
+  }
+  app.on("second-instance", () => {
+    const win: BrowserWindow | undefined = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+
+  // Register IPC handlers for various functionalities
+  registerIpcHandlers();
+
+  app.whenReady().then(async () => {
+    // Create the central folder automatically
     try {
-        await provider();
+      await createCentralFolder();
     } catch (err) {
-        console.error("Error registering cloud providers:", err);
-        dialog.showErrorBox(
-            "Provider Registration Error",
-            "Failed to register cloud providers. Please check your configuration."
-        );
-        app.quit();
-        return;
+      console.error("Error creating central folder:", err);
+      dialog.showErrorBox(
+        "Central Folder Error",
+        "Failed to create the central folder. Please check your permissions."
+      );
+      app.quit();
+      return;
     }
 
-    // Prevent multiple instances of the app from running
-    const gotLock: boolean = app.requestSingleInstanceLock();
-    if (!gotLock) {
-        app.quit();
-        return;
+    // Create the main application window
+    const mainWindow = createMainWindow();
+    setMainWindow(mainWindow);
+
+    // Load the main application page
+    mainWindow.webContents.on("did-finish-load", () => broadcast("cloud-accounts-updated"));
+
+    // Check updates and initialize the updater
+    initialiseUpdater();
+
+    // Notify successful update
+    const pending = store.get("pendingUpdate") as { version?: string } | undefined;
+    if (pending && pending.version) {
+      dialog.showMessageBox({
+        type: "info",
+        title: `Update successful`,
+        message: `You have successfully updated to version ${pending.version}.`,
+        buttons: ["OK"],
+      });
+      store.delete("pendingUpdate");
     }
-    app.on("second-instance", () => {
-        const win: BrowserWindow | undefined = BrowserWindow.getAllWindows()[0];
-        if (win) {
-            if (win.isMinimized()) win.restore();
-            win.show();
-            win.focus();
-        }
+
+    // Start the sync scheduler
+    startSyncScheduler();
+
+    // Create the system tray icon
+    createAppTray(mainWindow, () => {
+      isQuit = true;
     });
 
-    // Register IPC handlers for various functionalities
-    registerIpcHandlers();
-
-    app.whenReady().then(async () => {
-        // Create the central folder automatically
-        try {
-            await createCentralFolder();
-        } catch (err) {
-            console.error("Error creating central folder:", err);
-            dialog.showErrorBox(
-                "Central Folder Error",
-                "Failed to create the central folder. Please check your permissions."
-            );
-            app.quit();
-            return;
-        }
-
-        // Create the main application window
-        const mainWindow = createMainWindow();
-        setMainWindow(mainWindow);
-
-        // Load the main application page
-        mainWindow.webContents.on("did-finish-load", () =>
-            broadcast("cloud-accounts-updated")
-        );
-
-        // Check updates and initialize the updater
-        initialiseUpdater();
-
-        // Notify successful update
-        const pending = store.get("pendingUpdate") as
-            | { version?: string }
-            | undefined;
-        if (pending && pending.version) {
-            dialog.showMessageBox({
-                type: "info",
-                title: `Update successful`,
-                message: `You have successfully updated to version ${pending.version}.`,
-                buttons: ["OK"],
-            });
-            store.delete("pendingUpdate");
-        }
-
-        // Start the sync scheduler
-        startSyncScheduler();
-
-        // Create the system tray icon
-        createAppTray(mainWindow, () => {
-            isQuit = true;
-        });
-
-        // Activate the main window when the app is activated
-        app.on("activate", () => {
-            if (!mainWindow.isVisible()) mainWindow.show();
-            mainWindow.focus();
-        });
-
-        // Handle the app's before-quit event to clean up locks
-        app.once("before-quit", async (e) => {
-            if (hasCleanedLocks || isUpdating()) return;
-            e.preventDefault();
-            hasCleanedLocks = true;
-            try {
-                await cleanupAllLocks();
-            } catch (err) {
-                console.error("[exit] cleanupAllLocks:", err);
-            } finally {
-                app.quit();
-            }
-        });
-
-        // Close the app when the main window is closed
-        mainWindow.on("close", (e) => {
-            if (!isQuit) {
-                e.preventDefault();
-                mainWindow.hide();
-            }
-        });
+    // Activate the main window when the app is activated
+    app.on("activate", () => {
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
     });
+
+    // Handle the app's before-quit event to clean up locks
+    app.once("before-quit", async (e) => {
+      if (hasCleanedLocks || isUpdating()) return;
+      e.preventDefault();
+      hasCleanedLocks = true;
+      try {
+        await cleanupAllLocks();
+      } catch (err) {
+        console.error("[exit] cleanupAllLocks:", err);
+      } finally {
+        app.quit();
+      }
+    });
+
+    // Close the app when the main window is closed
+    mainWindow.on("close", (e) => {
+      if (!isQuit) {
+        e.preventDefault();
+        mainWindow.hide();
+      }
+    });
+  });
 }

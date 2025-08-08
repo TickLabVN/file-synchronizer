@@ -1,12 +1,5 @@
 import { Router } from "express";
-import {
-    auth,
-    callback,
-    getToken,
-    setTokens,
-    refreshTokens,
-    me,
-} from "../controllers/boxControllers.js";
+import { auth, callback, getToken, setTokens, refreshTokens, me } from "../controllers/boxControllers.js";
 
 const router: Router = Router();
 

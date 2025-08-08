@@ -9,20 +9,17 @@ import { mappingStore } from "./mappingStore";
  * @param {string} provider - The provider identifier.
  * @returns {string[]} An array of unique root paths for the specified account and provider.
  */
-export default function pickRootPaths(
-    account: string,
-    provider: string
-): string[] {
-    const all = [...mappingStore.keys()]
-        .filter((p) => {
-            const r = mappingStore.get(p);
-            return r && r.account === account && r.provider === provider;
-        })
-        .sort((a, b) => a.length - b.length);
+export default function pickRootPaths(account: string, provider: string): string[] {
+  const all = [...mappingStore.keys()]
+    .filter((p) => {
+      const r = mappingStore.get(p);
+      return r && r.account === account && r.provider === provider;
+    })
+    .sort((a, b) => a.length - b.length);
 
-    const roots: string[] = [];
-    for (const p of all) {
-        if (!roots.some((r) => p.startsWith(r + path.sep))) roots.push(p);
-    }
-    return roots;
+  const roots: string[] = [];
+  for (const p of all) {
+    if (!roots.some((r) => p.startsWith(r + path.sep))) roots.push(p);
+  }
+  return roots;
 }

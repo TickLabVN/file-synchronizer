@@ -6,9 +6,9 @@ import { sdk, SCOPES, REDIRECT_URI } from "../config/boxAuth.js";
  * This is used to define the structure of tokens returned by Box
  */
 interface Tokens {
-    accessToken: string;
-    refreshToken: string;
-    accessTokenTTLMS: number;
+  accessToken: string;
+  refreshToken: string;
+  accessTokenTTLMS: number;
 }
 
 /**
@@ -16,7 +16,7 @@ interface Tokens {
  * This extends Tokens to include the time when tokens were acquired
  */
 interface TokenInfo extends Tokens {
-    acquiredAtMS: number;
+  acquiredAtMS: number;
 }
 
 /**
@@ -34,21 +34,21 @@ let boxClient: ReturnType<typeof sdk.getPersistentClient> | null = null;
  * @return void
  */
 export const auth: RequestHandler = (req: Request, res: Response): void => {
-    const params: Record<string, string> = {
-        response_type: "code",
-        redirect_uri: REDIRECT_URI,
-        scope: SCOPES,
-    };
-    if (req.query.state) {
-        params.state = req.query.state as string;
-    }
-    const url: string = sdk.getAuthorizeURL(params);
-    if (!url) {
-        console.error("Failed to generate Box authorization URL");
-        res.status(500).send("Failed to generate authorization URL");
-        return;
-    }
-    res.redirect(url);
+  const params: Record<string, string> = {
+    response_type: "code",
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES,
+  };
+  if (req.query.state) {
+    params.state = req.query.state as string;
+  }
+  const url: string = sdk.getAuthorizeURL(params);
+  if (!url) {
+    console.error("Failed to generate Box authorization URL");
+    res.status(500).send("Failed to generate authorization URL");
+    return;
+  }
+  res.redirect(url);
 };
 
 /**
@@ -59,16 +59,14 @@ export const auth: RequestHandler = (req: Request, res: Response): void => {
  * @returns void
  */
 export const callback: RequestHandler = (req: Request, res: Response): void => {
-    const code = Array.isArray(req.query.code)
-        ? req.query.code[0]
-        : req.query.code;
+  const code = Array.isArray(req.query.code) ? req.query.code[0] : req.query.code;
 
-    if (typeof code !== "string" || !code) {
-        res.status(400).send("Missing code");
-        return;
-    }
+  if (typeof code !== "string" || !code) {
+    res.status(400).send("Missing code");
+    return;
+  }
 
-    res.redirect(`myapp://oauth?code=${encodeURIComponent(code)}`);
+  res.redirect(`myapp://oauth?code=${encodeURIComponent(code)}`);
 };
 
 /**
@@ -79,32 +77,28 @@ export const callback: RequestHandler = (req: Request, res: Response): void => {
  * @param next - Express next function
  * @returns void
  */
-export const getToken: RequestHandler = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> => {
-    const code = Array.isArray(req.query.code)
-        ? req.query.code[0]
-        : req.query.code;
+export const getToken: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const code = Array.isArray(req.query.code) ? req.query.code[0] : req.query.code;
 
-    if (typeof code !== "string" || !code) {
-        res.status(400).send("Missing code");
-        return;
-    }
+  if (typeof code !== "string" || !code) {
+    res.status(400).send("Missing code");
+    return;
+  }
 
-    try {
-        const { accessToken, refreshToken, accessTokenTTLMS }: Tokens =
-            (await sdk.getTokensAuthorizationCodeGrant(code, null)) as Tokens;
+  try {
+    const { accessToken, refreshToken, accessTokenTTLMS }: Tokens = (await sdk.getTokensAuthorizationCodeGrant(
+      code,
+      null
+    )) as Tokens;
 
-        res.json({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-            expires_in: Math.floor(accessTokenTTLMS / 1000),
-        });
-    } catch (err) {
-        next(err);
-    }
+    res.json({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_in: Math.floor(accessTokenTTLMS / 1000),
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 /**
@@ -114,39 +108,36 @@ export const getToken: RequestHandler = async (
  * @param res - Express response object
  * @returns void
  */
-export const setTokens: RequestHandler = (
-    req: Request,
-    res: Response
-): void => {
-    const { access_token, refresh_token, expires_in = 3600 } = req.body || {};
-    if (!access_token || !refresh_token) {
-        res.status(400).json({ error: "Missing access or refresh token" });
-        return;
-    }
+export const setTokens: RequestHandler = (req: Request, res: Response): void => {
+  const { access_token, refresh_token, expires_in = 3600 } = req.body || {};
+  if (!access_token || !refresh_token) {
+    res.status(400).json({ error: "Missing access or refresh token" });
+    return;
+  }
 
-    tokenInfo = {
-        accessToken: access_token,
-        refreshToken: refresh_token,
-        accessTokenTTLMS: expires_in * 1000,
+  tokenInfo = {
+    accessToken: access_token,
+    refreshToken: refresh_token,
+    accessTokenTTLMS: expires_in * 1000,
+    acquiredAtMS: Date.now(),
+  } as TokenInfo;
+
+  const tokenStore = {
+    read: async () => tokenInfo,
+    write: async (updated: Tokens) => {
+      tokenInfo = {
+        ...updated,
         acquiredAtMS: Date.now(),
-    } as TokenInfo;
+      } as TokenInfo;
+    },
+    clear: async () => {
+      tokenInfo = null;
+    },
+  };
 
-    const tokenStore = {
-        read: async () => tokenInfo,
-        write: async (updated: Tokens) => {
-            tokenInfo = {
-                ...updated,
-                acquiredAtMS: Date.now(),
-            } as TokenInfo;
-        },
-        clear: async () => {
-            tokenInfo = null;
-        },
-    };
+  boxClient = sdk.getPersistentClient(tokenInfo, tokenStore);
 
-    boxClient = sdk.getPersistentClient(tokenInfo, tokenStore);
-
-    res.sendStatus(200);
+  res.sendStatus(200);
 };
 
 /**
@@ -157,30 +148,27 @@ export const setTokens: RequestHandler = (
  * @param next - Express next function
  * @returns void
  */
-export const refreshTokens: RequestHandler = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> => {
-    const { refresh_token } = req.body || {};
+export const refreshTokens: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const { refresh_token } = req.body || {};
 
-    if (!refresh_token) {
-        res.status(400).json({ error: "Missing refresh token" });
-        return;
-    }
+  if (!refresh_token) {
+    res.status(400).json({ error: "Missing refresh token" });
+    return;
+  }
 
-    try {
-        const { accessToken, refreshToken, accessTokenTTLMS }: Tokens =
-            (await sdk.getTokensRefreshGrant(refresh_token)) as Tokens;
+  try {
+    const { accessToken, refreshToken, accessTokenTTLMS }: Tokens = (await sdk.getTokensRefreshGrant(
+      refresh_token
+    )) as Tokens;
 
-        res.json({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-            expires_in: Math.floor(accessTokenTTLMS / 1000),
-        });
-    } catch (err) {
-        next(err);
-    }
+    res.json({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_in: Math.floor(accessTokenTTLMS / 1000),
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 /**
@@ -191,27 +179,21 @@ export const refreshTokens: RequestHandler = async (
  * @param next - Express next function
  * @returns void
  */
-export const me: RequestHandler = async (
-    _req: Request,
-    res: Response,
-    next: NextFunction
-): Promise<void> => {
-    try {
-        if (!boxClient) {
-            console.error("Box client not initialized");
-            res.status(500).json({ error: "Box client not initialized" });
-            return;
-        }
-        const me: unknown = await boxClient.users.get(
-            boxClient.CURRENT_USER_ID
-        );
-        if (!me || typeof me !== "object") {
-            console.error("Invalid user data from Box");
-            res.status(500).json({ error: "Invalid user data" });
-            return;
-        }
-        res.json(me);
-    } catch (err) {
-        next(err);
+export const me: RequestHandler = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!boxClient) {
+      console.error("Box client not initialized");
+      res.status(500).json({ error: "Box client not initialized" });
+      return;
     }
+    const me: unknown = await boxClient.users.get(boxClient.CURRENT_USER_ID);
+    if (!me || typeof me !== "object") {
+      console.error("Invalid user data from Box");
+      res.status(500).json({ error: "Invalid user data" });
+      return;
+    }
+    res.json(me);
+  } catch (err) {
+    next(err);
+  }
 };

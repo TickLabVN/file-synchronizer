@@ -10,24 +10,18 @@ import { Response } from "express";
  * @return {void} - This function does not return a value; it sends a response directly.
  */
 export default function errorHandler(err: unknown, res: Response): void {
-    if (
-        err &&
-        typeof err === "object" &&
-        "statusCode" in err &&
-        "message" in err
-    ) {
-        const statusCode = (err as { statusCode?: number }).statusCode || 500;
-        const message =
-            (err as { message?: string }).message || "Unknown error";
-        res.status(statusCode).json({ error: message });
-    } else {
-        res.status(500).json({ error: "Unknown error" });
-    }
-    console.error("Error:", err);
-    if (err instanceof Error) {
-        console.error("Error message:", err.message);
-        console.error("Stack trace:", err.stack);
-    } else {
-        console.error("Error details:", err);
-    }
+  if (err && typeof err === "object" && "statusCode" in err && "message" in err) {
+    const statusCode = (err as { statusCode?: number }).statusCode || 500;
+    const message = (err as { message?: string }).message || "Unknown error";
+    res.status(statusCode).json({ error: message });
+  } else {
+    res.status(500).json({ error: "Unknown error" });
+  }
+  console.error("Error:", err);
+  if (err instanceof Error) {
+    console.error("Error message:", err.message);
+    console.error("Stack trace:", err.stack);
+  } else {
+    console.error("Error details:", err);
+  }
 }
