@@ -6,18 +6,11 @@ import Header from "./Header";
 import CloudProvider from "./cloud/CloudProvider";
 import UploadedFile from "./uploaded/UploadedFile";
 import AddFilesPopup from "./uploaded/AddFilesPopup";
-
-function mergeUnique<T extends { path: string }>(prev: T[], next: T[]): T[] {
-  const existed = new Set(prev.map((it) => it.path));
-  return [...prev, ...next.filter((it) => !existed.has(it.path))];
-}
-
-function pruneExcluded(prevExcluded: string[], newItems: Array<{ path: string }>): string[] {
-  if (!newItems?.length) return prevExcluded;
-  return prevExcluded.filter((ex) => {
-    return !newItems.some((it) => ex === it.path || ex.startsWith(it.path + "/") || ex.startsWith(it.path + "\\"));
-  });
-}
+import type { Entry, TrackedFiles } from "@/types/entry.type";
+import type { AccountInfo } from "@/types/account.type";
+import { SEP } from "@/lib/constants";
+import { mergeUnique, pruneExcluded } from "@/utils/path";
+import type { SyncResult } from "@/types/sync.type";
 
 interface DashboardProps {
   auth: boolean;
@@ -25,27 +18,19 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
   const [syncing, setSyncing] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Array<{ path: string; isDirectory: boolean; size?: number }>>([]);
+  const [selectedItems, setSelectedItems] = useState<Entry[]>([]);
   const [stopSyncPaths, setStopSyncPaths] = useState<string[]>([]);
   const [resumeSyncPaths, setResumeSyncPaths] = useState<string[]>([]);
-  interface TrackedFile {
-    provider: string;
-    username: string;
-    src: string;
-    [key: string]: unknown;
-  }
-  const [trackedFiles, setTrackedFiles] = useState<TrackedFile[]>([]);
+  const [trackedFiles, setTrackedFiles] = useState<TrackedFiles[]>([]);
   const [pulling, setPulling] = useState(false);
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [excludedPaths, setExcludedPaths] = useState<string[]>([]);
-  const [filterAccount, setFilterAccount] = useState<{ type: string; username: string } | undefined>(undefined);
-  const [removedAccounts, setRemovedAccounts] = useState<Array<{ type: string; username: string }>>([]);
-  const [cloudAccounts, setCloudAccounts] = useState<Array<{ type: string; id: string; username: string }>>([]);
-  const isWin = navigator?.userAgent.includes("Windows");
-  const SEP = isWin ? "\\" : "/";
+  const [filterAccount, setFilterAccount] = useState<AccountInfo>();
+  const [removedAccounts, setRemovedAccounts] = useState<AccountInfo[]>([]);
+  const [cloudAccounts, setCloudAccounts] = useState<AccountInfo[]>([]);
 
   const displayedFiles = trackedFiles.filter(
-    (f) => !removedAccounts.some((a) => a.type === f.provider && a.username === f.username)
+    (f) => !removedAccounts.some((a) => a.provider === f.provider && a.displayName === f.username)
   );
 
   interface HandleExclude {
@@ -66,13 +51,8 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     setPulling(true);
     try {
       for (const acc of cloudAccounts) {
-        if (acc.type === "google") {
-          await api.useAccount(acc.id);
-          await api.pullFromDrive();
-        } else if (acc.type === "box") {
-          await api.useBoxAccount(acc.id);
-          await api.pullFromBox();
-        }
+        await api.useAccount(acc.provider, acc.id);
+        await api.pull(acc.provider);
       }
       await loadTrackedFiles();
       toast.success("Pull down successful!");
@@ -94,9 +74,8 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         resumeSyncPaths?: string[];
       };
 
-      /* nén bớt path con trùng lặp giống logic cũ */
       const compress = (list: string[]): string[] => {
-        const sorted = [...list].filter((p) => !resumeSyncPaths.includes(p)).sort((a, b) => a.length - b.length); // cha trước con
+        const sorted = [...list].filter((p) => !resumeSyncPaths.includes(p)).sort((a, b) => a.length - b.length);
         const res: string[] = [];
         for (const p of sorted) {
           if (!res.some((r) => p.startsWith(r + SEP))) res.push(p);
@@ -109,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     } catch (err) {
       console.error("[refreshStopLists]", err);
     }
-  }, [SEP]);
+  }, []);
 
   useEffect(() => {
     refreshStopLists();
@@ -117,17 +96,14 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
   const loadTrackedFiles = useCallback(async () => {
     try {
-      const flatten = (arr: Array<Record<string, TrackedFile>>): TrackedFile[] =>
+      const flatten = (arr: Array<Record<string, TrackedFiles>>): TrackedFiles[] =>
         arr.flatMap((m) => (m ? Object.values(m) : []));
 
-      const [driveMap, boxMap] = await Promise.all([
-        api.getTrackedFiles().catch(() => []) as Promise<Array<Record<string, TrackedFile>>>,
-        api.getTrackedFilesBox().catch(() => []) as Promise<Array<Record<string, TrackedFile>>>,
-      ]);
+      const [driveMap, boxMap] = await Promise.all([api.trackedFile("google"), api.trackedFile("box")]);
 
       setTrackedFiles([
-        ...flatten(driveMap as Array<Record<string, TrackedFile>>),
-        ...flatten(boxMap as Array<Record<string, TrackedFile>>),
+        ...flatten(driveMap as Array<Record<string, TrackedFiles>>),
+        ...flatten(boxMap as Array<Record<string, TrackedFiles>>),
       ]);
     } catch (err) {
       console.error("Failed to load tracked files", err);
@@ -150,20 +126,10 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
   }, [loadTrackedFiles, refreshStopLists]);
 
   useEffect(() => {
-    //@ts-ignore: window.electron.ipcRenderer.send("app:settings-request");
     const cb = (): unknown => refreshStopLists();
-    //@ts-ignore: window.electron.ipcRenderer.send("app:settings-request");
     window.electron.ipcRenderer.on("app:settings-updated", cb);
-    return () =>
-      //@ts-ignore: window.electron.ipcRenderer.send("app:settings-request");
-      window.electron.ipcRenderer.removeListener("app:settings-updated", cb);
+    return () => window.electron.ipcRenderer.removeListener("app:settings-updated", cb);
   }, [refreshStopLists]);
-
-  interface CloudAccount {
-    type: string;
-    id: string;
-    username: string;
-  }
 
   const handleDeleteTrackedFile = async (file: {
     src: string;
@@ -174,20 +140,13 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     try {
       const provider = file.provider ?? "";
       const username = file.username ?? "";
-      const acc: CloudAccount | undefined = cloudAccounts.find(
-        (a: CloudAccount) => a.type === provider && (a.username === username || a.id === username)
+      const acc: AccountInfo | undefined = cloudAccounts.find(
+        (a: AccountInfo) => a.provider === provider && (a.displayName === username || a.id === username)
       );
       const accountId: string = acc ? acc.id : username;
 
-      if (provider === "google") {
-        await api.useAccount(accountId);
-        await api.deleteTrackedFile(file.src);
-      } else if (provider === "box") {
-        await api.useBoxAccount(accountId);
-        await api.deleteTrackedFileBox(file.src);
-      } else {
-        throw new Error("Unknown provider");
-      }
+      await api.useAccount(provider, accountId);
+      await api.deleteTrackedFile(provider, file.src);
 
       toast.success("Tracked file deleted successfully!");
       loadTrackedFiles();
@@ -243,14 +202,14 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
     setStopSyncPaths(nextStop);
     setResumeSyncPaths(nextResume);
-    api.updateSettings({
+    api.setSettings({
       stopSyncPaths: nextStop,
       resumeSyncPaths: nextResume,
     });
   };
 
   const handleChooseFiles = async (): Promise<void> => {
-    const items = await api.selectFiles(); // [{ path, size, isDirectory }]
+    const items = await api.selectFiles();
     if (Array.isArray(items) && items.length > 0) {
       setSelectedItems((prev) => mergeUnique(prev, items));
       setExcludedPaths((prev) => pruneExcluded(prev, items));
@@ -258,7 +217,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
   };
 
   const handleChooseFolders = async (): Promise<void> => {
-    const items = await api.selectFolders(); // [{ path, isDirectory, size? }]
+    const items = await api.selectFolders();
     if (Array.isArray(items) && items.length > 0) {
       setSelectedItems((prev) => mergeUnique(prev, items));
     }
@@ -279,11 +238,6 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     username: string;
   }
 
-  interface SyncResult {
-    success: boolean;
-    failed: Array<{ path: string }>;
-  }
-
   const handleSync = async (target: SyncTarget): Promise<void> => {
     if (!selectedItems.length) {
       toast.error("Please select files or folders to sync.");
@@ -295,24 +249,20 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
     }
     setSyncing(true);
     try {
-      if (target.type === "google") await api.useAccount(target.id);
-      else await api.useBoxAccount(target.id);
+      await api.useAccount(target.type, target.id);
 
       // B2: upload
       const payload: { paths: string[]; exclude: string[] } = {
         paths: selectedItems.map((it) => it.path),
         exclude: excludedPaths,
       };
-      const result: SyncResult =
-        target.type === "google"
-          ? ((await api.syncFiles(payload)) as SyncResult)
-          : ((await api.syncBoxFiles(payload)) as SyncResult);
+      const result: SyncResult = await api.syncFiles(target.type, payload);
       if (result.success) {
         toast.success("All files synced successfully!");
         setSelectedItems([]);
         setExcludedPaths([]);
       } else {
-        const failedPaths = result.failed.map((f) => f.path);
+        const failedPaths = result.failed ? [result.failed.path] : [];
         toast.error(`${failedPaths.length} file(s) failed to sync. Please check and try again.`);
         setSelectedItems((prev) => prev.filter((item) => failedPaths.includes(item.path)));
       }
@@ -336,7 +286,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
     const onRemoved = (e: Event): void => {
       const { type, username } = ((e as CustomEvent<CloudAccountEventDetail>).detail || {}) as CloudAccountEventDetail;
-      setRemovedAccounts((prev) => [...prev, { type, username }]);
+      setRemovedAccounts((prev) => [...prev, { provider: type, displayName: username, id: "", type: type }]);
       loadTrackedFiles();
     };
 
@@ -347,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
     const onAdded = (e: Event): void => {
       const { type, username } = (e as CustomEvent<CloudAccountEventDetail>).detail || {};
-      setRemovedAccounts((prev) => prev.filter((x) => !(x.type === type && x.username === username)));
+      setRemovedAccounts((prev) => prev.filter((x) => !(x.provider === type && x.displayName === username)));
       loadTrackedFiles();
     };
 
@@ -360,28 +310,25 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
   }, [loadTrackedFiles]);
 
   const refreshCloudAccounts = useCallback(async () => {
-    //@ts-ignore: api.listAccounts is a function
-    const drive: Array<{ id: string; displayName?: string }> = await api.listAccounts();
+    const drive: AccountInfo[] = await api.listAccounts("google");
     const google = await Promise.all(
       drive.map(async ({ id, displayName }) => {
         return {
-          type: "google",
+          provider: "google",
           id: id, // khóa tra token
-          username: displayName || id.split("@")[0],
+          displayName: displayName || id.split("@")[0],
         };
       })
     );
 
-    //@ts-ignore: api.listAccounts is a function
-    const box: Array<{ id: string; displayName?: string }> = await api.listBoxAccounts();
+    const box: AccountInfo[] = await api.listAccounts("box");
     const boxAcc = await Promise.all(
       box.map(async ({ id, displayName }) => {
-        //@ts-ignore: api.getProfile is a function
-        const prof: { login?: string } | null = await api.getBoxProfile(id).catch(() => null);
+        const profile = await api.getProfile("box", id);
         return {
-          type: "box",
-          id: id,
-          username: displayName || (prof?.login ?? id),
+          provider: "box",
+          id: id, // khóa tra token
+          displayName: displayName || (profile ? profile.displayName : id),
         };
       })
     );
@@ -424,9 +371,9 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
         chooseFiles={handleChooseFiles}
         chooseFolder={handleChooseFolders}
         handleUpload={async (account: { type: string; id: string }) => {
-          const acc = cloudAccounts.find((a) => a.type === account.type && a.id === account.id);
+          const acc = cloudAccounts.find((a) => a.provider === account.type && a.id === account.id);
           if (acc) {
-            await handleSync(acc);
+            await handleSync({ type: acc.provider, id: acc.id, username: acc.displayName || acc.id });
           } else {
             toast.error("Selected account not found.");
           }

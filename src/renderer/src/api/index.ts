@@ -10,7 +10,7 @@ declare global {
       signIn: (providerId: string) => Promise<AccountInfo>;
       listAccounts: (providerId: string) => Promise<AccountInfo[]>;
       useAccount: (providerId: string, accountId: string) => Promise<void>;
-      getProfile: (providerId: string, accountId: string) => Promise<void>;
+      getProfile: (providerId: string, accountId: string) => Promise<AccountInfo>;
       signOut: (providerId: string, accountId: string) => Promise<void>;
 
       /* ---------- File system ---------- */
@@ -21,7 +21,7 @@ declare global {
 
       /* ---------- Settings ---------- */
       getSettings: () => Promise<Setting>;
-      setSettings: (settings: Record<string, boolean>) => Promise<void>;
+      setSettings: (settings: Record<string, boolean | string[]>) => Promise<void>;
 
       /* ---------- Sync ---------- */
       syncFiles: (providerId: string, options: SyncOptions) => Promise<SyncResult>;
@@ -37,10 +37,10 @@ declare global {
       onUpdateDownloaded: (cb: unknown) => void;
       onTrackedFilesUpdated: (cb: unknown) => void;
     };
-    electron?: Electron;
+    electron: Electron;
   }
   interface Electron {
-    ipcRenderer?: {
+    ipcRenderer: {
       on: (channel: string, listener: (...args: unknown[]) => void) => void;
       send: (channel: string, ...args: unknown[]) => void;
       removeListener: (channel: string, listener: (...args: unknown[]) => void) => void;
@@ -53,7 +53,7 @@ export const signIn = (providerId: string): Promise<AccountInfo> => window.api.s
 export const listAccounts = (providerId: string): Promise<AccountInfo[]> => window.api.listAccounts(providerId);
 export const useAccount = (providerId: string, accountId: string): Promise<void> =>
   window.api.useAccount(providerId, accountId);
-export const getProfile = (providerId: string, accountId: string): Promise<void> =>
+export const getProfile = (providerId: string, accountId: string): Promise<AccountInfo> =>
   window.api.getProfile(providerId, accountId);
 export const signOut = (providerId: string, accountId: string): Promise<void> =>
   window.api.signOut(providerId, accountId);
@@ -66,7 +66,8 @@ export const openInExplorer = (path: string): Promise<void> => window.api.openIn
 
 /* ---------- Settings ---------- */
 export const getSettings = (): Promise<Setting> => window.api.getSettings();
-export const setSettings = (settings: Record<string, boolean>): Promise<void> => window.api.setSettings(settings);
+export const setSettings = (settings: Record<string, boolean | string[]>): Promise<void> =>
+  window.api.setSettings(settings);
 
 /* ---------- Sync ---------- */
 export const syncFiles = (providerId: string, options: SyncOptions): Promise<SyncResult> =>

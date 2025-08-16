@@ -53,7 +53,7 @@ const App: React.FC = () => {
     if (!window.electron?.ipcRenderer) return;
     const onToast = (_: unknown, msg: unknown): Id => toast.info(String(msg), { toastId: String(msg) });
     window.electron.ipcRenderer.on("app:toast", onToast);
-    return () => window.electron?.ipcRenderer?.removeListener("app:toast", onToast);
+    return () => window.electron.ipcRenderer.removeListener("app:toast", onToast);
   }, []);
 
   return (
