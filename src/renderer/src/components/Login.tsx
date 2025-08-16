@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as api from "../api";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import type { AccountInfo } from "../types/account";
+import type { AccountInfo } from "../types/account.type";
 type Provider = {
   id: string;
   label: string;

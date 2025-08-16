@@ -1,6 +1,5 @@
-// src/renderer/types/account.ts
 export interface AccountInfo {
   provider: string; // "google" | "box" | "dropbox" | ...
   id: string; // email, login, userId...
-  displayName?: string; // Tên hiển thị
+  displayName?: string; // user's display name
 }

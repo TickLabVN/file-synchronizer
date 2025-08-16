@@ -1,31 +1,36 @@
+import type { AccountInfo } from "@/types/account.type";
+import type { Entry, TrackedFiles } from "@/types/entry.type";
+import type { Setting } from "@/types/setting.type";
+import type { SyncOptions, SyncResult } from "@/types/sync.type";
+
 declare global {
   interface Window {
     api: {
       /* ---------- Auth ---------- */
-      signIn: (providerId: string) => Promise<unknown>;
-      listAccounts: (providerId: string) => Promise<unknown>;
-      useAccount: (providerId: string, accountId: string) => Promise<unknown>;
-      getProfile: (providerId: string, accountId: string) => Promise<unknown>;
-      signOut: (providerId: string, accountId: string) => Promise<unknown>;
+      signIn: (providerId: string) => Promise<AccountInfo>;
+      listAccounts: (providerId: string) => Promise<AccountInfo[]>;
+      useAccount: (providerId: string, accountId: string) => Promise<void>;
+      getProfile: (providerId: string, accountId: string) => Promise<void>;
+      signOut: (providerId: string, accountId: string) => Promise<void>;
 
       /* ---------- File system ---------- */
-      selectFiles: () => Promise<unknown>;
-      selectFolders: () => Promise<unknown>;
-      listDirectory: (path: string) => Promise<unknown>;
-      openInExplorer: (path: string) => Promise<unknown>;
+      selectFiles: () => Promise<Entry[]>;
+      selectFolders: () => Promise<Entry[]>;
+      listDirectory: (path: string) => Promise<Entry[]>;
+      openInExplorer: (path: string) => Promise<void>;
 
       /* ---------- Settings ---------- */
-      getSettings: () => Promise<unknown>;
-      setSettings: (settings: unknown) => Promise<unknown>;
+      getSettings: () => Promise<Setting>;
+      setSettings: (settings: Record<string, boolean>) => Promise<void>;
 
       /* ---------- Sync ---------- */
-      syncFiles: (providerId: string, options: unknown) => Promise<unknown>;
-      pull: (providerId: string) => Promise<unknown>;
-      autoSync: () => Promise<unknown>;
+      syncFiles: (providerId: string, options: SyncOptions) => Promise<SyncResult>;
+      pull: (providerId: string) => Promise<boolean>;
+      autoSync: () => Promise<void>;
 
       /* ---------- Tracked files ---------- */
-      trackedFile: (providerId: string) => Promise<unknown>;
-      deleteTrackedFile: (providerId: string, src: string) => Promise<unknown>;
+      trackedFile: (providerId: string) => Promise<TrackedFiles[]>;
+      deleteTrackedFile: (providerId: string, src: string) => Promise<void>;
 
       /* ---------- Events từ main ---------- */
       onUpdateAvailable: (cb: unknown) => void;
@@ -35,67 +40,38 @@ declare global {
   }
 }
 
-type Provider = "google" | "box";
-const G: Provider = "google";
-const B: Provider = "box";
+/* ---------- Auth ---------- */
+export const signIn = (providerId: string): Promise<AccountInfo> => window.api.signIn(providerId);
+export const listAccounts = (providerId: string): Promise<AccountInfo[]> => window.api.listAccounts(providerId);
+export const useAccount = (providerId: string, accountId: string): Promise<void> =>
+  window.api.useAccount(providerId, accountId);
+export const getProfile = (providerId: string, accountId: string): Promise<void> =>
+  window.api.getProfile(providerId, accountId);
+export const signOut = (providerId: string, accountId: string): Promise<void> =>
+  window.api.signOut(providerId, accountId);
 
-/* ------------------------------------------------------------------ */
-/*                          Authentication                           */
-/* ------------------------------------------------------------------ */
-export const signIn = (): Promise<unknown> => window.api.signIn(G);
-export const boxSignIn = (): Promise<unknown> => window.api.signIn(B);
+/* ---------- File system ---------- */
+export const selectFiles = (): Promise<Entry[]> => window.api.selectFiles();
+export const selectFolders = (): Promise<Entry[]> => window.api.selectFolders();
+export const listDirectory = (path: string): Promise<Entry[]> => window.api.listDirectory(path);
+export const openInExplorer = (path: string): Promise<void> => window.api.openInExplorer(path);
 
-export const listAccounts = (): Promise<unknown> => window.api.listAccounts(G);
-export const listBoxAccounts = (): Promise<unknown> => window.api.listAccounts(B);
+/* ---------- Settings ---------- */
+export const getSettings = (): Promise<Setting> => window.api.getSettings();
+export const setSettings = (settings: Record<string, boolean>): Promise<void> => window.api.setSettings(settings);
 
-export const useAccount = (email: string): Promise<unknown> => window.api.useAccount(G, email);
-export const useBoxAccount = (login: string): Promise<unknown> => window.api.useAccount(B, login);
+/* ---------- Sync ---------- */
+export const syncFiles = (providerId: string, options: SyncOptions): Promise<SyncResult> =>
+  window.api.syncFiles(providerId, options);
+export const pull = (providerId: string): Promise<boolean> => window.api.pull(providerId);
+export const autoSync = (): Promise<void> => window.api.autoSync();
 
-export const getProfile = (email: string): Promise<unknown> => window.api.getProfile(G, email);
-export const getBoxProfile = (login: string): Promise<unknown> => window.api.getProfile(B, login);
+/* ---------- Tracked files ---------- */
+export const trackedFile = (providerId: string): Promise<TrackedFiles[]> => window.api.trackedFile(providerId);
+export const deleteTrackedFile = (providerId: string, src: string): Promise<void> =>
+  window.api.deleteTrackedFile(providerId, src);
 
-export const signOut = (email: string): Promise<unknown> => window.api.signOut(G, email);
-export const boxSignOut = (login: string): Promise<unknown> => window.api.signOut(B, login);
-
-/* ------------------------------------------------------------------ */
-/*                           File system                              */
-/* ------------------------------------------------------------------ */
-export const selectFiles = (): Promise<unknown> => window.api.selectFiles();
-export const selectFolders = (): Promise<unknown> => window.api.selectFolders();
-export const listDirectory = (path: string): Promise<unknown> => window.api.listDirectory(path);
-export const openInExplorer = (path: string): Promise<unknown> => window.api.openInExplorer(path);
-
-/* ------------------------------------------------------------------ */
-/*                             Settings                               */
-/* ------------------------------------------------------------------ */
-export const getSettings = (): Promise<unknown> => window.api.getSettings();
-/* Giữ tên cũ `updateSettings` để JSX hiện tại không phải đổi */
-export const updateSettings = (settings: unknown): Promise<unknown> => window.api.setSettings(settings);
-
-/* ------------------------------------------------------------------ */
-/*                               Sync                                 */
-/* ------------------------------------------------------------------ */
-export const syncFiles = (options: unknown): Promise<unknown> => window.api.syncFiles(G, options);
-export const syncBoxFiles = (options: unknown): Promise<unknown> => window.api.syncFiles(B, options);
-
-export const pullFromDrive = (): Promise<unknown> => window.api.pull(G);
-export const pullFromBox = (): Promise<unknown> => window.api.pull(B);
-
-export const syncOnLaunch = (): Promise<unknown> => window.api.autoSync();
-export const syncBoxOnLaunch = (): Promise<unknown> => window.api.autoSync();
-
-/* ------------------------------------------------------------------ */
-/*                          Tracked files                             */
-/* ------------------------------------------------------------------ */
-export const getTrackedFiles = (): Promise<unknown> => window.api.trackedFile(G);
-export const getTrackedFilesBox = (): Promise<unknown> => window.api.trackedFile(B);
-
-export const deleteTrackedFile = (src: string): Promise<unknown> => window.api.deleteTrackedFile(G, src);
-export const deleteTrackedFileBox = (src: string): Promise<unknown> => window.api.deleteTrackedFile(B, src);
-
-/* ------------------------------------------------------------------ */
-/*                             Events                                 */
-/* ------------------------------------------------------------------ */
+/* ---------- Events from main ---------- */
 export const onUpdateAvailable = (cb: unknown): void => window.api.onUpdateAvailable(cb);
 export const onUpdateDownloaded = (cb: unknown): void => window.api.onUpdateDownloaded(cb);
 export const onTrackedFilesUpdated = (cb: unknown): void => window.api.onTrackedFilesUpdated(cb);
