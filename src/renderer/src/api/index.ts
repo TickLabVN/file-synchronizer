@@ -37,6 +37,14 @@ declare global {
       onUpdateDownloaded: (cb: unknown) => void;
       onTrackedFilesUpdated: (cb: unknown) => void;
     };
+    electron?: Electron;
+  }
+  interface Electron {
+    ipcRenderer?: {
+      on: (channel: string, listener: (...args: unknown[]) => void) => void;
+      send: (channel: string, ...args: unknown[]) => void;
+      removeListener: (channel: string, listener: (...args: unknown[]) => void) => void;
+    };
   }
 }
 
@@ -75,3 +83,10 @@ export const deleteTrackedFile = (providerId: string, src: string): Promise<void
 export const onUpdateAvailable = (cb: unknown): void => window.api.onUpdateAvailable(cb);
 export const onUpdateDownloaded = (cb: unknown): void => window.api.onUpdateDownloaded(cb);
 export const onTrackedFilesUpdated = (cb: unknown): void => window.api.onTrackedFilesUpdated(cb);
+
+/* ---------- Electron IPC Renderer ---------- */
+export const ipcRenderer = window.electron?.ipcRenderer || {
+  on: () => {},
+  send: () => {},
+  removeListener: () => {},
+};

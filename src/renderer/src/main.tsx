@@ -7,9 +7,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import * as api from "./api";
 
-//@ts-ignore: window.api is defined in preload script
 api.getSettings().then((settings) => {
-  const { darkMode } = settings as { darkMode: boolean };
+  const { darkMode } = settings;
   if (darkMode) {
     document.documentElement.classList.add("dark");
   } else {

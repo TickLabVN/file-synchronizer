@@ -21,8 +21,6 @@ function pruneExcluded(prevExcluded: string[], newItems: Array<{ path: string }>
 
 interface DashboardProps {
   auth: boolean;
-  username?: string;
-  provider: { type: string } | null;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
