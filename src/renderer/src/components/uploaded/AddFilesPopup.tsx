@@ -15,6 +15,7 @@ import {
 import * as api from "../../api";
 import FileExtIcon from "../FileExtIcon";
 import { formatBytes } from "@/utils/formatByte";
+import type { AccountInfo } from "@/types/account.type";
 
 const FileBadge: React.FC<{ path: string }> = ({ path }) => <FileExtIcon path={path} size={14} />;
 
@@ -34,6 +35,15 @@ type AddFilesPopupProps = {
   handleExclude: (path: string) => void;
 };
 
+interface DirectoryEntry {
+  path: string;
+  isDirectory: boolean;
+  size?: number;
+}
+
+type ExpandedState = Record<string, boolean>;
+type DirContentsState = Record<string, DirectoryEntry[]>;
+
 export default function AddFilesPopup({
   open,
   onOpenChange,
@@ -45,10 +55,10 @@ export default function AddFilesPopup({
   excludedPaths,
   handleExclude,
 }: AddFilesPopupProps): React.ReactElement | null {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({}); // track folder expand/collapse
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dirContents, setDirContents] = useState<Record<string, DirectoryEntry[]>>({});
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
-  const [accountList, setAccountList] = useState<Array<{ label: string; value: string }>>([]); // [{label,value}]
+  const [accountList, setAccountList] = useState<Array<{ label: string; value: string }>>([]);
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const hasAccount = accountList.length > 0;
   const canUpload = hasAccount && selected && selectedItems.length;
@@ -58,10 +68,8 @@ export default function AddFilesPopup({
   }, [selectedItems]);
 
   const fetchAccounts = async (): Promise<void> => {
-    //@ts-ignore: api is defined in preload script
-    const gd: Array<{ id: string; displayName?: string }> = await api.listAccounts(); // [{email, displayName?}]
-    //@ts-ignore: api is defined in preload script
-    const box: Array<{ id: string; displayName?: string }> = await api.listBoxAccounts(); // [{login, displayName?}]
+    const gd: AccountInfo[] = await api.listAccounts("google");
+    const box: AccountInfo[] = await api.listAccounts("box");
     const list = [
       ...(await Promise.all(
         gd.map(async ({ id, displayName }) => {
@@ -74,10 +82,8 @@ export default function AddFilesPopup({
       )),
       ...(await Promise.all(
         box.map(async ({ id, displayName }) => {
-          const prof = (await api.getBoxProfile(id)) as {
-            name?: string;
-          } | null;
-          const uname = displayName || (prof ? prof.name : id);
+          const prof = await api.getProfile("box", id);
+          const uname = displayName || (prof ? prof.displayName : id);
           return {
             label: `Box – ${uname}`,
             value: JSON.stringify({ type: "box", id: id }),
@@ -86,11 +92,9 @@ export default function AddFilesPopup({
       )),
     ];
     setAccountList(list);
-    /* nếu tuỳ chọn hiện tại không còn hợp lệ → reset */
     setSelected((prev) => list.find((a) => a.value === prev)?.value ?? list[0]?.value ?? undefined);
   };
 
-  /* mở popup → load lại ngay */
   useEffect(() => {
     if (open) fetchAccounts();
   }, [open]);
@@ -99,15 +103,6 @@ export default function AddFilesPopup({
     window.addEventListener("cloud-accounts-updated", fetchAccounts);
     return () => window.removeEventListener("cloud-accounts-updated", fetchAccounts);
   }, []);
-
-  interface DirectoryEntry {
-    path: string;
-    isDirectory: boolean;
-    size?: number;
-  }
-
-  type ExpandedState = Record<string, boolean>;
-  type DirContentsState = Record<string, DirectoryEntry[]>;
 
   const toggleDir = async (p: string): Promise<void> => {
     setExpanded((prev: ExpandedState) => ({ ...prev, [p]: !prev[p] }));
@@ -123,13 +118,13 @@ export default function AddFilesPopup({
       setLoadingPath(null);
     }
   };
+
   const renderEntry = (item: DirectoryEntry, depth = 0): React.ReactNode => {
     const isDir = item.isDirectory;
     const isExpanded = expanded[item.path];
     const children = dirContents[item.path] ?? [];
     const hasChild = children.length > 0;
     const isExcluded = excludedPaths.includes(item.path);
-
     const indentStyle = depth ? { paddingLeft: depth * 12 } : undefined;
     const rowClasses = isExcluded ? "opacity-50 line-through" : "";
 
@@ -195,7 +190,6 @@ export default function AddFilesPopup({
     );
   };
 
-  /* ------------------------------------ UI ---------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden rounded-2xl p-0 shadow-2xl sm:max-w-md">
@@ -227,7 +221,6 @@ export default function AddFilesPopup({
             <FileIcon className="mr-2 h-4 w-4" /> Choose File
           </Button>
 
-          {/* Provider */}
           <div>
             <label className="mb-1 block text-sm font-medium">Cloud account</label>
             <Select value={selected} onValueChange={setSelected}>
