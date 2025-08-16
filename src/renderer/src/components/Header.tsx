@@ -4,18 +4,17 @@ import { useEffect, useState } from "react";
 import * as api from "../api";
 import { toast } from "react-toastify";
 import icon from "@assets/icon.png";
+import type { Setting } from "@/types/setting.type";
 
 const Header: React.FC = () => {
-  const [setting, setSetting] = useState({
+  const [setting, setSetting] = useState<Setting>({
     darkMode: false,
   });
 
   useEffect(() => {
     async function fetchSettings(): Promise<void> {
       try {
-        const settings = (await api.getSettings()) as {
-          darkMode: boolean;
-        };
+        const settings = await api.getSettings();
         setSetting(settings);
         if (settings.darkMode) {
           document.documentElement.classList.add("dark");
@@ -35,17 +34,11 @@ const Header: React.FC = () => {
     fetchSettings();
   }, []);
 
-  interface Setting {
-    darkMode: boolean;
-  }
-
-  type SettingKey = keyof Setting;
-
-  const toggle = (key: SettingKey) => async (): Promise<void> => {
+  const toggle = (key: keyof Setting) => async (): Promise<void> => {
     const newValue = !setting[key];
     setSetting((prev: Setting) => ({ ...prev, [key]: newValue }));
     try {
-      await api.updateSettings({ [key]: newValue });
+      await api.setSettings({ [key]: newValue });
       if (key === "darkMode") {
         if (newValue) {
           document.documentElement.classList.add("dark");

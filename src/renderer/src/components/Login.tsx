@@ -30,8 +30,7 @@ const Login: React.FC<LoginProps> = ({ providerList, onSuccess, onClose, cloud, 
     setStatus("loading");
     setError(null);
     try {
-      const result: AccountInfo =
-        id === "google" ? ((await api.signIn()) as AccountInfo) : ((await api.boxSignIn()) as AccountInfo);
+      const result: AccountInfo = id === "google" ? await api.signIn("google") : await api.signIn("box");
 
       const accountId = result.id;
       const username = result.displayName ?? accountId;
