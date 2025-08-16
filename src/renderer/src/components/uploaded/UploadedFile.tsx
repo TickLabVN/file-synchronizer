@@ -17,8 +17,7 @@ import {
   type TreeNode,
 } from "@/utils/treeRender";
 
-//@ts-ignore: api is a global object injected by the backend
-const openInExplorer = (path: string): void => api.openInExplorer(path);
+const openInExplorer = (path: string): Promise<void> => api.openInExplorer(path);
 
 const PROVIDER_ICONS = {
   google: ggdrive,
@@ -36,6 +35,21 @@ type UploadedFileProps = {
   hasCloud?: boolean;
   resumeSyncPaths?: string[];
 };
+
+interface ExpandedState {
+  [path: string]: boolean;
+}
+
+interface RenderNodeProps {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  children?: Record<string, TreeNode>;
+  size?: number;
+  lastSync?: string;
+  provider?: string;
+  username?: string;
+}
 
 export default function UploadedFile({
   handlePullDown,
@@ -72,22 +86,7 @@ export default function UploadedFile({
     return flattenUntrackedRoots(rawRoot);
   }, [trackedFiles, filterAccount]);
 
-  interface ExpandedState {
-    [path: string]: boolean;
-  }
-
   const toggle = (p: string): void => setExpanded((prev: ExpandedState) => ({ ...prev, [p]: !prev[p] }));
-
-  interface RenderNodeProps {
-    name: string;
-    path: string;
-    isDirectory: boolean;
-    children?: Record<string, TreeNode>;
-    size?: number;
-    lastSync?: string;
-    provider?: string;
-    username?: string;
-  }
 
   const renderNode = (orig: TreeNode, depth: number = 0): React.ReactElement => {
     const node: RenderNodeProps = compressPath(orig);
@@ -186,10 +185,8 @@ export default function UploadedFile({
     );
   };
 
-  /* ------------------------------- Render UI ----------------------------- */
   return (
     <div className="rounded-lg border-2 border-dashed p-6 dark:border-gray-600 dark:bg-gray-700">
-      {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Uploaded Files</h2>
         <button
@@ -201,7 +198,6 @@ export default function UploadedFile({
         </button>
       </div>
 
-      {/* Pull from cloud */}
       <button
         className="mb-4 w-40 rounded bg-green-600 py-2 text-white hover:bg-green-700 dark:bg-green-800 dark:hover:bg-green-900"
         onClick={handlePullDown}
@@ -210,7 +206,6 @@ export default function UploadedFile({
         Pull from Cloud
       </button>
 
-      {/* File list */}
       {Object.keys(tree).length ? (
         <ul className="scrollbar max-h-[30vw] space-y-2 overflow-auto pr-2">
           {Object.values(tree).map((n) => renderNode(n))}
