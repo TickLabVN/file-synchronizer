@@ -14,34 +14,29 @@ const PROVIDER_OPTIONS = [
 ];
 
 import type { ReactElement } from "react";
-interface CloudAccount {
-  type: string;
-  accountId: string;
-  icon: string;
-  username: string;
-  label: string;
-}
+import type { AccountInfo } from "@/types/account.type";
 
 interface CloudProviderProps {
-  onFilterChange?: (filter: CloudAccount | null) => void;
+  onFilterChange?: (filter: AccountInfo | null) => void;
+}
+
+interface HandleCardClickArg {
+  provider: string; // "google" | "box" | "dropbox" | ...
+  id: string; // email, login, userId...
+  displayName?: string; // user's display name
+  icon?: string; // URL to the icon image
+  label?: string; // user-friendly label for the account
 }
 
 export default function CloudProvider({ onFilterChange }: CloudProviderProps): ReactElement {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [picked, setPicked] = useState<string>("");
-  const [connected, setConnected] = useState<CloudAccount[]>([]);
-  const [delTarget, setDelTarget] = useState<CloudAccount | null>(null);
-  const [activeFilter, setActiveFilter] = useState<CloudAccount | null>(null);
-  interface HandleCardClickArg {
-    type: string;
-    accountId: string;
-    icon: string;
-    username: string;
-    label: string;
-  }
+  const [connected, setConnected] = useState<AccountInfo[]>([]);
+  const [delTarget, setDelTarget] = useState<AccountInfo | null>(null);
+  const [activeFilter, setActiveFilter] = useState<AccountInfo | null>(null);
 
   const handleCardClick = (acc: HandleCardClickArg): void => {
-    const same = activeFilter && activeFilter.type === acc.type && activeFilter.accountId === acc.accountId;
+    const same = activeFilter && activeFilter.provider === acc.provider && activeFilter.id === acc.id;
     const next = same ? null : acc;
     setActiveFilter(next);
     onFilterChange?.(next);
@@ -50,41 +45,31 @@ export default function CloudProvider({ onFilterChange }: CloudProviderProps): R
   useEffect(() => {
     let alive = true;
     const loadAccounts = async (): Promise<void> => {
-      const list: CloudAccount[] = [];
+      const list: AccountInfo[] = [];
 
-      /* ---------- GOOGLE ---------- */
-      // @ts-ignore: api.listAccounts is a custom function
-      const gd = (await api.listAccounts().catch(() => [])) as Array<{
-        id: string;
-        displayName?: string;
-      }>;
+      const gd: AccountInfo[] = await api.listAccounts("google");
       await Promise.allSettled(
         gd.map(async ({ id, displayName }) => {
           const uname = displayName ?? id.split("@")[0];
           list.push({
-            type: "google",
-            accountId: id,
+            provider: "google",
+            id: id,
             icon: ggdrive,
-            username: uname,
+            displayName: uname,
             label: `Drive – ${uname}`,
           });
         })
       );
 
-      /* ---------- BOX ---------- */
-      // @ts-ignore: api.listAccounts is a custom function
-      const bx = (await api.listBoxAccounts().catch(() => [])) as Array<{
-        id: string;
-        displayName?: string;
-      }>;
+      const bx: AccountInfo[] = await api.listAccounts("box");
       await Promise.allSettled(
         bx.map(async ({ id, displayName }) => {
           const uname = displayName ?? id;
           list.push({
-            type: "box",
-            accountId: id,
+            provider: "box",
+            id: id,
             icon: box,
-            username: uname,
+            displayName: uname,
             label: `Box – ${uname}`,
           });
         })
@@ -107,7 +92,7 @@ export default function CloudProvider({ onFilterChange }: CloudProviderProps): R
       console.error("Invalid provider type:", type);
       return;
     }
-    const existing = connected.find((c) => c.type === type && c.accountId === accountId);
+    const existing = connected.find((c) => c.provider === type && c.id === accountId);
     if (existing) {
       console.warn("Account already connected:", accountId);
       setShowLoginModal(false);
@@ -116,14 +101,14 @@ export default function CloudProvider({ onFilterChange }: CloudProviderProps): R
     }
     const uname: string = username || accountId.split("@")[0];
     const providerLabel: string = type === "google" ? "Drive" : "Box";
-    const newAccount: CloudAccount = {
-      type,
-      accountId,
+    const newAccount: AccountInfo = {
+      provider: type,
+      id: accountId,
       icon: option.icon,
-      username: uname,
+      displayName: uname,
       label: `${providerLabel} – ${uname}`,
     };
-    const next: CloudAccount[] = [...connected, newAccount];
+    const next: AccountInfo[] = [...connected, newAccount];
     setConnected(next);
 
     window.dispatchEvent(new CustomEvent("cloud-accounts-updated"));
@@ -133,8 +118,7 @@ export default function CloudProvider({ onFilterChange }: CloudProviderProps): R
       })
     );
 
-    if (type === "google") await api.useAccount(accountId);
-    else await api.useBoxAccount(accountId);
+    await api.useAccount(type, accountId);
 
     setShowLoginModal(false);
     setPicked("");
@@ -143,15 +127,14 @@ export default function CloudProvider({ onFilterChange }: CloudProviderProps): R
   const handleDelete = async (): Promise<void> => {
     if (!delTarget) return;
     try {
-      if (delTarget.type === "google") await api.signOut(delTarget.accountId);
-      else await api.boxSignOut(delTarget.accountId);
+      await api.signOut(delTarget.provider, delTarget.id);
     } catch (e) {
       console.error("Revoke token fail", e);
     }
 
-    const next = connected.filter((p) => !(p.type === delTarget.type && p.accountId === delTarget.accountId));
+    const next = connected.filter((p) => !(p.provider === delTarget.provider && p.id === delTarget.id));
     setConnected(next);
-    if (activeFilter && activeFilter.type === delTarget.type && activeFilter.accountId === delTarget.accountId) {
+    if (activeFilter && activeFilter.provider === delTarget.provider && activeFilter.id === delTarget.id) {
       setActiveFilter(null);
       onFilterChange?.(null);
     }
@@ -176,10 +159,10 @@ export default function CloudProvider({ onFilterChange }: CloudProviderProps): R
         {connected.map((c) => {
           return (
             <div
-              key={`${c.type}-${c.accountId}`}
+              key={`${c.provider}-${c.id}`}
               onClick={() => handleCardClick(c)}
               className={`flex cursor-pointer items-center justify-between rounded-md border px-3 py-2 dark:border-gray-600 ${
-                activeFilter && activeFilter.type === c.type && activeFilter.accountId === c.accountId
+                activeFilter && activeFilter.provider === c.provider && activeFilter.id === c.id
                   ? "ring-2 ring-blue-500"
                   : "border-gray-300"
               }`}
