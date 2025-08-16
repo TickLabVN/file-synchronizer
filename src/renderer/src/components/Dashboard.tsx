@@ -32,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
 
   const displayedFiles = trackedFiles
     .filter((f) => !removedAccounts.some((a) => a.provider === f.provider && a.displayName === f.username))
-    .map((file) => ({ ...file, src: file.path || file.name || "" })) as TrackedFileItem[];
+    .map((file) => ({ ...file, src: file.src || file.path || file.name || "" })) as TrackedFileItem[];
 
   interface HandleExclude {
     (p: string): void;
