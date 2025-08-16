@@ -11,6 +11,7 @@ import type { AccountInfo } from "@/types/account.type";
 import { SEP } from "@/lib/constants";
 import { mergeUnique, pruneExcluded } from "@/utils/path";
 import type { SyncResult } from "@/types/sync.type";
+import type { TrackedFileItem } from "@/utils/treeRender";
 
 interface DashboardProps {
   auth: boolean;
@@ -29,9 +30,9 @@ const Dashboard: React.FC<DashboardProps> = ({ auth }) => {
   const [removedAccounts, setRemovedAccounts] = useState<AccountInfo[]>([]);
   const [cloudAccounts, setCloudAccounts] = useState<AccountInfo[]>([]);
 
-  const displayedFiles = trackedFiles.filter(
-    (f) => !removedAccounts.some((a) => a.provider === f.provider && a.displayName === f.username)
-  );
+  const displayedFiles = trackedFiles
+    .filter((f) => !removedAccounts.some((a) => a.provider === f.provider && a.displayName === f.username))
+    .map((file) => ({ ...file, src: file.path || file.name || "" })) as TrackedFileItem[];
 
   interface HandleExclude {
     (p: string): void;

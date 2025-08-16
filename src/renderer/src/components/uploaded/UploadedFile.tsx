@@ -16,6 +16,7 @@ import {
   type TrackedFileItem,
   type TreeNode,
 } from "@/utils/treeRender";
+import type { AccountInfo } from "@/types/account.type";
 
 const openInExplorer = (path: string): Promise<void> => api.openInExplorer(path);
 
@@ -31,7 +32,7 @@ type UploadedFileProps = {
   onToggleStopSync: (path: string) => void;
   onDeleteTrackedFile: (file: { src: string; provider?: string; username?: string }) => void;
   onAddClick: () => void;
-  filterAccount?: { type: string; username: string };
+  filterAccount?: AccountInfo | null;
   hasCloud?: boolean;
   resumeSyncPaths?: string[];
 };
@@ -77,7 +78,10 @@ export default function UploadedFile({
 
     if (filterAccount) {
       for (const k of Object.keys(rawRoot)) {
-        const filtered = filterTree(rawRoot[k], filterAccount);
+        const filtered = filterTree(rawRoot[k], {
+          type: filterAccount.provider,
+          username: filterAccount.displayName ?? "",
+        });
         if (filtered) rawRoot[k] = filtered;
         else delete rawRoot[k];
       }
