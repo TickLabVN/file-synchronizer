@@ -4,6 +4,10 @@ A cross-platform desktop application built with ElectronJS for synchronizing fil
 
 > **Note:** Because the server is deployed on Render, the first login may take a few seconds while the server starts up. Please wait for the loading indicator before proceeding.
 
+## Live Demo
+
+🔗 **Demo Link**: [file_synchronizer_demo.mp4](https://drive.google.com/file/d/1wV0Iv50ssLmSAzVNi9JBM9Avd2p8TR_a/view?usp=drive_link)
+
 ## Features
 
 - Cross-platform support (Windows, macOS, Linux)
